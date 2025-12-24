@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Employee {
+  id              String   @id @default(cuid())
+  employeeId      String   @unique
+  employeeName    String
+  position        String?
+  department      String?
+  email           String?
+  phone           String?
+  joinDate        DateTime?
+  status          String?
+  avatar          String?
+  birthDate       DateTime?
+  address         String?
+  emergencyContact String?
+  bloodGroup      String?
+  employeeType    String?
+  manager         String?
+  workLocation    String?
+  salary          String?
+  skills          Json?
+  education       Json?
+  documents       Json?
+  reviews         Json?
+  achievements    Json?
+  attendances     Attendance[]
+  leaveRequests   LeaveRequest[]
+  ProjectMembers  ProjectMember[]
+}
+
+model Attendance {
+  id            String   @id @default(cuid())
+  employeeId    String
+  employee      Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date          DateTime
+  checkIn       String?
+  checkOut      String?
+  checkInStatus String?
+  checkOutStatus String?
+  workingHours  Float?
+  status        String?
+}
+
+model LeaveRequest {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeName String?
+  leaveType   String?
+  startDate   DateTime?
+  endDate     DateTime?
+  days        Int?
+  reason      String?
+  status      String?
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  name      String
+  client    String?
+  startDate DateTime?
+  deadline  DateTime?
+  progress  Int?
+  status    String?
+  members   ProjectMember[]
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  employee  Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId String
+}
