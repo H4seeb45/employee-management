@@ -33,6 +33,8 @@ model Employee {
   attendances     Attendance[]
   leaveRequests   LeaveRequest[]
   ProjectMembers  ProjectMember[]
+  payrolls        Payroll[]
+  loans           Loan[]
 }
 
 model Attendance {
@@ -78,4 +80,31 @@ model ProjectMember {
   projectId String
   employee  Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   employeeId String
+}
+
+model Payroll {
+  id             String   @id @default(cuid())
+  employeeId     String
+  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  amount         Float
+  periodStart    DateTime?
+  periodEnd      DateTime?
+  paidAt         DateTime?
+  paymentMethod  String?
+  status         String?
+  notes          String?
+}
+
+model Loan {
+  id                 String   @id @default(cuid())
+  employeeId         String
+  employee           Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  principalAmount    Float
+  issuedAt           DateTime?
+  dueAt              DateTime?
+  balance            Float?
+  installments       Int?
+  monthlyInstallment Float?
+  status             String?
+  notes              String?
 }

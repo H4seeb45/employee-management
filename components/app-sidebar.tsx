@@ -13,6 +13,7 @@ import {
   Briefcase,
   Settings,
   X,
+  Banknote,
 } from "lucide-react";
 import { useLayout } from "@/components/layout/layout-provider";
 
@@ -25,7 +26,9 @@ const sidebarItems = [
     href: "/dashboard/leave-management",
     icon: ClipboardList,
   },
-  { name: "Projects", href: "/dashboard/projects", icon: Briefcase },
+  { name: "Payroll", href: "/dashboard/payroll", icon: Briefcase },
+  { name: "Loans", href: "/dashboard/loans", icon: Banknote },
+  // { name: "Projects", href: "/dashboard/projects", icon: Briefcase },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
@@ -64,7 +67,7 @@ export function AppSidebar() {
         <div className="flex flex-col h-full">
           <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-700">
             <h1 className="text-xl font-bold text-sky-600 dark:text-sky-400">
-              Saadiq Traders
+              Sadiq Traders
             </h1>
             <Button
               variant="ghost"
@@ -114,10 +117,10 @@ export function AppSidebar() {
               </div>
               <div className="ml-3">
                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Saadiq Traders Admin
+                  Sadiq Traders Admin
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  admin@saadiqtraders.com
+                  admin@sadiqtraders.com
                 </p>
               </div>
             </div>

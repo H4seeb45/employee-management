@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 
 export function LoginForm({ className }: { className?: string }) {
-  const DEMO_EMAIL = "admin@saadiqtraders.com";
+  const DEMO_EMAIL = "admin@sadiqtraders.com";
   const DEMO_PASSWORD = "admin123";
 
   const router = useRouter();
