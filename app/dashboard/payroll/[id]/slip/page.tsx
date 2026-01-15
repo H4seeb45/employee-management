@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { Loader2 } from "lucide-react";
 
 export default function PayrollSlipPage() {
   const params = useParams();
@@ -68,7 +69,9 @@ export default function PayrollSlipPage() {
       </div>
 
       {loading ? (
-        <p>Loading...</p>
+        <div className="flex items-center justify-center h-full">
+          <Loader2 className="h-5 w-5 animate-spin" />
+        </div>
       ) : !payroll ? (
         <p>Payroll record not found.</p>
       ) : (
