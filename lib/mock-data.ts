@@ -1,7 +1,7 @@
 export const mockEmployees = [
   {
     id: "1",
-    name: "Employee EMP001",
+    employeeName: "Employee EMP001",
     employeeId: "EMP001",
     position: "Frontend Developer",
     department: "Engineering",
@@ -16,7 +16,6 @@ export const mockEmployees = [
     bloodGroup: "O+",
     employeeType: "Full-time",
     manager: "",
-    workLocation: "",
     salary: "PKR 95,000",
     skills: ["React", "TypeScript", "CSS", "HTML", "JavaScript"],
     education: [
@@ -67,7 +66,7 @@ export const mockEmployees = [
   },
   {
     id: "2",
-    name: "Employee EMP002",
+    employeeName: "Employee EMP002",
     employeeId: "EMP002",
     position: "Marketing Specialist",
     department: "Marketing",
@@ -79,7 +78,7 @@ export const mockEmployees = [
   },
   {
     id: "3",
-    name: "Employee EMP003",
+    employeeName: "Employee EMP003",
     employeeId: "EMP003",
     position: "HR Manager",
     department: "Human Resources",
@@ -91,7 +90,7 @@ export const mockEmployees = [
   },
   {
     id: "4",
-    name: "Employee EMP004",
+    employeeName: "Employee EMP004",
     employeeId: "EMP004",
     position: "Backend Developer",
     department: "Engineering",
@@ -103,7 +102,7 @@ export const mockEmployees = [
   },
   {
     id: "5",
-    name: "Employee EMP005",
+    employeeName: "Employee EMP005",
     employeeId: "EMP005",
     position: "UX Designer",
     department: "Design",
@@ -115,7 +114,7 @@ export const mockEmployees = [
   },
   {
     id: "6",
-    name: "Employee EMP006",
+    employeeName: "Employee EMP006",
     employeeId: "EMP006",
     position: "Financial Analyst",
     department: "Finance",
@@ -127,7 +126,7 @@ export const mockEmployees = [
   },
   {
     id: "7",
-    name: "Employee EMP007",
+    employeeName: "Employee EMP007",
     employeeId: "EMP007",
     position: "Sales Representative",
     department: "Sales",
@@ -139,7 +138,7 @@ export const mockEmployees = [
   },
   {
     id: "8",
-    name: "Employee EMP008",
+    employeeName: "Employee EMP008",
     employeeId: "EMP008",
     position: "Operations Manager",
     department: "Operations",
@@ -151,7 +150,7 @@ export const mockEmployees = [
   },
   {
     id: "9",
-    name: "Employee EMP009",
+    employeeName: "Employee EMP009",
     employeeId: "EMP009",
     position: "Content Writer",
     department: "Marketing",
@@ -163,7 +162,7 @@ export const mockEmployees = [
   },
   {
     id: "10",
-    name: "Employee EMP010",
+    employeeName: "Employee EMP010",
     employeeId: "EMP010",
     position: "DevOps Engineer",
     department: "Engineering",

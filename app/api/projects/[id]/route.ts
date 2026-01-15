@@ -1,18 +1,32 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser, isAdminUser } from "@/lib/auth";
 
 export async function GET(
-  req: Request,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const user = await getCurrentUser(req);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const isAdmin = isAdminUser(user);
     const { id } = (await params) as { id: string };
     const project = await prisma.project.findUnique({
       where: { id },
-      include: { members: true },
+      include: { members: { include: { employee: true } } },
     });
     if (!project)
       return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (
+      !isAdmin &&
+      !project.members.some(
+        (member) => member.employee?.locationId === user.locationId
+      )
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     return NextResponse.json(project);
   } catch (error) {
     return NextResponse.json(
@@ -23,13 +37,44 @@ export async function GET(
 }
 
 export async function PUT(
-  req: Request,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const user = await getCurrentUser(req);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const isAdmin = isAdminUser(user);
     const { id } = (await params) as { id: string };
     const body = await req.json();
     const { members, ...rest } = body;
+    if (!isAdmin) {
+      const existing = await prisma.project.findUnique({
+        where: { id },
+        include: { members: { include: { employee: true } } },
+      });
+      if (
+        !existing ||
+        !existing.members.some(
+          (member) => member.employee?.locationId === user.locationId
+        )
+      ) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      if (Array.isArray(members) && members.length > 0) {
+        const memberEmployees = await prisma.employee.findMany({
+          where: { id: { in: members } },
+          select: { id: true, locationId: true },
+        });
+        const invalidMember = memberEmployees.some(
+          (emp) => emp.locationId !== user.locationId
+        );
+        if (invalidMember || memberEmployees.length !== members.length) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+      }
+    }
     const updated = await prisma.project.update({ where: { id }, data: rest });
     if (members && Array.isArray(members)) {
       // replace members
@@ -56,11 +101,30 @@ export async function PUT(
 }
 
 export async function DELETE(
-  req: Request,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const user = await getCurrentUser(req);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const isAdmin = isAdminUser(user);
     const { id } = (await params) as { id: string };
+    if (!isAdmin) {
+      const existing = await prisma.project.findUnique({
+        where: { id },
+        include: { members: { include: { employee: true } } },
+      });
+      if (
+        !existing ||
+        !existing.members.some(
+          (member) => member.employee?.locationId === user.locationId
+        )
+      ) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
     await prisma.project.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {

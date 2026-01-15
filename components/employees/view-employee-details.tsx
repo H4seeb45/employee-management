@@ -21,6 +21,9 @@ interface ViewEmployeeDetailsProps {
 }
 
 export function ViewEmployeeDetails({ employee }: ViewEmployeeDetailsProps) {
+  const locationLabel = employee.location
+    ? `${employee.location.city} - ${employee.location.name}`
+    : null;
   const getDepartmentColor = (department: string) => {
     switch (department) {
       case "Engineering":
@@ -232,13 +235,13 @@ export function ViewEmployeeDetails({ employee }: ViewEmployeeDetailsProps) {
                   </div>
                 )}
 
-                {employee.workLocation && (
+                {locationLabel && (
                   <div className="flex items-start gap-2">
                     <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
                     <div>
                       <p className="font-medium">Work Location</p>
                       <p className="text-sm text-muted-foreground">
-                        {employee.workLocation}
+                        {locationLabel}
                       </p>
                     </div>
                   </div>

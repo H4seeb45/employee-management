@@ -92,6 +92,9 @@ export function EmployeeCards() {
     }
   };
 
+  const getEmployeeName = (employee: any) =>
+    employee?.employeeName || employee?.name || "Employee";
+
   const handleEditEmployee = (employee: any) => {
     updateEmployee(employee);
     setEditDialogOpen(false);
@@ -109,7 +112,7 @@ export function EmployeeCards() {
 
       toast({
         title: "Employee Deleted",
-        description: `${selectedEmployee.name} has been removed from the directory.`,
+        description: `${getEmployeeName(selectedEmployee)} has been removed from the directory.`,
         variant: "destructive",
       });
     }
@@ -262,8 +265,8 @@ export function EmployeeCards() {
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete{" "}
-              {selectedEmployee?.name}'s record and remove their data from the
-              system.
+              {getEmployeeName(selectedEmployee)}'s record and remove their data
+              from the system.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

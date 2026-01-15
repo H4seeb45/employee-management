@@ -7,6 +7,9 @@ import { CustomTag } from "@/components/ui/custom-tag";
 const { TabPane } = Tabs;
 
 export function EmployeeProfile({ employee }: { employee: any }) {
+  const locationLabel = employee.location
+    ? `${employee.location.city} - ${employee.location.name}`
+    : "";
   // Get a reliable avatar URL based on employee ID
   const getReliableAvatarUrl = (employee: any) => {
     // Extract a number from the employee ID to use as an index
@@ -114,7 +117,7 @@ export function EmployeeProfile({ employee }: { employee: any }) {
               {employee.manager}
             </Descriptions.Item>
             <Descriptions.Item label="Work Location">
-              {employee.workLocation}
+              {locationLabel}
             </Descriptions.Item>
             <Descriptions.Item label="Salary">
               {employee.salary}

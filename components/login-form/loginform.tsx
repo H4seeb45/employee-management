@@ -10,12 +10,9 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 
 export function LoginForm({ className }: { className?: string }) {
-  const DEMO_EMAIL = "admin@sadiqtraders.com";
-  const DEMO_PASSWORD = "admin123";
-
   const router = useRouter();
-  const [email, setEmail] = useState(DEMO_EMAIL);
-  const [password, setPassword] = useState(DEMO_PASSWORD);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +21,14 @@ export function LoginForm({ className }: { className?: string }) {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const getRedirectPath = (roles: string[] = []) => {
+    const isAdmin = roles.includes("Admin") || roles.includes("Super Admin");
+    const isBusinessManager = roles.includes("Business Manager");
+    const isCashierOnly =
+      roles.includes("Cashier") && !isAdmin && !isBusinessManager;
+    return isCashierOnly ? "/dashboard/expenses" : "/dashboard";
+  };
 
   if (!mounted) {
     return (
@@ -50,21 +55,21 @@ export function LoginForm({ className }: { className?: string }) {
 
     setLoading(true);
     try {
-      // Simulated auth with hard-coded credentials (demo only)
-      if (
-        email.trim().toLowerCase() === DEMO_EMAIL &&
-        password === DEMO_PASSWORD
-      ) {
-        // Store a simple token for demo
-        localStorage.setItem(
-          "webx-auth",
-          JSON.stringify({ email, ts: Date.now() })
-        );
-        router.replace("/dashboard");
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          password,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data?.message || "Invalid credentials. Please try again.");
+        setLoading(false);
         return;
       }
-      setError("Invalid credentials. Please try again.");
-      setLoading(false); // only stop loading on error
+      router.replace(getRedirectPath(data?.user?.roles ?? []));
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false); // stop loading on error

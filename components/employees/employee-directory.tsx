@@ -126,6 +126,9 @@ export default function EmployeeDirectory() {
     }
   };
 
+  const getEmployeeName = (employee: any) =>
+    employee?.employeeName || employee?.name || "Employee";
+
   // Use employees from context if available, otherwise use mock data
   const employeeData = employees.length > 0 ? employees : mockEmployees;
 
@@ -195,7 +198,7 @@ export default function EmployeeDirectory() {
 
       toast({
         title: "Employee Deleted",
-        description: `${selectedEmployee.name} has been removed from the directory.`,
+        description: `${getEmployeeName(selectedEmployee)} has been removed from the directory.`,
         variant: "destructive",
       });
     }
@@ -661,8 +664,8 @@ export default function EmployeeDirectory() {
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete{" "}
-              {selectedEmployee?.name}&apos;s record and remove their data from
-              the system.
+              {getEmployeeName(selectedEmployee)}&apos;s record and remove their
+              data from the system.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

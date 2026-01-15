@@ -7,64 +7,177 @@ datasource db {
 }
 
 model Employee {
-  id              String   @id @default(cuid())
-  employeeId      String   @unique
-  employeeName    String
-  position        String?
-  department      String?
-  email           String?
-  phone           String?
-  joinDate        DateTime?
-  status          String?
-  avatar          String?
-  birthDate       DateTime?
-  address         String?
+  id               String          @id @default(cuid())
+  employeeId       String          @unique
+  employeeName     String
+  position         String?
+  department       String?
+  email            String?
+  phone            String?
+  joinDate         DateTime?
+  status           String?
+  avatar           String?
+  birthDate        DateTime?
+  address          String?
   emergencyContact String?
-  bloodGroup      String?
-  employeeType    String?
-  manager         String?
-  workLocation    String?
-  salary          String?
-  skills          Json?
-  education       Json?
-  documents       Json?
-  reviews         Json?
-  achievements    Json?
-  attendances     Attendance[]
-  leaveRequests   LeaveRequest[]
-  ProjectMembers  ProjectMember[]
-  payrolls        Payroll[]
-  loans           Loan[]
+  bloodGroup       String?
+  employeeType     String?
+  manager          String?
+  locationId       String?
+  location         Location?       @relation(fields: [locationId], references: [id])
+  salary           String?
+  skills           Json?
+  education        Json?
+  documents        Json?
+  reviews          Json?
+  achievements     Json?
+  attendances      Attendance[]
+  leaveRequests    LeaveRequest[]
+  ProjectMembers   ProjectMember[]
+  payrolls         Payroll[]
+  loans            Loan[]
+}
+
+model User {
+  id                     String         @id @default(cuid())
+  email                  String         @unique
+  passwordHash           String
+  isActive               Boolean        @default(true)
+  locationId             String
+  location               Location       @relation(fields: [locationId], references: [id])
+  roles                  UserRole[]
+  expenseSheets          ExpenseSheet[] @relation("ExpenseCreatedBy")
+  approvedExpenseSheets  ExpenseSheet[] @relation("ExpenseApprovedBy")
+  rejectedExpenseSheets  ExpenseSheet[] @relation("ExpenseRejectedBy")
+  disbursedExpenseSheets ExpenseSheet[] @relation("ExpenseDisbursedBy")
+  notifications          Notification[]
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+}
+
+model Role {
+  id    String     @id @default(cuid())
+  name  String     @unique
+  users UserRole[]
+}
+
+model UserRole {
+  id     String @id @default(cuid())
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  roleId String
+
+  @@unique([userId, roleId])
+}
+
+model Location {
+  id                    String         @id @default(cuid())
+  name                  String
+  city                  String
+  monthlyPettyCashLimit Float?
+  users                 User[]
+  employees             Employee[]
+  expenseSheets         ExpenseSheet[]
+
+  @@unique([name, city])
+}
+
+enum ExpenseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  DISBURSED
+}
+
+enum ExpenseType {
+  VEHICLES_FUEL
+  VEHICLES_RENTAL
+  WAREHOUSE_RENTAL
+  SALARIES
+  ADVANCES_TO_EMP
+  ENTERTAINMENT
+  UTILITIES
+  REPAIR_MAINTENANCE
+  STATIONERY
+  KITCHEN_EXPENSE
+}
+
+model ExpenseSheet {
+  id            String              @id @default(cuid())
+  expenseType   ExpenseType
+  details       String?
+  amount        Float
+  status        ExpenseStatus       @default(PENDING)
+  locationId    String
+  location      Location            @relation(fields: [locationId], references: [id])
+  createdById   String
+  createdBy     User                @relation("ExpenseCreatedBy", fields: [createdById], references: [id])
+  approvedById  String?
+  approvedBy    User?               @relation("ExpenseApprovedBy", fields: [approvedById], references: [id])
+  approvedAt    DateTime?
+  rejectedById  String?
+  rejectedBy    User?               @relation("ExpenseRejectedBy", fields: [rejectedById], references: [id])
+  rejectedAt    DateTime?
+  disbursedById String?
+  disbursedBy   User?               @relation("ExpenseDisbursedBy", fields: [disbursedById], references: [id])
+  disbursedAt   DateTime?
+  attachments   ExpenseAttachment[]
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+}
+
+model ExpenseAttachment {
+  id        String       @id @default(cuid())
+  sheetId   String
+  sheet     ExpenseSheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+  url       String
+  fileKey   String
+  fileName  String
+  fileType  String
+  fileSize  Int
+  createdAt DateTime     @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String?
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
 }
 
 model Attendance {
-  id            String   @id @default(cuid())
-  employeeId    String
-  employee      Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  date          DateTime
-  checkIn       String?
-  checkOut      String?
-  checkInStatus String?
+  id             String   @id @default(cuid())
+  employeeId     String
+  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date           DateTime
+  checkIn        String?
+  checkOut       String?
+  checkInStatus  String?
   checkOutStatus String?
-  workingHours  Float?
-  status        String?
+  workingHours   Float?
+  status         String?
 }
 
 model LeaveRequest {
-  id          String   @id @default(cuid())
-  employeeId  String
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  id           String    @id @default(cuid())
+  employeeId   String
+  employee     Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   employeeName String?
-  leaveType   String?
-  startDate   DateTime?
-  endDate     DateTime?
-  days        Int?
-  reason      String?
-  status      String?
+  leaveType    String?
+  startDate    DateTime?
+  endDate      DateTime?
+  days         Int?
+  reason       String?
+  status       String?
 }
 
 model Project {
-  id        String   @id @default(cuid())
+  id        String          @id @default(cuid())
   name      String
   client    String?
   startDate DateTime?
@@ -75,30 +188,30 @@ model Project {
 }
 
 model ProjectMember {
-  id        String   @id @default(cuid())
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  projectId String
-  employee  Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId  String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   employeeId String
 }
 
 model Payroll {
-  id             String   @id @default(cuid())
-  employeeId     String
-  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  amount         Float
-  periodStart    DateTime?
-  periodEnd      DateTime?
-  paidAt         DateTime?
-  paymentMethod  String?
-  status         String?
-  notes          String?
+  id            String    @id @default(cuid())
+  employeeId    String
+  employee      Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  amount        Float
+  periodStart   DateTime?
+  periodEnd     DateTime?
+  paidAt        DateTime?
+  paymentMethod String?
+  status        String?
+  notes         String?
 }
 
 model Loan {
-  id                 String   @id @default(cuid())
+  id                 String    @id @default(cuid())
   employeeId         String
-  employee           Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee           Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   principalAmount    Float
   issuedAt           DateTime?
   dueAt              DateTime?

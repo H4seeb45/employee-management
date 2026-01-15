@@ -1,10 +1,32 @@
 require("dotenv").config();
 const { PrismaClient } = require("@prisma/client");
 const { PrismaPg } = require("@prisma/adapter-pg");
+const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 
 const dbUrl = process.env.DATABASE_URL ? process.env.DATABASE_URL.trim() : "";
 const adapter = dbUrl ? new PrismaPg({ connectionString: dbUrl }) : undefined;
 const prisma = dbUrl ? new PrismaClient({ adapter }) : new PrismaClient();
+
+const roles = ["Business Manager", "Cashier", "Admin", "Super Admin", "Employee"];
+
+const locations = [
+  { name: "Lahore-1", city: "Lahore" },
+  { name: "Lahore-2", city: "Lahore" },
+  { name: "Lahore-3", city: "Lahore" },
+  { name: "Lahore-4", city: "Lahore" },
+  { name: "Lahore-5", city: "Lahore" },
+  { name: "Lahore-6", city: "Lahore" },
+  { name: "Faisalabad-1", city: "Faisalabad" },
+  { name: "Sialkot-1", city: "Sialkot" },
+];
+
+const monthlyPettyCashLimit = Number.parseFloat(
+  process.env.MONTHLY_PETTY_CASH_LIMIT || "0"
+);
+
+const generatePassword = (length = 12) =>
+  crypto.randomBytes(length).toString("base64url").slice(0, length);
 
 const employees = [
   {
@@ -23,7 +45,6 @@ const employees = [
     bloodGroup: "O+",
     employeeType: "Full-time",
     manager: "",
-    workLocation: "",
     salary: "PKR 95,000",
     skills: ["React", "TypeScript", "CSS", "HTML", "JavaScript"],
     education: [
@@ -515,11 +536,91 @@ const projects = [
 async function main() {
   console.log("Seeding database...");
 
+  const locationRecords = [];
+  for (const location of locations) {
+    const record = await prisma.location.upsert({
+      where: { name_city: { name: location.name, city: location.city } },
+      update: {
+        name: location.name,
+        city: location.city,
+        monthlyPettyCashLimit,
+      },
+      create: {
+        name: location.name,
+        city: location.city,
+        monthlyPettyCashLimit,
+      },
+    });
+    locationRecords.push(record);
+  }
+
+  for (const roleName of roles) {
+    await prisma.role.upsert({
+      where: { name: roleName },
+      update: { name: roleName },
+      create: { name: roleName },
+    });
+  }
+
+  const adminLocation = locationRecords[0];
+
+  const adminEmail = process.env.ADMIN_EMAIL || "admin@example.com";
+  const adminPassword = process.env.ADMIN_PASSWORD || generatePassword(12);
+  const adminRole = await prisma.role.findUnique({
+    where: { name: "Admin" },
+  });
+  const existingAdmin = await prisma.user.findUnique({
+    where: { email: adminEmail.toLowerCase() },
+  });
+  if (!existingAdmin && adminRole && adminLocation) {
+    const passwordHash = await bcrypt.hash(adminPassword, 10);
+    const adminUser = await prisma.user.create({
+      data: {
+        email: adminEmail.toLowerCase(),
+        passwordHash,
+        locationId: adminLocation.id,
+        roles: { create: [{ roleId: adminRole.id }] },
+      },
+    });
+    console.log("Admin user created:", adminUser.email);
+    if (!process.env.ADMIN_PASSWORD) {
+      console.log("Admin password:", adminPassword);
+    }
+  }
+
+  const superAdminEmail =
+    process.env.SUPER_ADMIN_EMAIL || "superadmin@example.com";
+  const superAdminPassword =
+    process.env.SUPER_ADMIN_PASSWORD || generatePassword(14);
+  const superAdminRole = await prisma.role.findUnique({
+    where: { name: "Super Admin" },
+  });
+  const existingSuperAdmin = await prisma.user.findUnique({
+    where: { email: superAdminEmail.toLowerCase() },
+  });
+  if (!existingSuperAdmin && superAdminRole && adminLocation) {
+    const passwordHash = await bcrypt.hash(superAdminPassword, 10);
+    const superAdminUser = await prisma.user.create({
+      data: {
+        email: superAdminEmail.toLowerCase(),
+        passwordHash,
+        locationId: adminLocation.id,
+        roles: { create: [{ roleId: superAdminRole.id }] },
+      },
+    });
+    console.log("Super admin user created:", superAdminUser.email);
+    if (!process.env.SUPER_ADMIN_PASSWORD) {
+      console.log("Super admin password:", superAdminPassword);
+    }
+  }
+
   for (const e of employees) {
+    const locationIndex = employees.indexOf(e) % locationRecords.length;
+    const location = locationRecords[locationIndex];
     const data = {
       id: e.id,
       employeeId: e.employeeId,
-      name: e.name,
+      employeeName: e.employeeName,
       position: e.position || null,
       department: e.department || null,
       email: e.email || null,
@@ -533,7 +634,7 @@ async function main() {
       bloodGroup: e.bloodGroup || null,
       employeeType: e.employeeType || null,
       manager: e.manager || null,
-      workLocation: e.workLocation || null,
+      locationId: location ? location.id : null,
       salary: e.salary || null,
       skills: e.skills || [],
       education: e.education || [],

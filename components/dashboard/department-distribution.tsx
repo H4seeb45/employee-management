@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { DoughnutChart, type DoughnutChartProps } from "@/components/ui/chart";
 import { useEffect, useState } from "react";
 import { useLayout } from "@/components/layout/layout-provider";
+import { Loader2 } from "lucide-react";
 
 // Dynamically import the chart to avoid SSR issues
 const Chart = dynamic(() => Promise.resolve(DoughnutChart), { ssr: false });
@@ -57,7 +58,13 @@ export function DepartmentDistribution() {
       title="Department Distribution"
       className="shadow-sm hover:shadow-md transition-shadow h-full"
     >
-      {chartData ? <Chart {...chartData} /> : <div>Loading...</div>}
+      {chartData ? (
+        <Chart {...chartData} />
+      ) : (
+        <div className="flex items-center justify-center h-full">
+          <Loader2 className="h-5 w-5 animate-spin" />
+        </div>
+      )}
     </Card>
   );
 }

@@ -14,6 +14,7 @@ import {
   Settings,
   X,
   Banknote,
+  Loader2,
 } from "lucide-react";
 import { useLayout } from "@/components/layout/layout-provider";
 
@@ -29,6 +30,13 @@ const sidebarItems = [
   { name: "Payroll", href: "/dashboard/payroll", icon: Briefcase },
   { name: "Loans", href: "/dashboard/loans", icon: Banknote },
   // { name: "Projects", href: "/dashboard/projects", icon: Briefcase },
+  {
+    name: "Expenses",
+    href: "/dashboard/expenses",
+    icon: Briefcase,
+    requiredRoles: ["Cashier"],
+  },
+  { name: "Users", href: "/dashboard/users", icon: Users, adminOnly: true },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
@@ -36,6 +44,10 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { sidebarOpen, setSidebarOpen } = useLayout();
   const [isMobile, setIsMobile] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [roles, setRoles] = useState<string[]>([]);
+  const [email, setEmail] = useState<string | null>(null);
+  const [isSessionLoading, setIsSessionLoading] = useState(true);
 
   // Check if we're on mobile
   useEffect(() => {
@@ -55,6 +67,33 @@ export function AppSidebar() {
       window.removeEventListener("resize", checkIfMobile);
     };
   }, [setSidebarOpen]);
+
+  useEffect(() => {
+    const loadSession = async () => {
+      setIsSessionLoading(true);
+      try {
+        const response = await fetch("/api/auth/me");
+        if (!response.ok) return;
+        const data = await response.json();
+        const roles: string[] = data?.user?.roles ?? [];
+        setIsAdmin(roles.includes("Admin") || roles.includes("Super Admin"));
+        setRoles(roles);
+        setEmail(data?.user?.email ?? null);
+      } catch {
+        // ignore session failures
+      } finally {
+        setIsSessionLoading(false);
+      }
+    };
+    loadSession();
+  }, []);
+
+  const isBusinessManager = roles.includes("Business Manager");
+  const isSuperAdmin = roles.includes("Super Admin");
+  const isCashierOnly =
+    roles.includes("Cashier") && !isAdmin && !isBusinessManager && !isSuperAdmin;
+  const roleLabel = roles.length > 0 ? roles.join(", ") : "No role";
+  const avatarLetter = email?.[0]?.toUpperCase() || "U";
 
   return (
     <>
@@ -79,49 +118,75 @@ export function AppSidebar() {
             </Button>
           </div>
           <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-            {sidebarItems.map((item) => {
-              // Make dashboard only active on exact `/dashboard` path.
-              // Other items should be active for their path or any nested routes.
-              let isActive = false;
-              if (item.href === "/dashboard") {
-                isActive = pathname === "/dashboard";
-              } else {
-                isActive =
-                  pathname === item.href ||
-                  pathname.startsWith(`${item.href}/`);
-              }
-              const Icon = item.icon;
+            {isSessionLoading && (
+              <div className="flex items-center justify-center h-full">
+                <Loader2 className="h-5 w-5 animate-spin" />
+              </div>
+            )}
+            {!isSessionLoading &&
+              sidebarItems
+                .filter((item) => {
+                  if (isCashierOnly) return item.href === "/dashboard/expenses";
+                  if (item.adminOnly && !isAdmin) return false;
+                  if (!item.requiredRoles || item.requiredRoles.length === 0)
+                    return true;
+                  if (isAdmin || isBusinessManager) return true;
+                  return item.requiredRoles.some((role) =>
+                    roles.includes(role)
+                  );
+                })
+                .map((item) => {
+                  // Make dashboard only active on exact `/dashboard` path.
+                  // Other items should be active for their path or any nested routes.
+                  let isActive = false;
+                  if (item.href === "/dashboard") {
+                    isActive = pathname === "/dashboard";
+                  } else {
+                    isActive =
+                      pathname === item.href ||
+                      pathname.startsWith(`${item.href}/`);
+                  }
+                  const Icon = item.icon;
 
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center px-4 py-3 text-sm rounded-md transition-colors",
-                    isActive
-                      ? "bg-sky-100 text-sky-600 dark:bg-sky-900/50 dark:text-sky-400"
-                      : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700/50"
-                  )}
-                  onClick={() => isMobile && setSidebarOpen(false)}
-                >
-                  <Icon className="mr-3 h-5 w-5" />
-                  {item.name}
-                </Link>
-              );
-            })}
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
+                        "flex items-center px-4 py-3 text-sm rounded-md transition-colors",
+                        isActive
+                          ? "bg-sky-100 text-sky-600 dark:bg-sky-900/50 dark:text-sky-400"
+                          : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700/50"
+                      )}
+                      onClick={() => isMobile && setSidebarOpen(false)}
+                    >
+                      <Icon className="mr-3 h-5 w-5" />
+                      {item.name}
+                    </Link>
+                  );
+                })}
           </nav>
           <div className="p-4 border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center">
               <div className="h-8 w-8 rounded-full bg-sky-500 flex items-center justify-center text-white font-medium">
-                A
+                {avatarLetter}
               </div>
               <div className="ml-3">
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Sadiq Traders Admin
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  admin@sadiqtraders.com
-                </p>
+                {isSessionLoading ? (
+                  <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Loading…</span>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {roleLabel}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {email || "user@company.com"}
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           </div>

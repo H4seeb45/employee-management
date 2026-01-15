@@ -1,5 +1,6 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export default function LoansPage() {
@@ -173,7 +174,9 @@ export default function LoansPage() {
       </div>
 
       {loading ? (
-        <p>Loading...</p>
+        <div className="flex items-center justify-center h-full">
+          <Loader2 className="h-5 w-5 animate-spin" />
+        </div>
       ) : (
         <div className="bg-white dark:bg-slate-800 rounded shadow-sm overflow-hidden">
           {loans.length === 0 ? (

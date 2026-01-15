@@ -1,15 +1,24 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser, isAdminUser } from "@/lib/auth";
 
-export async function GET(_req: Request, { params }: { params: any }) {
+export async function GET(_req: NextRequest, { params }: { params: any }) {
   const { id } = (await params) as { id: string };
   try {
+    const user = await getCurrentUser(_req);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const isAdmin = isAdminUser(user);
     const item = await prisma.loan.findUnique({
       where: { id },
       include: { employee: true },
     });
     if (!item)
       return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!isAdmin && item.employee?.locationId !== user.locationId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     return NextResponse.json(item);
   } catch (error) {
     console.error(error);
@@ -20,9 +29,14 @@ export async function GET(_req: Request, { params }: { params: any }) {
   }
 }
 
-export async function PUT(req: Request, { params }: { params: any }) {
+export async function PUT(req: NextRequest, { params }: { params: any }) {
   const { id } = (await params) as { id: string };
   try {
+    const user = await getCurrentUser(req);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const isAdmin = isAdminUser(user);
     const body = await req.json();
     const parseDate = (v: any) => {
       if (!v && v !== 0) return null;
@@ -50,6 +64,16 @@ export async function PUT(req: Request, { params }: { params: any }) {
       notes: body.notes ?? null,
     };
 
+    if (!isAdmin) {
+      const existing = await prisma.loan.findUnique({
+        where: { id },
+        include: { employee: true },
+      });
+      if (!existing || existing.employee?.locationId !== user.locationId) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
+
     const updated = await prisma.loan.update({ where: { id }, data });
     return NextResponse.json(updated);
   } catch (error) {
@@ -61,9 +85,23 @@ export async function PUT(req: Request, { params }: { params: any }) {
   }
 }
 
-export async function DELETE(_req: Request, { params }: { params: any }) {
+export async function DELETE(_req: NextRequest, { params }: { params: any }) {
   const { id } = (await params) as { id: string };
   try {
+    const user = await getCurrentUser(_req);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const isAdmin = isAdminUser(user);
+    if (!isAdmin) {
+      const existing = await prisma.loan.findUnique({
+        where: { id },
+        include: { employee: true },
+      });
+      if (!existing || existing.employee?.locationId !== user.locationId) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
     await prisma.loan.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {

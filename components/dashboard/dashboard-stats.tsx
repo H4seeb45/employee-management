@@ -1,16 +1,19 @@
-"use client"
+"use client";
 
-import { Card } from "@/components/ui/card"
-import { Users, Clock, Calendar, Briefcase } from "lucide-react"
-import { useLayout } from "@/components/layout/layout-provider"
+import { Card } from "@/components/ui/card";
+import { Users, Clock, Calendar, Briefcase } from "lucide-react";
+import { useLayout } from "@/components/layout/layout-provider";
 
 export function DashboardStats() {
-  const { employees, attendance, projects, leaveRequests } = useLayout()
+  const { employees, attendance, projects, leaveRequests } = useLayout();
 
-  const totalEmployees = employees?.length ?? 0
-  const presentToday = attendance?.filter((a) => a?.status === "Present").length ?? 0
-  const onLeave = employees?.filter((e) => e?.status === "On Leave").length ?? 0
-  const activeProjects = projects?.filter((p) => p?.status === "In Progress").length ?? 0
+  const totalEmployees = employees?.length ?? 0;
+  const presentToday =
+    attendance?.filter((a) => a?.status === "Present").length ?? 0;
+  const onLeave =
+    employees?.filter((e) => e?.status === "On Leave").length ?? 0;
+  const activeProjects =
+    projects?.filter((p) => p?.status === "In Progress").length ?? 0;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -63,7 +66,7 @@ export function DashboardStats() {
       </Card>
 
       {/* Active Projects */}
-      <Card className="shadow-sm hover:shadow-lg transition-shadow p-6 bg-gradient-to-r from-purple-500 to-pink-600 text-white">
+      {/* <Card className="shadow-sm hover:shadow-lg transition-shadow p-6 bg-gradient-to-r from-purple-500 to-pink-600 text-white">
         <div className="flex flex-col">
           <div className="flex items-center mb-4">
             <div className="p-2 rounded-full bg-white/20 mr-3">
@@ -76,7 +79,7 @@ export function DashboardStats() {
             <p className="text-xs text-white/80">3 due this week</p>
           </div>
         </div>
-      </Card>
+      </Card> */}
     </div>
-  )
+  );
 }

@@ -17,11 +17,23 @@ function LoginPage() {
 
   useEffect(() => {
     // Auto-redirect if already logged in
-    const token =
-      typeof window !== "undefined" ? localStorage.getItem("webx-auth") : null;
-    if (token) {
-      router.push("/dashboard");
-    }
+    const checkSession = async () => {
+      try {
+        const response = await fetch("/api/auth/me");
+        if (response.ok) {
+          const data = await response.json();
+          const roles: string[] = data?.user?.roles ?? [];
+          const isAdmin = roles.includes("Admin") || roles.includes("Super Admin");
+          const isBusinessManager = roles.includes("Business Manager");
+          const isCashierOnly =
+            roles.includes("Cashier") && !isAdmin && !isBusinessManager;
+          router.push(isCashierOnly ? "/dashboard/expenses" : "/dashboard");
+        }
+      } catch {
+        // ignore errors and stay on login
+      }
+    };
+    checkSession();
   }, [router]);
 
   return (
@@ -38,9 +50,7 @@ function LoginPage() {
           <CardContent>
             <LoginForm />
             <p className="mt-4 text-xs text-muted-foreground">
-              Demo Credentials:{" "}
-              <span className="font-medium">admin@saadiqtraders.com</span> /{" "}
-              <span className="font-medium">admin123</span>
+              Use the credentials provided by your administrator.
             </p>
           </CardContent>
         </Card>
