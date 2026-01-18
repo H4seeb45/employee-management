@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { useReactToPrint } from "react-to-print";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,6 +39,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { UploadButton } from "@/lib/uploadthing";
+import { Download, Printer, Search, X } from "lucide-react";
+import { ExpenseVoucherPrint } from "./expense-voucher-print";
+
 type ExpenseAttachment = {
   url: string;
   fileKey: string;
@@ -93,6 +97,33 @@ export function ExpenseModule({
   );
   const [previewAttachment, setPreviewAttachment] =
     useState<ExpenseAttachment | null>(null);
+  const [expenseToPrint, setExpenseToPrint] = useState<ExpenseSheet | null>(
+    null
+  );
+
+  // Search filters (draft state)
+  const [searchId, setSearchId] = useState("");
+  const [searchStatus, setSearchStatus] = useState("all");
+  const [searchType, setSearchType] = useState("all");
+  const [searchMinAmount, setSearchMinAmount] = useState("");
+  const [searchMaxAmount, setSearchMaxAmount] = useState("");
+  const [searchFromDate, setSearchFromDate] = useState("");
+  const [searchToDate, setSearchToDate] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Applied filters (actual state used for API calls)
+  const [appliedSearchId, setAppliedSearchId] = useState("");
+  const [appliedSearchStatus, setAppliedSearchStatus] = useState("all");
+  const [appliedSearchType, setAppliedSearchType] = useState("all");
+  const [appliedSearchMinAmount, setAppliedSearchMinAmount] = useState("");
+  const [appliedSearchMaxAmount, setAppliedSearchMaxAmount] = useState("");
+  const [appliedSearchFromDate, setAppliedSearchFromDate] = useState("");
+  const [appliedSearchToDate, setAppliedSearchToDate] = useState("");
+
+  const printRef = useRef<HTMLDivElement>(null);
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+  });
 
   const canCreate = roles.includes("Business Manager");
   const canApprove = roles.includes("Admin") || roles.includes("Super Admin");
@@ -109,6 +140,29 @@ export function ExpenseModule({
       if (locationId) {
         params.set("locationId", locationId);
       }
+      // Add applied search filters
+      if (appliedSearchId.trim()) {
+        params.set("searchId", appliedSearchId.trim());
+      }
+      if (appliedSearchStatus && appliedSearchStatus !== "all") {
+        params.set("status", appliedSearchStatus);
+      }
+      if (appliedSearchType && appliedSearchType !== "all") {
+        params.set("expenseType", appliedSearchType);
+      }
+      if (appliedSearchMinAmount.trim()) {
+        params.set("minAmount", appliedSearchMinAmount.trim());
+      }
+      if (appliedSearchMaxAmount.trim()) {
+        params.set("maxAmount", appliedSearchMaxAmount.trim());
+      }
+      if (appliedSearchFromDate.trim()) {
+        params.set("fromDate", appliedSearchFromDate.trim());
+      }
+      if (appliedSearchToDate.trim()) {
+        params.set("toDate", appliedSearchToDate.trim());
+      }
+      
       const response = await fetch(`/api/expenses?${params.toString()}`);
       const data = await response.json();
       if (!response.ok) {
@@ -126,11 +180,39 @@ export function ExpenseModule({
 
   useEffect(() => {
     setPage(1);
-  }, [locationId]);
+  }, [locationId, appliedSearchId, appliedSearchStatus, appliedSearchType, appliedSearchMinAmount, appliedSearchMaxAmount, appliedSearchFromDate, appliedSearchToDate]);
 
   useEffect(() => {
     loadExpenses(page);
-  }, [page, locationId]);
+  }, [page, locationId, appliedSearchId, appliedSearchStatus, appliedSearchType, appliedSearchMinAmount, appliedSearchMaxAmount, appliedSearchFromDate, appliedSearchToDate]);
+
+  const handleApplyFilters = () => {
+    setAppliedSearchId(searchId);
+    setAppliedSearchStatus(searchStatus);
+    setAppliedSearchType(searchType);
+    setAppliedSearchMinAmount(searchMinAmount);
+    setAppliedSearchMaxAmount(searchMaxAmount);
+    setAppliedSearchFromDate(searchFromDate);
+    setAppliedSearchToDate(searchToDate);
+  };
+
+  const handleClearFilters = () => {
+    setSearchId("");
+    setSearchStatus("all");
+    setSearchType("all");
+    setSearchMinAmount("");
+    setSearchMaxAmount("");
+    setSearchFromDate("");
+    setSearchToDate("");
+    // Also clear applied filters
+    setAppliedSearchId("");
+    setAppliedSearchStatus("all");
+    setAppliedSearchType("all");
+    setAppliedSearchMinAmount("");
+    setAppliedSearchMaxAmount("");
+    setAppliedSearchFromDate("");
+    setAppliedSearchToDate("");
+  };
 
   const handleCreate = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -305,6 +387,152 @@ export function ExpenseModule({
         </Card>
       ) : null}
 
+      {/* Search and Filter Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Search Expenses</CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              <Search className="h-4 w-4 mr-2" />
+              {showFilters ? "Hide Filters" : "Show Filters"}
+            </Button>
+          </div>
+        </CardHeader>
+        {showFilters && (
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleApplyFilters();
+                }
+              }}
+            >
+              {/* Search by ID */}
+              <div className="space-y-2">
+                <Label htmlFor="searchId">Expense ID</Label>
+                <Input
+                  id="searchId"
+                  placeholder="Search by ID..."
+                  value={searchId}
+                  onChange={(e) => setSearchId(e.target.value)}
+                />
+              </div>
+
+              {/* Search by Status */}
+              <div className="space-y-2">
+                <Label htmlFor="searchStatus">Status</Label>
+                <Select value={searchStatus} onValueChange={setSearchStatus}>
+                  <SelectTrigger id="searchStatus">
+                    <SelectValue placeholder="All statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="PENDING">Pending</SelectItem>
+                    <SelectItem value="APPROVED">Approved</SelectItem>
+                    <SelectItem value="REJECTED">Rejected</SelectItem>
+                    <SelectItem value="DISBURSED">Disbursed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Search by Type */}
+              <div className="space-y-2">
+                <Label htmlFor="searchType">Expense Type</Label>
+                <Select value={searchType} onValueChange={setSearchType}>
+                  <SelectTrigger id="searchType">
+                    <SelectValue placeholder="All types" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    {expenseTypes.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Search by Min Amount */}
+              <div className="space-y-2">
+                <Label htmlFor="searchMinAmount">Min Amount</Label>
+                <Input
+                  id="searchMinAmount"
+                  type="number"
+                  placeholder="Min amount"
+                  value={searchMinAmount}
+                  onChange={(e) => setSearchMinAmount(e.target.value)}
+                />
+              </div>
+
+              {/* Search by Max Amount */}
+              <div className="space-y-2">
+                <Label htmlFor="searchMaxAmount">Max Amount</Label>
+                <Input
+                  id="searchMaxAmount"
+                  type="number"
+                  placeholder="Max amount"
+                  value={searchMaxAmount}
+                  onChange={(e) => setSearchMaxAmount(e.target.value)}
+                />
+              </div>
+
+              {/* Search by From Date */}
+              <div className="space-y-2">
+                <Label htmlFor="searchFromDate">From Date</Label>
+                <Input
+                  id="searchFromDate"
+                  type="date"
+                  value={searchFromDate}
+                  onChange={(e) => setSearchFromDate(e.target.value)}
+                />
+              </div>
+
+              {/* Search by To Date */}
+              <div className="space-y-2">
+                <Label htmlFor="searchToDate">To Date</Label>
+                <Input
+                  id="searchToDate"
+                  type="date"
+                  value={searchToDate}
+                  onChange={(e) => setSearchToDate(e.target.value)}
+                />
+              </div>
+
+              {/* Apply Filters Button */}
+              <div className="flex items-end">
+                <Button
+                  variant="default"
+                  size="default"
+                  onClick={handleApplyFilters}
+                  className="w-full"
+                >
+                  <Search className="h-4 w-4 mr-2" />
+                  Apply Filters
+                </Button>
+              </div>
+
+              {/* Clear Filters Button */}
+              <div className="flex items-end">
+                <Button
+                  variant="outline"
+                  size="default"
+                  onClick={handleClearFilters}
+                  className="w-full"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Clear Filters
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Expense Sheets</CardTitle>
@@ -394,6 +622,19 @@ export function ExpenseModule({
                             onClick={() => handleAction(expense.id, "disburse")}
                           >
                             Mark Disbursed
+                          </Button>
+                        ) : null}
+                        {canDisburse && expense.status === "DISBURSED" ? (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => {
+                              setExpenseToPrint(expense);
+                              setTimeout(() => handlePrint(), 100);
+                            }}
+                          >
+                            <Printer className="h-4 w-4 mr-1" />
+                            Print
                           </Button>
                         ) : null}
                       </div>
@@ -605,10 +846,32 @@ export function ExpenseModule({
                   )}
                 </div>
               </div>
+
+              {canDisburse && selectedExpense.status === "DISBURSED" ? (
+                <div className="flex justify-end gap-2 pt-4 border-t">
+                  <Button
+                    variant="default"
+                    onClick={() => {
+                      setExpenseToPrint(selectedExpense);
+                      setTimeout(() => handlePrint(), 100);
+                    }}
+                  >
+                    <Printer className="h-4 w-4 mr-2" />
+                    Print Voucher
+                  </Button>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </DialogContent>
       </Dialog>
+
+      {/* Hidden print component */}
+      <div className="hidden">
+        {expenseToPrint && (
+          <ExpenseVoucherPrint ref={printRef} expense={expenseToPrint} />
+        )}
+      </div>
     </div>
   );
 }

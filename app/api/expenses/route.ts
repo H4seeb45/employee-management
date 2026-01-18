@@ -39,11 +39,61 @@ export async function GET(request: NextRequest) {
 
   const isSuperAdmin = isSuperAdminUser(user);
   const locationId = isSuperAdmin ? searchParams.get("locationId") : null;
-  const where = isSuperAdmin
+  
+  // Build where clause with search filters
+  const where: any = isSuperAdmin
     ? locationId
       ? { locationId }
       : {}
     : { locationId: user.locationId };
+
+  // Search by ID
+  const searchId = searchParams.get("searchId");
+  if (searchId) {
+    where.id = { contains: searchId, mode: "insensitive" };
+  }
+
+  // Search by status
+  const status = searchParams.get("status");
+  if (status) {
+    where.status = status;
+  }
+
+  // Search by expense type
+  const expenseType = searchParams.get("expenseType");
+  if (expenseType) {
+    where.expenseType = expenseType;
+  }
+
+  // Search by amount range
+  const minAmount = searchParams.get("minAmount");
+  const maxAmount = searchParams.get("maxAmount");
+  if (minAmount || maxAmount) {
+    where.amount = {};
+    if (minAmount) {
+      where.amount.gte = Number.parseFloat(minAmount);
+    }
+    if (maxAmount) {
+      where.amount.lte = Number.parseFloat(maxAmount);
+    }
+  }
+
+  // Search by date range
+  const fromDate = searchParams.get("fromDate");
+  const toDate = searchParams.get("toDate");
+  if (fromDate || toDate) {
+    where.updatedAt = {};
+    if (fromDate) {
+      where.updatedAt.gte = new Date(fromDate);
+    }
+    if (toDate) {
+      // Add 1 day to include the entire "to" date
+      const toDateEnd = new Date(toDate);
+      toDateEnd.setDate(toDateEnd.getDate() + 1);
+      where.updatedAt.lt = toDateEnd;
+    }
+  }
+
   const totalCount = await prisma.expenseSheet.count({ where });
 
   const expenses = await prisma.expenseSheet.findMany({
