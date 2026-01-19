@@ -346,30 +346,39 @@ export function ExpenseModule({
 
               <div className="space-y-2">
                 <Label>Upload Attachments (PDF, DOC, Images)</Label>
-                <UploadButton
-                  endpoint="expenseAttachment"
-                  onClientUploadComplete={(
-                    files: Array<{
-                      url: string;
-                      key: string;
-                      name: string;
-                      type: string;
-                      size: number;
-                    }>
-                  ) => {
-                    const uploaded = (files ?? []).map((file) => ({
-                      url: file.url,
-                      fileKey: file.key,
-                      fileName: file.name,
-                      fileType: file.type,
-                      fileSize: file.size,
-                    }));
-                    setAttachments((prev) => [...prev, ...uploaded]);
-                  }}
-                  onUploadError={(uploadError: { message: string }) => {
-                    setError(uploadError.message);
-                  }}
-                />
+                  <UploadButton
+                    endpoint="expenseAttachment"
+                    appearance={{
+                      button: "bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:text-white dark:hover:bg-blue-600 font-medium px-4 py-2 rounded-md transition-colors",
+                      container: "w-full flex justify-start",
+                      allowedContent: "text-slate-600 dark:text-slate-400 text-sm"
+                    }}
+                    content={{
+                      button: "Choose Files",
+                      allowedContent: "PDF, DOC, DOCX, PNG, JPG (Max 5MB)"
+                    }}
+                    onClientUploadComplete={(
+                      files: Array<{
+                        url: string;
+                        key: string;
+                        name: string;
+                        type: string;
+                        size: number;
+                      }>
+                    ) => {
+                      const uploaded = (files ?? []).map((file) => ({
+                        url: file.url,
+                        fileKey: file.key,
+                        fileName: file.name,
+                        fileType: file.type,
+                        fileSize: file.size,
+                      }));
+                      setAttachments((prev) => [...prev, ...uploaded]);
+                    }}
+                    onUploadError={(uploadError: { message: string }) => {
+                      setError(uploadError.message);
+                    }}
+                  />
                 {attachments.length > 0 ? (
                   <div className="text-sm text-muted-foreground">
                     {attachments.length} file(s) ready to attach.
