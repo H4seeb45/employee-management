@@ -41,6 +41,7 @@ import {
 import { UploadButton } from "@/lib/uploadthing";
 import { Download, Printer, Search, X } from "lucide-react";
 import { ExpenseVoucherPrint } from "./expense-voucher-print";
+import { expenseTypes } from "./expense-types";
 
 type ExpenseAttachment = {
   url: string;
@@ -61,19 +62,6 @@ type ExpenseSheet = {
   location?: { name: string; city: string };
   attachments: ExpenseAttachment[];
 };
-
-const expenseTypes = [
-  { value: "VEHICLES_FUEL", label: "Vehicles Fuel" },
-  { value: "VEHICLES_RENTAL", label: "Vehicles Rental" },
-  { value: "WAREHOUSE_RENTAL", label: "Warehouse Rental" },
-  { value: "SALARIES", label: "Salaries" },
-  { value: "ADVANCES_TO_EMP", label: "Advances To Emp" },
-  { value: "ENTERTAINMENT", label: "Entertainment" },
-  { value: "UTILITIES", label: "Utilities" },
-  { value: "REPAIR_MAINTENANCE", label: "Repair & Maintenance" },
-  { value: "STATIONERY", label: "Stationery" },
-  { value: "KITCHEN_EXPENSE", label: "Kitchen Expense" },
-];
 
 export function ExpenseModule({
   roles,

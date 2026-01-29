@@ -15,6 +15,7 @@ import {
   X,
   Banknote,
   Loader2,
+  Truck,
 } from "lucide-react";
 import { useLayout } from "@/components/layout/layout-provider";
 
@@ -35,6 +36,12 @@ const sidebarItems = [
     href: "/dashboard/expenses",
     icon: Briefcase,
     requiredRoles: ["Cashier"],
+  },
+  {
+    name: "Routes & Vehicles",
+    href: "/dashboard/routes-vehicles",
+    icon: Truck,
+    adminOnly: true,
   },
   { name: "Users", href: "/dashboard/users", icon: Users, adminOnly: true },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },

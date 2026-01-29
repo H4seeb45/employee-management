@@ -70,6 +70,7 @@
     "tailwindcss-animate": "^1.0.7",
     "uploadthing": "^7.7.4",
     "vaul": "^0.9.6",
+    "xlsx": "^0.18.5",
     "zod": "^3.24.1"
   },
   "devDependencies": {

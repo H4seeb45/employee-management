@@ -79,6 +79,8 @@ model Location {
   users                 User[]
   employees             Employee[]
   expenseSheets         ExpenseSheet[]
+  routes                Route[]        @relation("RouteLocation")
+  vehicles              Vehicle[]      @relation("VehicleLocation")
 
   @@unique([name, city])
 }
@@ -91,16 +93,47 @@ enum ExpenseStatus {
 }
 
 enum ExpenseType {
-  VEHICLES_FUEL
-  VEHICLES_RENTAL
-  WAREHOUSE_RENTAL
-  SALARIES
-  ADVANCES_TO_EMP
+  CASH_LOADERS
+  CLAIMABLES_PAYMENT
+  CLEANING_ITEMS
+  CONSULTANCY_CHARGES
+  CONTAINER_UNLOADING_CHARGES
+  COOLER_RENTAL
+  COURIER_CHARGES
+  DAILY_KITCHEN_EXP
+  DMS_PAYMENT
+  ELECTRICITY_BILL
+  EMPLOYEE_ACCOMODATION_EXP
+  EMPLOYEE_MOBILE_EXP
+  EMPLOYEE_TRAVELLING_EXP
+  EMPTY_SORTING
   ENTERTAINMENT
-  UTILITIES
-  REPAIR_MAINTENANCE
-  STATIONERY
-  KITCHEN_EXPENSE
+  EOBI
+  FUEL_FOR_BIKE
+  GAS_BILL
+  INTERNET_BILL
+  LEGAL_CHARGES
+  LOADERS_ACCOUMODATION_EXP
+  LOADING_CHARGES
+  MEETING_EXP
+  PACKING_MATERIAL
+  PRINTER_SERVICE
+  PRINTING_STATIONERY
+  REPAIR_MAINT_GENERAL
+  REPAIR_MAINT_VEHICLE
+  REPAIR_MAINT_WAREHOUSE
+  RIKSHAW_RENTAL
+  SECP_FEE
+  SECURITY_CAMERA_SERVICE
+  TAX_PAYMENT
+  TOLLS_TAXES
+  TRAFFIC_POLICE
+  VEHICLE_CHALLAN
+  VEHICLE_FUEL
+  VEHICLE_RENTAL
+  VEHICLES_RENT
+  WAREHOUSE_RENT
+  WORKER_WELFARE
 }
 
 model ExpenseSheet {
@@ -111,6 +144,10 @@ model ExpenseSheet {
   status        ExpenseStatus       @default(PENDING)
   locationId    String
   location      Location            @relation(fields: [locationId], references: [id])
+  routeId       String?
+  route         Route?              @relation(fields: [routeId], references: [id])
+  vehicleId     String?
+  vehicle       Vehicle?            @relation(fields: [vehicleId], references: [id])
   createdById   String
   createdBy     User                @relation("ExpenseCreatedBy", fields: [createdById], references: [id])
   approvedById  String?
@@ -220,4 +257,34 @@ model Loan {
   monthlyInstallment Float?
   status             String?
   notes              String?
+}
+
+model Route {
+  id            String         @id @default(cuid())
+  routeNo       String
+  name          String
+  description   String?
+  isActive      Boolean        @default(true)
+  locationId    String
+  location      Location       @relation("RouteLocation", fields: [locationId], references: [id])
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  expenseSheets ExpenseSheet[]
+
+  @@unique([routeNo, locationId])
+}
+
+model Vehicle {
+  id            String         @id @default(cuid())
+  vehicleNo     String
+  type          String?
+  model         String?
+  isActive      Boolean        @default(true)
+  locationId    String
+  location      Location       @relation("VehicleLocation", fields: [locationId], references: [id])
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  expenseSheets ExpenseSheet[]
+
+  @@unique([vehicleNo, locationId])
 }

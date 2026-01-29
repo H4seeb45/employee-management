@@ -105,6 +105,8 @@ export async function GET(request: NextRequest) {
       rejectedBy: true,
       disbursedBy: true,
       attachments: true,
+      route: true,
+      vehicle: true,
     },
     orderBy: { createdAt: "desc" },
     skip,
@@ -136,6 +138,8 @@ export async function POST(request: NextRequest) {
   const amount = Number.parseFloat(body?.amount);
   const details = body?.details?.toString() ?? null;
   const attachments = Array.isArray(body?.attachments) ? body.attachments : [];
+  const routeId = body?.routeId?.toString() ?? null;
+  const vehicleId = body?.vehicleId?.toString() ?? null;
 
   if (!expenseType || Number.isNaN(amount)) {
     return NextResponse.json(
@@ -175,6 +179,8 @@ export async function POST(request: NextRequest) {
       details,
       locationId: user.locationId,
       createdById: user.id,
+      routeId,
+      vehicleId,
       attachments: {
         create: attachments.map((file: any) => ({
           url: file.url,
@@ -185,7 +191,7 @@ export async function POST(request: NextRequest) {
         })),
       },
     },
-    include: { attachments: true, location: true },
+    include: { attachments: true, location: true, route: true, vehicle: true },
   });
 
   const adminUsers = await prisma.user.findMany({
