@@ -60,6 +60,8 @@ type ExpenseSheet = {
   createdAt: string;
   updatedAt: string;
   location?: { name: string; city: string };
+  route?: { routeNo: string; name: string };
+  vehicle?: { vehicleNo: string; type: string | null; model: string | null };
   attachments: ExpenseAttachment[];
 };
 
@@ -89,6 +91,28 @@ export function ExpenseModule({
     null
   );
 
+  // Routes and Vehicles state
+  const [routes, setRoutes] = useState<Array<{ id: string; routeNo: string; name: string }>>([]);
+  const [vehicles, setVehicles] = useState<Array<{ id: string; vehicleNo: string; type: string | null; model: string | null }>>([]);
+  const [selectedRoute, setSelectedRoute] = useState("");
+  const [selectedVehicle, setSelectedVehicle] = useState("");
+  const [vehicleTransactions, setVehicleTransactions] = useState<ExpenseSheet[]>([]);
+  const [loadingTransactions, setLoadingTransactions] = useState(false);
+
+  // Helper function to check if expense type requires route/vehicle
+  const requiresRouteAndVehicle = (type: string) => {
+    const vehicleRelatedTypes = [
+      "LOADING_CHARGES",
+      "REPAIR_MAINT_VEHICLE",
+      "RIKSHAW_RENTAL",
+      "VEHICLE_CHALLAN",
+      "VEHICLE_FUEL",
+      "VEHICLE_RENTAL",
+      "VEHICLES_RENT"
+    ];
+    return vehicleRelatedTypes.includes(type);
+  };
+
   // Search filters (draft state)
   const [searchId, setSearchId] = useState("");
   const [searchStatus, setSearchStatus] = useState("all");
@@ -97,6 +121,8 @@ export function ExpenseModule({
   const [searchMaxAmount, setSearchMaxAmount] = useState("");
   const [searchFromDate, setSearchFromDate] = useState("");
   const [searchToDate, setSearchToDate] = useState("");
+  const [searchRoute, setSearchRoute] = useState("all");
+  const [searchVehicle, setSearchVehicle] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
 
   // Applied filters (actual state used for API calls)
@@ -107,6 +133,8 @@ export function ExpenseModule({
   const [appliedSearchMaxAmount, setAppliedSearchMaxAmount] = useState("");
   const [appliedSearchFromDate, setAppliedSearchFromDate] = useState("");
   const [appliedSearchToDate, setAppliedSearchToDate] = useState("");
+  const [appliedSearchRoute, setAppliedSearchRoute] = useState("all");
+  const [appliedSearchVehicle, setAppliedSearchVehicle] = useState("all");
 
   const printRef = useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({
@@ -150,6 +178,12 @@ export function ExpenseModule({
       if (appliedSearchToDate.trim()) {
         params.set("toDate", appliedSearchToDate.trim());
       }
+      if (appliedSearchRoute && appliedSearchRoute !== "all") {
+        params.set("routeId", appliedSearchRoute);
+      }
+      if (appliedSearchVehicle && appliedSearchVehicle !== "all") {
+        params.set("vehicleId", appliedSearchVehicle);
+      }
       
       const response = await fetch(`/api/expenses?${params.toString()}`);
       const data = await response.json();
@@ -166,13 +200,69 @@ export function ExpenseModule({
     }
   };
 
+  // Load routes and vehicles
+  const loadRoutesAndVehicles = async () => {
+    try {
+      const [routesRes, vehiclesRes] = await Promise.all([
+        fetch("/api/routes-vehicles/routes"),
+        fetch("/api/routes-vehicles/vehicles"),
+      ]);
+
+      if (routesRes.ok) {
+        const routesData = await routesRes.json();
+        setRoutes(routesData.routes || []);
+      }
+
+      if (vehiclesRes.ok) {
+        const vehiclesData = await vehiclesRes.json();
+        setVehicles(vehiclesData.vehicles || []);
+      }
+    } catch (err) {
+      console.error("Failed to load routes/vehicles:", err);
+    }
+  };
+
+  // Load last 3 transactions for selected vehicle
+  const loadVehicleTransactions = async (vehicleId: string) => {
+    if (!vehicleId) {
+      setVehicleTransactions([]);
+      return;
+    }
+    
+    setLoadingTransactions(true);
+    try {
+      const response = await fetch(`/api/expenses?vehicleId=${vehicleId}&limit=3`);
+      if (response.ok) {
+        const data = await response.json();
+        setVehicleTransactions(data.expenses || []);
+      }
+    } catch (err) {
+      console.error("Failed to load vehicle transactions:", err);
+    } finally {
+      setLoadingTransactions(false);
+    }
+  };
+
+  useEffect(() => {
+    loadRoutesAndVehicles();
+  }, []);
+
+  // Load vehicle transactions when vehicle is selected
+  useEffect(() => {
+    if (selectedVehicle) {
+      loadVehicleTransactions(selectedVehicle);
+    } else {
+      setVehicleTransactions([]);
+    }
+  }, [selectedVehicle]);
+
   useEffect(() => {
     setPage(1);
-  }, [locationId, appliedSearchId, appliedSearchStatus, appliedSearchType, appliedSearchMinAmount, appliedSearchMaxAmount, appliedSearchFromDate, appliedSearchToDate]);
+  }, [locationId, appliedSearchId, appliedSearchStatus, appliedSearchType, appliedSearchMinAmount, appliedSearchMaxAmount, appliedSearchFromDate, appliedSearchToDate, appliedSearchRoute, appliedSearchVehicle]);
 
   useEffect(() => {
     loadExpenses(page);
-  }, [page, locationId, appliedSearchId, appliedSearchStatus, appliedSearchType, appliedSearchMinAmount, appliedSearchMaxAmount, appliedSearchFromDate, appliedSearchToDate]);
+  }, [page, locationId, appliedSearchId, appliedSearchStatus, appliedSearchType, appliedSearchMinAmount, appliedSearchMaxAmount, appliedSearchFromDate, appliedSearchToDate, appliedSearchRoute, appliedSearchVehicle]);
 
   const handleApplyFilters = () => {
     setAppliedSearchId(searchId);
@@ -182,6 +272,8 @@ export function ExpenseModule({
     setAppliedSearchMaxAmount(searchMaxAmount);
     setAppliedSearchFromDate(searchFromDate);
     setAppliedSearchToDate(searchToDate);
+    setAppliedSearchRoute(searchRoute);
+    setAppliedSearchVehicle(searchVehicle);
   };
 
   const handleClearFilters = () => {
@@ -192,6 +284,8 @@ export function ExpenseModule({
     setSearchMaxAmount("");
     setSearchFromDate("");
     setSearchToDate("");
+    setSearchRoute("all");
+    setSearchVehicle("all");
     // Also clear applied filters
     setAppliedSearchId("");
     setAppliedSearchStatus("all");
@@ -200,6 +294,8 @@ export function ExpenseModule({
     setAppliedSearchMaxAmount("");
     setAppliedSearchFromDate("");
     setAppliedSearchToDate("");
+    setAppliedSearchRoute("all");
+    setAppliedSearchVehicle("all");
   };
 
   const handleCreate = async (event: React.FormEvent) => {
@@ -207,6 +303,18 @@ export function ExpenseModule({
     setError(null);
     if (!expenseType || !amount) {
       setError("Expense type and amount are required.");
+      return;
+    }
+    if (!details || details.trim() === "") {
+      setError("Details are required.");
+      return;
+    }
+    if (attachments.length === 0) {
+      setError("At least one attachment is required.");
+      return;
+    }
+    if (requiresRouteAndVehicle(expenseType) && (!selectedRoute || !selectedVehicle)) {
+      setError("Route and Vehicle are required for this expense type.");
       return;
     }
     setSaving(true);
@@ -219,6 +327,8 @@ export function ExpenseModule({
           amount: Number.parseFloat(amount),
           details: details || null,
           attachments,
+          routeId: requiresRouteAndVehicle(expenseType) ? selectedRoute : null,
+          vehicleId: requiresRouteAndVehicle(expenseType) ? selectedVehicle : null,
         }),
       });
       const data = await response.json();
@@ -229,6 +339,8 @@ export function ExpenseModule({
       setAmount("");
       setDetails("");
       setAttachments([]);
+      setSelectedRoute("");
+      setSelectedVehicle("");
       await loadExpenses();
     } catch (err) {
       setError(
@@ -293,8 +405,8 @@ export function ExpenseModule({
             <form onSubmit={handleCreate} className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Expense Type</Label>
-                  <Select value={expenseType} onValueChange={setExpenseType}>
+                  <Label>Expense Type *</Label>
+                  <Select value={expenseType} onValueChange={setExpenseType} required>
                     <SelectTrigger>
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
@@ -308,7 +420,7 @@ export function ExpenseModule({
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="amount">Amount</Label>
+                  <Label htmlFor="amount">Amount *</Label>
                   <Input
                     id="amount"
                     type="number"
@@ -317,23 +429,101 @@ export function ExpenseModule({
                     value={amount}
                     onChange={(event) => setAmount(event.target.value)}
                     placeholder="0.00"
+                    required
                   />
                 </div>
               </div>
 
+              {/* Conditional Route and Vehicle Selection */}
+              {requiresRouteAndVehicle(expenseType) && (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Route *</Label>
+                    <Select value={selectedRoute} onValueChange={setSelectedRoute}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select route" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {routes.map((route) => (
+                          <SelectItem key={route.id} value={route.id}>
+                            {route.routeNo} - {route.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Vehicle *</Label>
+                    <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select vehicle" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {vehicles.map((vehicle) => (
+                          <SelectItem key={vehicle.id} value={vehicle.id}>
+                            {vehicle.vehicleNo}
+                            {vehicle.type || vehicle.model ? ` (${[vehicle.type, vehicle.model].filter(Boolean).join(' - ')})` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+
+              {/* Vehicle Transaction History */}
+              {requiresRouteAndVehicle(expenseType) && selectedVehicle && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Last 3 Transactions for Selected Vehicle</Label>
+                  {loadingTransactions ? (
+                    <div className="text-sm text-muted-foreground p-3 border rounded-md">
+                      Loading transactions...
+                    </div>
+                  ) : vehicleTransactions.length === 0 ? (
+                    <div className="text-sm text-muted-foreground p-3 border rounded-md">
+                      No previous transactions found for this vehicle.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {vehicleTransactions.map((transaction) => (
+                        <div
+                          key={transaction.id}
+                          className="p-3 border rounded-md bg-slate-50 dark:bg-slate-900"
+                        >
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <p className="text-sm font-medium">
+                                {expenseTypes.find((t) => t.value === transaction.expenseType)?.label ?? transaction.expenseType}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(transaction.createdAt).toLocaleDateString()} - {transaction.status}
+                              </p>
+                            </div>
+                            <p className="text-sm font-semibold">
+                              Rs. {transaction.amount.toFixed(2)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="space-y-2">
-                <Label htmlFor="details">Details</Label>
+                <Label htmlFor="details">Details *</Label>
                 <Textarea
                   id="details"
                   value={details}
                   onChange={(event) => setDetails(event.target.value)}
-                  placeholder="Add notes for this expense"
+                  placeholder="Add notes for this expense (required)"
                   rows={4}
+                  required
                 />
               </div>
 
               <div className="space-y-2">
-                <Label>Upload Attachments (PDF, DOC, Images)</Label>
+                <Label>Upload Attachments (PDF, DOC, Images) *</Label>
                   <UploadButton
                     endpoint="expenseAttachment"
                     appearance={{
@@ -368,10 +558,14 @@ export function ExpenseModule({
                     }}
                   />
                 {attachments.length > 0 ? (
-                  <div className="text-sm text-muted-foreground">
-                    {attachments.length} file(s) ready to attach.
+                  <div className="text-sm text-green-600 dark:text-green-400 font-medium">
+                    ✓ {attachments.length} file(s) ready to attach.
                   </div>
-                ) : null}
+                ) : (
+                  <div className="text-sm text-red-600 dark:text-red-400">
+                    ⚠ At least one attachment is required.
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end">
@@ -500,6 +694,43 @@ export function ExpenseModule({
                 />
               </div>
 
+              {/* Search by Route */}
+              <div className="space-y-2">
+                <Label htmlFor="searchRoute">Route</Label>
+                <Select value={searchRoute} onValueChange={setSearchRoute}>
+                  <SelectTrigger id="searchRoute">
+                    <SelectValue placeholder="All routes" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Routes</SelectItem>
+                    {routes.map((route) => (
+                      <SelectItem key={route.id} value={route.id}>
+                        {route.routeNo} - {route.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Search by Vehicle */}
+              <div className="space-y-2">
+                <Label htmlFor="searchVehicle">Vehicle</Label>
+                <Select value={searchVehicle} onValueChange={setSearchVehicle}>
+                  <SelectTrigger id="searchVehicle">
+                    <SelectValue placeholder="All vehicles" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Vehicles</SelectItem>
+                    {vehicles.map((vehicle) => (
+                      <SelectItem key={vehicle.id} value={vehicle.id}>
+                        {vehicle.vehicleNo}
+                        {vehicle.type || vehicle.model ? ` (${[vehicle.type, vehicle.model].filter(Boolean).join(' - ')})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Apply Filters Button */}
               <div className="flex items-end">
                 <Button
@@ -548,6 +779,8 @@ export function ExpenseModule({
                   <TableHead>Type</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Location</TableHead>
+                  <TableHead>Route</TableHead>
+                  <TableHead>Vehicle</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Attachments</TableHead>
                   <TableHead>Created</TableHead>
@@ -566,6 +799,16 @@ export function ExpenseModule({
                     <TableCell>
                       {expense.location
                         ? `${expense.location.city} - ${expense.location.name}`
+                        : "-"}
+                    </TableCell>
+                    <TableCell>
+                      {expense.route
+                        ? `${expense.route.routeNo} - ${expense.route.name}`
+                        : "-"}
+                    </TableCell>
+                    <TableCell>
+                      {expense.vehicle
+                        ? expense.vehicle.vehicleNo
                         : "-"}
                     </TableCell>
                     <TableCell>
@@ -746,6 +989,25 @@ export function ExpenseModule({
                     {new Date(selectedExpense.updatedAt).toLocaleString()}
                   </p>
                 </div>
+                {selectedExpense.route && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Route</p>
+                    <p className="font-medium">
+                      {selectedExpense.route.routeNo} - {selectedExpense.route.name}
+                    </p>
+                  </div>
+                )}
+                {selectedExpense.vehicle && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Vehicle</p>
+                    <p className="font-medium">
+                      {selectedExpense.vehicle.vehicleNo}
+                      {selectedExpense.vehicle.type || selectedExpense.vehicle.model
+                        ? ` (${[selectedExpense.vehicle.type, selectedExpense.vehicle.model].filter(Boolean).join(' - ')})`
+                        : ''}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {selectedExpense.details ? (

@@ -94,6 +94,18 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Search by route
+  const routeId = searchParams.get("routeId");
+  if (routeId) {
+    where.routeId = routeId;
+  }
+
+  // Search by vehicle
+  const vehicleId = searchParams.get("vehicleId");
+  if (vehicleId) {
+    where.vehicleId = vehicleId;
+  }
+
   const totalCount = await prisma.expenseSheet.count({ where });
 
   const expenses = await prisma.expenseSheet.findMany({

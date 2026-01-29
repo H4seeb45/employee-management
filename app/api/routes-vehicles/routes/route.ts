@@ -8,10 +8,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ message: "Unauthorized." }, { status: 401 });
   }
 
-  if (!isAdminUser(user)) {
-    return NextResponse.json({ message: "Forbidden." }, { status: 403 });
-  }
-
   const routes = await prisma.route.findMany({
     where: { locationId: user.locationId },
     orderBy: { routeNo: "asc" },
