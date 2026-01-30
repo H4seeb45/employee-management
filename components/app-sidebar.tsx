@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,7 +37,7 @@ const sidebarItems = [
     name: "Expenses",
     href: "/dashboard/expenses",
     icon: Briefcase,
-    requiredRoles: ["Cashier"],
+    requiredRoles: ["Cashier","Accountant"],
   },
   {
     name: "Routes & Vehicles",
@@ -51,7 +51,8 @@ const sidebarItems = [
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { sidebarOpen, setSidebarOpen } = useLayout();
+  const router = useRouter();
+  const { sidebarOpen, setSidebarOpen, user, userLoading: isSessionLoading, clearUser } = useLayout();
   const [isMobile, setIsMobile] = useState(false);
 
   // Check if we're on mobile
@@ -73,7 +74,6 @@ export function AppSidebar() {
     };
   }, [setSidebarOpen]);
 
-  const { user, userLoading: isSessionLoading } = useLayout();
   const roles = user?.roles ?? [];
   const email = user?.email ?? null;
   const isAdmin = roles.includes("Admin") || roles.includes("Super Admin");
@@ -249,13 +249,22 @@ export function AppSidebar() {
               </div>
 
               {/* Logout Button */}
-              <Link
-                href="/api/auth/logout"
+              <button
+                onClick={async () => {
+                  try {
+                    await fetch("/api/auth/logout", { method: "POST" });
+                  } catch {
+                    // ignore logout failures
+                  }
+                  // Clear user session from context
+                  clearUser();
+                  router.replace("/login");
+                }}
                 className="flex items-center justify-center gap-2 w-full px-4 py-2.5 text-sm font-medium text-slate-300 bg-slate-800/40 hover:bg-red-600/20 hover:text-red-400 rounded-lg transition-all duration-200 border border-slate-700/50 hover:border-red-500/30"
               >
                 <LogOut className="h-4 w-4" />
                 <span>Sign Out</span>
-              </Link>
+              </button>
             </div>
           </div>
         </div>

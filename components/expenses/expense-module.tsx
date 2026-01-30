@@ -71,6 +71,7 @@ type ExpenseSheet = {
   details: string | null;
   amount: number;
   status: string;
+  disburseType: string;
   createdAt: string;
   updatedAt: string;
   location?: { name: string; city: string };
@@ -89,6 +90,7 @@ export function ExpenseModule({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [expenses, setExpenses] = useState<ExpenseSheet[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -97,6 +99,7 @@ export function ExpenseModule({
   const [expenseType, setExpenseType] = useState("");
   const [amount, setAmount] = useState("");
   const [details, setDetails] = useState("");
+  const [disburseType, setDisburseType] = useState("Cash");
   const [attachments, setAttachments] = useState<ExpenseAttachment[]>([]);
   const [selectedRoute, setSelectedRoute] = useState("");
   const [selectedVehicle, setSelectedVehicle] = useState("");
@@ -141,9 +144,19 @@ export function ExpenseModule({
   // Permission checks
   const isBusinessManager = roles.includes("Business Manager");
   const isAdmin = roles.includes("Admin") || roles.includes("Super Admin");
-  const isSuperAdmin = roles.includes("Super Admin");
+  const isAccountant = roles.includes("Accountant");
+  const isCashier = roles.includes("Cashier");
   const canCreate = isBusinessManager; // Only Business Managers can create expenses
-  const canDisburse = isAdmin || isSuperAdmin;
+  const canDisburse = (selectedExpense: ExpenseSheet) => {
+    if(selectedExpense.disburseType === "Cash") {
+      return isCashier;
+    }
+
+    if(selectedExpense.disburseType === "Cheque / Online Transfer") {
+      return isAccountant;
+    }
+    return false;
+  }
 
   // Required route/vehicle check
   const requiresRouteAndVehicle = (type: string) => {
@@ -202,9 +215,9 @@ export function ExpenseModule({
 
   useEffect(() => {
     // Fetch routes and vehicles for both form and filters
-    if(showFilters && (routes.length === 0 || vehicles.length === 0)){
+    if(routes.length === 0 || vehicles.length === 0){
     fetchRoutesAndVehicles();}
-  }, [showFilters]);
+  }, [routes.length,vehicles.length]);
 
   const fetchExpenses = async () => {
     setLoading(true);
@@ -230,6 +243,7 @@ export function ExpenseModule({
       if (res.ok) {
         setExpenses(data.expenses || []);
         setTotalPages(data.totalPages || 1);
+        setError(null);
       } else {
         setError(data.message || "Failed to fetch expenses");
       }
@@ -243,8 +257,17 @@ export function ExpenseModule({
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!expenseType || !amount || attachments.length === 0) {
-      setError("Please fill all required fields and upload at least one attachment");
+    
+    // Validate all required fields
+    const needsRouteAndVehicle = requiresRouteAndVehicle(expenseType);
+    
+    if (!expenseType || !amount || !details || attachments.length === 0) {
+      setError("All fields are required. Please fill in expense type, amount, details, and upload at least one attachment.");
+      return;
+    }
+    
+    if (needsRouteAndVehicle && (!selectedRoute || !selectedVehicle)) {
+      setError("Route and Vehicle are required for this expense type.");
       return;
     }
 
@@ -259,6 +282,7 @@ export function ExpenseModule({
           expenseType,
           amount: parseFloat(amount),
           details,
+          disburseType,
           attachments,
           routeId: selectedRoute || undefined,
           vehicleId: selectedVehicle || undefined,
@@ -270,10 +294,16 @@ export function ExpenseModule({
         setExpenseType("");
         setAmount("");
         setDetails("");
+        setDisburseType("Cash");
         setAttachments([]);
         setSelectedRoute("");
         setSelectedVehicle("");
+        setSuccess("Expense created successfully!");
+        setError(null);
         fetchExpenses();
+        
+        // Clear success message after 5 seconds
+        setTimeout(() => setSuccess(null), 5000);
       } else {
         const data = await res.json();
         setError(data.message || "Failed to create expense");
@@ -313,6 +343,35 @@ export function ExpenseModule({
     }
   };
 
+  // Handle update disburse type
+  const handleUpdateDisburseType = async (expenseId: string, newType: string) => {
+    setProcessingAction(true);
+    setActionError(null);
+
+    try {
+      const res = await fetch(`/api/expenses/${expenseId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          action: "updateDisburseType",
+          disburseType: newType 
+        }),
+      });
+
+      if (res.ok) {
+        fetchExpenses();
+        setSelectedExpense(null);
+      } else {
+        const data = await res.json();
+        setActionError(data.message || "Failed to update disburse type");
+      }
+    } catch (err) {
+      setActionError("Network error");
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
   const handlePrint = useReactToPrint({
     contentRef: printRef,
   });
@@ -327,7 +386,7 @@ export function ExpenseModule({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 h-full">
       {/* Page Header */}
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
@@ -684,6 +743,9 @@ export function ExpenseModule({
                           Status
                         </TableHead>
                         <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
+                          Disburse Type
+                        </TableHead>
+                        <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
                           Date
                         </TableHead>
                         <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
@@ -733,6 +795,11 @@ export function ExpenseModule({
                             >
                               {expense.status}
                             </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-slate-700 dark:text-slate-300">
+                              {expense.disburseType || "Cash"}
+                            </span>
                           </TableCell>
                           <TableCell>
                             <span className="text-sm text-slate-600 dark:text-slate-400">
@@ -803,8 +870,30 @@ export function ExpenseModule({
                       <p className="text-sm text-rose-700 dark:text-rose-400">{error}</p>
                     </div>
                   )}
+                  
+                  {success && (
+                    <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                      <p className="text-sm text-green-700 dark:text-green-400 flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4" />
+                        {success}
+                      </p>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                    <Label className="text-slate-700 dark:text-slate-300">Disburse Type <span className="text-rose-500">*</span></Label>
+                    <Select value={disburseType} onValueChange={setDisburseType} required>
+                      <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                        <SelectValue placeholder="Select disburse type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Cash">Cash</SelectItem>
+                        <SelectItem value="Cheque / Online Transfer">Cheque / Online Transfer</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                     <div className="space-y-2">
                       <Label className="text-slate-700 dark:text-slate-300">
                         Expense Type <span className="text-rose-500">*</span>
@@ -845,7 +934,7 @@ export function ExpenseModule({
                   {requiresRouteAndVehicle(expenseType) && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
                       <div className="space-y-2">
-                        <Label className="text-slate-700 dark:text-slate-300">Route</Label>
+                        <Label className="text-slate-700 dark:text-slate-300">Route <span className="text-rose-500">*</span></Label>
                         <Select value={selectedRoute} onValueChange={setSelectedRoute}>
                           <SelectTrigger className="bg-white dark:bg-slate-800">
                             <SelectValue placeholder="Select route" />
@@ -861,7 +950,7 @@ export function ExpenseModule({
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-slate-700 dark:text-slate-300">Vehicle</Label>
+                        <Label className="text-slate-700 dark:text-slate-300">Vehicle <span className="text-rose-500">*</span></Label>
                         <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
                           <SelectTrigger className="bg-white dark:bg-slate-800">
                             <SelectValue placeholder="Select vehicle" />
@@ -879,7 +968,7 @@ export function ExpenseModule({
                   )}
 
                   <div className="space-y-2">
-                    <Label className="text-slate-700 dark:text-slate-300">Details</Label>
+                    <Label className="text-slate-700 dark:text-slate-300">Details <span className="text-rose-500">*</span></Label>
                     <Textarea
                       value={details}
                       onChange={(e) => setDetails(e.target.value)}
@@ -1024,7 +1113,7 @@ export function ExpenseModule({
               {/* Status Badge */}
               <div className="flex items-center justify-between p-4 rounded-lg bg-slate-50 dark:bg-slate-800">
                 <div>
-                  <Label className="text-xs text-slate-500 dark:text-slate-400">Current Status</Label>
+                  <Label className="text-xs text-slate-500 dark:text-slate-400">Current Status    </Label>
                   <Badge
                     className={`mt-1 ${
                       selectedExpense.status === "PENDING"
@@ -1062,6 +1151,12 @@ export function ExpenseModule({
                       style: "currency",
                       currency: "PKR",
                     }).format(selectedExpense.amount)}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-xs text-slate-500 dark:text-slate-400">Disburse Type</Label>
+                  <p className="text-sm font-medium text-slate-900 dark:text-white mt-1">
+                    {selectedExpense.disburseType || "Cash"}
                   </p>
                 </div>
                 <div>
@@ -1215,7 +1310,7 @@ export function ExpenseModule({
                   )}
 
                   {/* Disburse Button - Show for Admin when status is APPROVED */}
-                  {canDisburse && selectedExpense.status === "APPROVED" && (
+                  {canDisburse(selectedExpense) && selectedExpense.status === "APPROVED" && (
                     <Button
                       onClick={() => handleExpenseAction(selectedExpense.id, "disburse")}
                       disabled={processingAction}
@@ -1244,6 +1339,38 @@ export function ExpenseModule({
                         <XCircle className="h-4 w-4 mr-2" />
                       )}
                       Reject
+                    </Button>
+                  )}
+
+                  {/* Accountant Action: Mark as Cash */}
+                  {isAccountant && selectedExpense.status === "APPROVED" && selectedExpense.disburseType !== "Cash" && (
+                    <Button
+                      onClick={() => handleUpdateDisburseType(selectedExpense.id, "Cash")}
+                      disabled={processingAction}
+                      className="bg-amber-600 hover:bg-amber-700 text-white"
+                    >
+                      {processingAction ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                      )}
+                      Mark as Cash Expense
+                    </Button>
+                  )}
+
+                  {/* Cashier Action: Mark as Cheque */}
+                  {isCashier && selectedExpense.status === "APPROVED" && selectedExpense.disburseType === "Cash" && (
+                    <Button
+                      onClick={() => handleUpdateDisburseType(selectedExpense.id, "Cheque / Online Transfer")}
+                      disabled={processingAction}
+                      className="bg-slate-700 hover:bg-slate-800 text-white"
+                    >
+                      {processingAction ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <XCircle className="h-4 w-4 mr-2" />
+                      )}
+                      Mark as Cheque / Online Expense
                     </Button>
                   )}
                 </div>

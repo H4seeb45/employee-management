@@ -38,13 +38,11 @@ import {
 } from "@/components/ui/breadcrumb";
 
 export function AppHeader() {
-  const [searchQuery, setSearchQuery] = useState("");
   const { theme, setTheme } = useTheme();
   const { sidebarOpen, setSidebarOpen, setDarkMode } = useLayout();
   const { toast } = useToast();
   const pathname = usePathname();
 
-  const [ready, setReady] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<
     Array<{
@@ -81,18 +79,13 @@ export function AppHeader() {
     });
   };
 
-  const { user, userLoading } = useLayout();
+  const { user, userLoading, clearUser } = useLayout();
   
   useEffect(() => {
-    if (!userLoading) {
-      if (!user) {
-        router.replace("/login");
-      } else {
+    if (!userLoading && user) {
         setEmail(user.email);
-        setReady(true);
       }
-    }
-  }, [user, userLoading, router]);
+  }, [user, userLoading]);
 
   useEffect(() => {
     let intervalId: ReturnType<typeof setInterval> | null = null;
@@ -143,6 +136,9 @@ export function AppHeader() {
     } catch {
       // ignore logout failures
     }
+    // Clear user session from context
+    clearUser();
+    
     toast({
       title: "Logged out",
       description: "You have been successfully logged out.",

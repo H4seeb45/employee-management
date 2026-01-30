@@ -27,10 +27,10 @@ export default function ExpensesPage() {
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
 
   const roles = user?.roles ?? [];
-  const isSuperAdmin = roles.includes("Super Admin");
+  const isSuperAdminOrAccountant = roles.includes("Super Admin") || roles.includes("Accountant");
 
   useEffect(() => {
-    if (isSuperAdmin && !userLoading) {
+    if (isSuperAdminOrAccountant && !userLoading) {
       setIsLoadingLocations(true);
       fetch("/api/locations")
         .then(res => res.json())
@@ -42,7 +42,7 @@ export default function ExpensesPage() {
         .catch(err => console.error("Failed to load locations", err))
         .finally(() => setIsLoadingLocations(false));
     }
-  }, [isSuperAdmin, userLoading]);
+  }, [isSuperAdminOrAccountant, userLoading]);
 
   if (userLoading) {
     return (
@@ -52,7 +52,7 @@ export default function ExpensesPage() {
     );
   }
 
-  const allowedRoles = ["Cashier", "Admin", "Super Admin", "Business Manager"];
+  const allowedRoles = ["Cashier", "Admin", "Super Admin", "Business Manager", "Accountant"];
   const hasAccess = roles.some((role) => allowedRoles.includes(role));
 
   if (!hasAccess) {
@@ -72,7 +72,7 @@ export default function ExpensesPage() {
 
   return (
     <div className="space-y-6">
-      {isSuperAdmin ? (
+      {isSuperAdminOrAccountant ? (
         <div className="flex items-center gap-3">
           <Label className="text-sm text-muted-foreground">Location</Label>
           <Select

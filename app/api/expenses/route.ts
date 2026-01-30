@@ -21,8 +21,9 @@ export async function GET(request: NextRequest) {
 
   const isCashier = hasRole(user, "Cashier");
   const isBM = hasRole(user, "Business Manager");
+  const isAccountant = hasRole(user, "Accountant");
 
-  if (!isCashier && !isBM && !isAdminUser(user)) {
+  if (!isCashier && !isBM && !isAccountant && !isAdminUser(user)) {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 
@@ -38,14 +39,20 @@ export async function GET(request: NextRequest) {
   const skip = (page - 1) * limit;
 
   const isSuperAdmin = isSuperAdminUser(user);
-  const locationId = isSuperAdmin ? searchParams.get("locationId") : null;
+  const canViewAllLocations = isSuperAdmin || isAccountant;
+  const locationId = canViewAllLocations ? searchParams.get("locationId") : null;
   
   // Build where clause with search filters
-  const where: any = isSuperAdmin
+  const where: any = canViewAllLocations
     ? locationId
       ? { locationId }
       : {}
     : { locationId: user.locationId };
+
+  // Cashiers can only see Cash disburse type expenses
+  if (isCashier && !isAdminUser(user)) {
+    where.disburseType = "Cash";
+  }
 
   // Search by ID
   const searchId = searchParams.get("searchId");
@@ -152,6 +159,7 @@ export async function POST(request: NextRequest) {
   const expenseType = body?.expenseType?.toString();
   const amount = Number.parseFloat(body?.amount);
   const details = body?.details?.toString() ?? null;
+  const disburseType = body?.disburseType?.toString() ?? "Cash";
   const attachments = Array.isArray(body?.attachments) ? body.attachments : [];
   const routeId = body?.routeId?.toString() ?? null;
   const vehicleId = body?.vehicleId?.toString() ?? null;
@@ -192,6 +200,7 @@ export async function POST(request: NextRequest) {
       expenseType,
       amount,
       details,
+      disburseType,
       locationId: user.locationId,
       createdById: user.id,
       routeId,

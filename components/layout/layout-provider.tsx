@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
   createContext,
   useContext,
@@ -67,6 +68,7 @@ type LayoutContextType = {
   user: UserSession | null;
   userLoading: boolean;
   refreshUser: () => Promise<void>;
+  clearUser: () => void;
 
   employees: Employee[];
   addEmployee: (employee: Employee) => Promise<void>;
@@ -97,6 +99,7 @@ const LayoutContext = createContext<LayoutContextType | undefined>(undefined);
 
 // Create a provider component
 export function LayoutProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
   // User session state
   const [user, setUser] = useState<UserSession | null>(null);
   const [userLoading, setUserLoading] = useState(true);
@@ -143,6 +146,7 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
         });
       } else {
         setUser(null);
+        router.replace("/login");
       }
     } catch (err) {
       console.error("Failed to load user session", err);
@@ -150,6 +154,12 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
     } finally {
       setUserLoading(false);
     }
+  };
+
+  // Clear user session (for logout)
+  const clearUser = () => {
+    setUser(null);
+    setUserLoading(false);
   };
 
   // Fetch user on mount
@@ -308,9 +318,10 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
   return (
     <LayoutContext.Provider
       value={{
-        user,
+        user:user,
         userLoading,
         refreshUser: fetchUser,
+        clearUser,
 
         employees,
         addEmployee,

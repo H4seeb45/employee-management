@@ -1,36 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
+import { useLayout } from "@/components/layout/layout-provider";
 
 export function RoleGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [loading, setLoading] = useState(true);
-  const [roles, setRoles] = useState<string[]>([]);
+  const { user, userLoading } = useLayout();
+  const roles = user?.roles ?? [];
 
-  useEffect(() => {
-    const loadSession = async () => {
-      try {
-        const response = await fetch("/api/auth/me");
-        if (!response.ok) {
-          setRoles([]);
-          setLoading(false);
-          return;
-        }
-        const data = await response.json();
-        setRoles(data?.user?.roles ?? []);
-      } catch {
-        setRoles([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadSession();
-  }, []);
-
-  if (loading) {
+  if (userLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <Loader2 className="h-5 w-5 animate-spin" />

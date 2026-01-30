@@ -142,6 +142,7 @@ model ExpenseSheet {
   details       String?
   amount        Float
   status        ExpenseStatus       @default(PENDING)
+  disburseType  String              @default("Cash")
   locationId    String
   location      Location            @relation(fields: [locationId], references: [id])
   routeId       String?

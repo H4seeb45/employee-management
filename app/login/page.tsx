@@ -11,30 +11,23 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { LoginForm } from "@/components/login-form/loginform";
+import { useLayout } from "@/components/layout/layout-provider";
 
 function LoginPage() {
   const router = useRouter();
+  const { user, userLoading } = useLayout();
 
   useEffect(() => {
     // Auto-redirect if already logged in
-    const checkSession = async () => {
-      try {
-        const response = await fetch("/api/auth/me");
-        if (response.ok) {
-          const data = await response.json();
-          const roles: string[] = data?.user?.roles ?? [];
-          const isAdmin = roles.includes("Admin") || roles.includes("Super Admin");
-          const isBusinessManager = roles.includes("Business Manager");
-          const isCashierOnly =
-            roles.includes("Cashier") && !isAdmin && !isBusinessManager;
-          router.push(isCashierOnly ? "/dashboard/expenses" : "/dashboard");
-        }
-      } catch {
-        // ignore errors and stay on login
-      }
-    };
-    checkSession();
-  }, [router]);
+    if (!userLoading && user) {
+      const roles = user.roles ?? [];
+      const isAdmin = roles.includes("Admin") || roles.includes("Super Admin");
+      const isBusinessManager = roles.includes("Business Manager");
+      const isCashierOnly =
+        roles.includes("Cashier") && !isAdmin && !isBusinessManager;
+      router.push(isCashierOnly ? "/dashboard/expenses" : "/dashboard");
+    }
+  }, [user, userLoading]);
 
   return (
     <main className="relative min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">

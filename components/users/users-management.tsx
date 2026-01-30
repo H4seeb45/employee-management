@@ -179,7 +179,7 @@ export function UsersManagement() {
             <div className="space-y-2">
               <Label>Roles</Label>
               <div className="grid gap-2 md:grid-cols-2">
-                {roles?.filter(r=>r.name !== "Super Admin")?.map((role) => (
+                {roles?.filter(r=>!["Super Admin","Admin"].includes(r.name))?.map((role) => (
                   <label
                     key={role.id}
                     className="flex items-center gap-2 text-sm"

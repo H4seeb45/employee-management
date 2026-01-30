@@ -50,39 +50,26 @@ type StatCard = {
 };
 
 export default function DashboardPage() {
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedLocationId, setSelectedLocationId] = useState("all");
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
-  const { employees, attendance } = useLayout();
+  const { employees, attendance, user, userLoading } = useLayout();
+  const isSuperAdmin = user?.roles?.includes("Super Admin") ?? false;
 
   useEffect(() => {
-    const loadSession = async () => {
-      try {
-        const response = await fetch("/api/auth/me");
-        if (!response.ok) return;
-        const data = await response.json();
-        const roles: string[] = data?.user?.roles ?? [];
-        const superAdmin = roles.includes("Super Admin");
-        setIsSuperAdmin(superAdmin);
-        if (superAdmin) {
-          setIsLoadingLocations(true);
-          try {
-            const locationsResponse = await fetch("/api/locations");
-            const locationsData = await locationsResponse.json();
-            if (locationsResponse.ok) {
-              setLocations(locationsData.locations ?? locationsData ?? []);
-            }
-          } finally {
-            setIsLoadingLocations(false);
+    if (isSuperAdmin && !userLoading) {
+      setIsLoadingLocations(true);
+      fetch("/api/locations")
+        .then(res => res.json())
+        .then(data => {
+          if (data.locations || Array.isArray(data)) {
+            setLocations(data.locations ?? data ?? []);
           }
-        }
-      } catch {
-        // ignore session failures
-      }
-    };
-    loadSession();
-  }, []);
+        })
+        .catch(err => console.error("Failed to load locations", err))
+        .finally(() => setIsLoadingLocations(false));
+    }
+  }, [isSuperAdmin, userLoading]);
 
   const totalEmployees = employees?.length ?? 0;
   const presentToday = attendance?.filter((a) => a?.status === "Present").length ?? 0;

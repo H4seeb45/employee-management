@@ -10,9 +10,11 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Eye, EyeOff, Mail, Lock, AlertCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useLayout } from "../layout/layout-provider";
 
 export function LoginForm({ className }: { className?: string }) {
   const router = useRouter();
+  const { refreshUser } = useLayout();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -22,7 +24,6 @@ export function LoginForm({ className }: { className?: string }) {
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [emailTouched, setEmailTouched] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
-
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
@@ -86,6 +87,8 @@ export function LoginForm({ className }: { className?: string }) {
         setLoading(false);
         return;
       }
+      // Refresh user context after successful login
+      await refreshUser();
       router.replace(getRedirectPath(data?.user?.roles ?? []));
     } catch {
       setError("Something went wrong. Please try again.");

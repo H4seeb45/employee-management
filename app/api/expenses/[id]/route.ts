@@ -7,9 +7,10 @@ import {
   isSuperAdminUser,
 } from "@/lib/auth";
 
-type RouteParams = { params: { id: string } };
+type RouteParams = { params: Promise<{ id: string }> };
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
+  const { id } = await params;
   const user = await getCurrentUser(request);
   if (!user) {
     return NextResponse.json({ message: "Unauthorized." }, { status: 401 });
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
   const isSuperAdmin = isSuperAdminUser(user);
   const expense = await prisma.expenseSheet.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       location: true,
       createdBy: true,
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   if (!expense) {
     return NextResponse.json({ message: "Not found." }, { status: 404 });
   }
-  if (!isSuperAdmin && expense.locationId !== user.locationId) {
+  if (!isSuperAdmin && expense.locationId !== user.locationId && !hasRole(user, "Accountant")) {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 
@@ -39,6 +40,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 }
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
+  const { id } = await params;
   const user = await getCurrentUser(request);
   if (!user) {
     return NextResponse.json({ message: "Unauthorized." }, { status: 401 });
@@ -48,17 +50,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const action = body?.action?.toString();
 
   const expense = await prisma.expenseSheet.findUnique({
-    where: { id: params.id },
+    where: { id },
   });
   if (!expense) {
     return NextResponse.json({ message: "Not found." }, { status: 404 });
   }
 
   if (action === "approve") {
-    if (!isAdminUser(user)) {
-      return NextResponse.json({ message: "Forbidden." }, { status: 403 });
-    }
-    if (!isSuperAdminUser(user) && expense.locationId !== user.locationId) {
+    if (!isAdminUser(user) && !isSuperAdminUser(user)) {
       return NextResponse.json({ message: "Forbidden." }, { status: 403 });
     }
     if (expense.status !== "PENDING") {
@@ -68,7 +67,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
     const updated = await prisma.expenseSheet.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         status: "APPROVED",
         approvedById: user.id,
@@ -101,10 +100,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
 
   if (action === "reject") {
-    if (!isAdminUser(user)) {
-      return NextResponse.json({ message: "Forbidden." }, { status: 403 });
-    }
-    if (!isSuperAdminUser(user) && expense.locationId !== user.locationId) {
+    if (!isAdminUser(user) && !isSuperAdminUser(user)) {
       return NextResponse.json({ message: "Forbidden." }, { status: 403 });
     }
     if (expense.status !== "PENDING") {
@@ -114,7 +110,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
     const updated = await prisma.expenseSheet.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         status: "REJECTED",
         rejectedById: user.id,
@@ -125,31 +121,73 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
 
   if (action === "disburse") {
-    if (!hasRole(user, "Cashier")) {
+    // if (!hasRole(user, "Cashier") && ) {
+    //   return NextResponse.json({ message: "Forbidden." }, { status: 403 });
+    // }
+    if (!hasRole(user, "Cashier") && !hasRole(user, "Accountant") && !isSuperAdminUser(user) && expense.locationId !== user.locationId ) {
+      console.log("Forbidden.")
       return NextResponse.json({ message: "Forbidden." }, { status: 403 });
     }
-    if (expense.locationId !== user.locationId) {
-      return NextResponse.json({ message: "Forbidden." }, { status: 403 });
+    
+    if(hasRole(user, "Cashier") && expense.disburseType !== "Cash") {
+      console.log("Only Cash expenses can be disbursed.")
+      return NextResponse.json({ message: "Only Cash expenses can be disbursed." }, { status: 400 });
     }
+
+    if(hasRole(user, "Accountant") && expense.disburseType !== "Cheque / Online Transfer") {
+      console.log("Only Cheque / Online Transfer expenses can be disbursed.")
+      return NextResponse.json({ message: "Only Cheque / Online Transfer expenses can be disbursed." }, { status: 400 });
+    }
+
     if (expense.status !== "APPROVED") {
+      console.log("Only approved expenses can be disbursed.")
       return NextResponse.json(
         { message: "Only approved expenses can be disbursed." },
         { status: 400 }
       );
     }
     if (expense.disbursedAt) {
+      console.log("Expense already disbursed.")
       return NextResponse.json(
         { message: "Expense already disbursed." },
         { status: 400 }
       );
     }
     const updated = await prisma.expenseSheet.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         status: "DISBURSED",
         disbursedById: user.id,
         disbursedAt: new Date(),
       },
+    });
+    return NextResponse.json({ expense: updated });
+  }
+
+  if (action === "updateDisburseType") {
+    const newType = body?.disburseType?.toString();
+    if (!newType) {
+      return NextResponse.json({ message: "Disburse type is required." }, { status: 400 });
+    }
+
+    // Role-specific restrictions
+    const isAccountant = hasRole(user, "Accountant");
+    const isCashier = hasRole(user, "Cashier");
+
+    if (!isSuperAdminUser(user)) {
+      if(newType === "Cash" && !isAccountant){
+        console.log("Only Accountants or Super Admins can reassign to Cash.")
+        return NextResponse.json({ message: "Only Accountants or Super Admins can reassign to Cash." }, { status: 403 });
+      }
+      if(newType === "Cheque / Online Transfer" && !isCashier){
+        console.log("Only Cashiers or Super Admins can reassign to Cheque.")
+        return NextResponse.json({ message: "Only Cashiers or Super Admins can reassign to Cheque." }, { status: 403 });
+      }
+    }
+
+    const updated = await prisma.expenseSheet.update({
+      where: { id },
+      data: { disburseType: newType },
     });
     return NextResponse.json({ expense: updated });
   }
