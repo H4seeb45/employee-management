@@ -16,6 +16,9 @@ import {
   Banknote,
   Loader2,
   Truck,
+  Shield,
+  ChevronRight,
+  LogOut,
 } from "lucide-react";
 import { useLayout } from "@/components/layout/layout-provider";
 
@@ -30,7 +33,6 @@ const sidebarItems = [
   },
   { name: "Payroll", href: "/dashboard/payroll", icon: Briefcase },
   { name: "Loans", href: "/dashboard/loans", icon: Banknote },
-  // { name: "Projects", href: "/dashboard/projects", icon: Briefcase },
   {
     name: "Expenses",
     href: "/dashboard/expenses",
@@ -51,10 +53,6 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { sidebarOpen, setSidebarOpen } = useLayout();
   const [isMobile, setIsMobile] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [roles, setRoles] = useState<string[]>([]);
-  const [email, setEmail] = useState<string | null>(null);
-  const [isSessionLoading, setIsSessionLoading] = useState(true);
 
   // Check if we're on mobile
   useEffect(() => {
@@ -75,26 +73,10 @@ export function AppSidebar() {
     };
   }, [setSidebarOpen]);
 
-  useEffect(() => {
-    const loadSession = async () => {
-      setIsSessionLoading(true);
-      try {
-        const response = await fetch("/api/auth/me");
-        if (!response.ok) return;
-        const data = await response.json();
-        const roles: string[] = data?.user?.roles ?? [];
-        setIsAdmin(roles.includes("Admin") || roles.includes("Super Admin"));
-        setRoles(roles);
-        setEmail(data?.user?.email ?? null);
-      } catch {
-        // ignore session failures
-      } finally {
-        setIsSessionLoading(false);
-      }
-    };
-    loadSession();
-  }, []);
-
+  const { user, userLoading: isSessionLoading } = useLayout();
+  const roles = user?.roles ?? [];
+  const email = user?.email ?? null;
+  const isAdmin = roles.includes("Admin") || roles.includes("Super Admin");
   const isBusinessManager = roles.includes("Business Manager");
   const isSuperAdmin = roles.includes("Super Admin");
   const isCashierOnly =
@@ -106,30 +88,57 @@ export function AppSidebar() {
     <>
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 w-64 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-200 ease-in-out md:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 w-64 bg-gradient-to-b from-[#0A192F] via-[#0D1F3C] to-[#0A192F] text-white shadow-2xl transform transition-transform duration-300 ease-in-out md:translate-x-0 border-r border-slate-700/50",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         <div className="flex flex-col h-full">
-          <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-700">
-            <h1 className="text-xl font-bold text-sky-600 dark:text-sky-400">
-              Sadiq Traders
-            </h1>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden"
-              onClick={() => setSidebarOpen(false)}
-            >
-              <X className="h-5 w-5" />
-            </Button>
+          {/* Premium Header with Shield Logo */}
+          <div className="relative h-20 px-6 border-b border-slate-700/50 bg-gradient-to-r from-slate-800/30 to-transparent backdrop-blur-sm">
+            <div className="flex items-center justify-between h-full">
+              <div className="flex items-center gap-3 group cursor-pointer">
+                {/* Shield Logo with Gradient */}
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg blur-md opacity-50 group-hover:opacity-75 transition-opacity"></div>
+                  <div className="relative h-10 w-10 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center shadow-lg border border-blue-400/20">
+                    <Shield className="h-6 w-6 text-white" strokeWidth={2.5} />
+                  </div>
+                </div>
+                
+                {/* Company Name */}
+                <div>
+                  <h1 className="text-xl font-bold tracking-tight text-white leading-none">
+                    Sadiq Traders
+                  </h1>
+                  <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-0.5">
+                    Enterprise HRMS
+                  </p>
+                </div>
+              </div>
+
+              {/* Mobile Close Button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden text-slate-400 hover:text-white hover:bg-white/10 rounded-lg"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
-          <nav className="flex-1 overflow-y-auto p-4 space-y-1">
+
+          {/* Navigation */}
+          <nav className="flex-1 overflow-y-auto p-4 space-y-1.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {isSessionLoading && (
               <div className="flex items-center justify-center h-full">
-                <Loader2 className="h-5 w-5 animate-spin" />
+                <div className="flex flex-col items-center gap-3">
+                  <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+                  <p className="text-xs text-slate-400">Loading menu...</p>
+                </div>
               </div>
             )}
+            
             {!isSessionLoading &&
               sidebarItems
                 .filter((item) => {
@@ -143,8 +152,6 @@ export function AppSidebar() {
                   );
                 })
                 .map((item) => {
-                  // Make dashboard only active on exact `/dashboard` path.
-                  // Other items should be active for their path or any nested routes.
                   let isActive = false;
                   if (item.href === "/dashboard") {
                     isActive = pathname === "/dashboard";
@@ -160,41 +167,95 @@ export function AppSidebar() {
                       key={item.href}
                       href={item.href}
                       className={cn(
-                        "flex items-center px-4 py-3 text-sm rounded-md transition-colors",
+                        "group relative flex items-center justify-between px-4 py-3.5 text-sm font-medium rounded-xl transition-all duration-200",
                         isActive
-                          ? "bg-sky-100 text-sky-600 dark:bg-sky-900/50 dark:text-sky-400"
-                          : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700/50"
+                          ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-900/50" 
+                          : "text-slate-300 hover:bg-slate-800/40 hover:text-white"
                       )}
                       onClick={() => isMobile && setSidebarOpen(false)}
                     >
-                      <Icon className="mr-3 h-5 w-5" />
-                      {item.name}
+                      {/* Active Indicator */}
+                      {isActive && (
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full"></div>
+                      )}
+                      
+                      <div className="flex items-center flex-1">
+                        <div className={cn(
+                          "mr-3 p-1.5 rounded-lg transition-all",
+                          isActive 
+                            ? "bg-white/20" 
+                            : "bg-slate-700/30 group-hover:bg-slate-700/50"
+                        )}>
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <span className="tracking-wide">{item.name}</span>
+                      </div>
+
+                      {/* Chevron Indicator */}
+                      <ChevronRight 
+                        className={cn(
+                          "h-4 w-4 transition-all",
+                          isActive 
+                            ? "opacity-100 translate-x-0" 
+                            : "opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0"
+                        )}
+                      />
                     </Link>
                   );
                 })}
           </nav>
-          <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex items-center">
-              <div className="h-8 w-8 rounded-full bg-sky-500 flex items-center justify-center text-white font-medium">
-                {avatarLetter}
-              </div>
-              <div className="ml-3">
-                {isSessionLoading ? (
-                  <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Loading…</span>
+
+          {/* Enhanced User Profile Section */}
+          <div className="relative border-t border-slate-700/50 bg-gradient-to-r from-slate-800/20 to-transparent backdrop-blur-sm">
+            {/* Glow Effect */}
+            <div className="absolute inset-0 bg-gradient-to-t from-blue-900/10 to-transparent pointer-events-none"></div>
+            
+            <div className="relative p-4 space-y-3">
+              {/* User Info */}
+              <div className="flex items-center gap-3">
+                {/* Avatar with Glow */}
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl blur-sm opacity-40"></div>
+                  <div className="relative h-11 w-11 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white font-bold text-lg shadow-lg border border-blue-400/30">
+                    {avatarLetter}
                   </div>
-                ) : (
-                  <>
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {roleLabel}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {email || "user@company.com"}
-                    </p>
-                  </>
-                )}
+                </div>
+
+                {/* User Details */}
+                <div className="flex-1 min-w-0">
+                  {isSessionLoading ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
+                      <span className="text-xs text-slate-400">Loading...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-white truncate">
+                          {roleLabel}
+                        </p>
+                        {(isAdmin || isSuperAdmin) && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                            Admin
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-400 truncate">
+                        {email || "user@company.com"}
+                      </p>
+                    </>
+                  )}
+                </div>
               </div>
+
+              {/* Logout Button */}
+              <Link
+                href="/api/auth/logout"
+                className="flex items-center justify-center gap-2 w-full px-4 py-2.5 text-sm font-medium text-slate-300 bg-slate-800/40 hover:bg-red-600/20 hover:text-red-400 rounded-lg transition-all duration-200 border border-slate-700/50 hover:border-red-500/30"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Sign Out</span>
+              </Link>
             </div>
           </div>
         </div>

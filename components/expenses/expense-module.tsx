@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useReactToPrint } from "react-to-print";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -23,23 +24,36 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  DollarSign,
+  Plus,
+  Search,
+  Filter,
+  Download,
+  Eye,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Upload,
+  FileText,
+  TrendingUp,
+  Calendar,
+  AlertCircle,
+  Loader2,
+  X,
+  ChevronDown,
+  ChevronRight,
+  Printer,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { UploadButton } from "@/lib/uploadthing";
-import { Download, Printer, Search, X } from "lucide-react";
 import { ExpenseVoucherPrint } from "./expense-voucher-print";
 import { expenseTypes } from "./expense-types";
 
@@ -78,130 +92,94 @@ export function ExpenseModule({
   const [expenses, setExpenses] = useState<ExpenseSheet[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+
+  // Form state
   const [expenseType, setExpenseType] = useState("");
   const [amount, setAmount] = useState("");
   const [details, setDetails] = useState("");
   const [attachments, setAttachments] = useState<ExpenseAttachment[]>([]);
-  const [selectedExpense, setSelectedExpense] = useState<ExpenseSheet | null>(
-    null
-  );
-  const [previewAttachment, setPreviewAttachment] =
-    useState<ExpenseAttachment | null>(null);
-  const [expenseToPrint, setExpenseToPrint] = useState<ExpenseSheet | null>(
-    null
-  );
-
-  // Routes and Vehicles state
-  const [routes, setRoutes] = useState<Array<{ id: string; routeNo: string; name: string }>>([]);
-  const [vehicles, setVehicles] = useState<Array<{ id: string; vehicleNo: string; type: string | null; model: string | null }>>([]);
   const [selectedRoute, setSelectedRoute] = useState("");
   const [selectedVehicle, setSelectedVehicle] = useState("");
-  const [vehicleTransactions, setVehicleTransactions] = useState<ExpenseSheet[]>([]);
-  const [loadingTransactions, setLoadingTransactions] = useState(false);
 
-  // Helper function to check if expense type requires route/vehicle
+  // Dialog states
+  const [selectedExpense, setSelectedExpense] = useState<ExpenseSheet | null>(null);
+  const [expenseToPrint, setExpenseToPrint] = useState<ExpenseSheet | null>(null); // Separate state for printing
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Routes and vehicles
+  const [routes, setRoutes] = useState<Array<{ id: string; routeNo: string; name: string }>>([]);
+  const [vehicles, setVehicles] = useState<Array<{ id: string; vehicleNo: string }>>([]);
+
+  // Applied filter states (actual filters used for API call)
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterType, setFilterType] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterFromDate, setFilterFromDate] = useState("");
+  const [filterToDate, setFilterToDate] = useState("");
+  const [filterRoute, setFilterRoute] = useState("all");
+  const [filterVehicle, setFilterVehicle] = useState("all");
+  const [filterMinAmount, setFilterMinAmount] = useState("");
+  const [filterMaxAmount, setFilterMaxAmount] = useState("");
+
+  // Temporary filter states (for user input before applying)
+  const [tempFilterStatus, setTempFilterStatus] = useState("all");
+  const [tempFilterType, setTempFilterType] = useState("all");
+  const [tempSearchQuery, setTempSearchQuery] = useState("");
+  const [tempFilterFromDate, setTempFilterFromDate] = useState("");
+  const [tempFilterToDate, setTempFilterToDate] = useState("");
+  const [tempFilterRoute, setTempFilterRoute] = useState("all");
+  const [tempFilterVehicle, setTempFilterVehicle] = useState("all");
+  const [tempFilterMinAmount, setTempFilterMinAmount] = useState("");
+  const [tempFilterMaxAmount, setTempFilterMaxAmount] = useState("");
+
+  // Action states
+  const [processingAction, setProcessingAction] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const printRef = useRef<HTMLDivElement>(null);
+
+  // Permission checks
+  const isBusinessManager = roles.includes("Business Manager");
+  const isAdmin = roles.includes("Admin") || roles.includes("Super Admin");
+  const isSuperAdmin = roles.includes("Super Admin");
+  const canCreate = isBusinessManager; // Only Business Managers can create expenses
+  const canDisburse = isAdmin || isSuperAdmin;
+
+  // Required route/vehicle check
   const requiresRouteAndVehicle = (type: string) => {
-    const vehicleRelatedTypes = [
+    const vehicleTypes = [
       "LOADING_CHARGES",
       "REPAIR_MAINT_VEHICLE",
       "RIKSHAW_RENTAL",
       "VEHICLE_CHALLAN",
       "VEHICLE_FUEL",
       "VEHICLE_RENTAL",
-      "VEHICLES_RENT"
+      "VEHICLES_RENT",
     ];
-    return vehicleRelatedTypes.includes(type);
+    return vehicleTypes.includes(type);
   };
 
-  // Search filters (draft state)
-  const [searchId, setSearchId] = useState("");
-  const [searchStatus, setSearchStatus] = useState("all");
-  const [searchType, setSearchType] = useState("all");
-  const [searchMinAmount, setSearchMinAmount] = useState("");
-  const [searchMaxAmount, setSearchMaxAmount] = useState("");
-  const [searchFromDate, setSearchFromDate] = useState("");
-  const [searchToDate, setSearchToDate] = useState("");
-  const [searchRoute, setSearchRoute] = useState("all");
-  const [searchVehicle, setSearchVehicle] = useState("all");
-  const [showFilters, setShowFilters] = useState(false);
+  // Fetch expenses - only when applied filters or page changes
+  useEffect(() => {
+    fetchExpenses();
+  }, [page, filterStatus, filterType, filterFromDate, filterToDate, filterRoute, filterVehicle, filterMinAmount, filterMaxAmount, locationId]);
 
-  // Applied filters (actual state used for API calls)
-  const [appliedSearchId, setAppliedSearchId] = useState("");
-  const [appliedSearchStatus, setAppliedSearchStatus] = useState("all");
-  const [appliedSearchType, setAppliedSearchType] = useState("all");
-  const [appliedSearchMinAmount, setAppliedSearchMinAmount] = useState("");
-  const [appliedSearchMaxAmount, setAppliedSearchMaxAmount] = useState("");
-  const [appliedSearchFromDate, setAppliedSearchFromDate] = useState("");
-  const [appliedSearchToDate, setAppliedSearchToDate] = useState("");
-  const [appliedSearchRoute, setAppliedSearchRoute] = useState("all");
-  const [appliedSearchVehicle, setAppliedSearchVehicle] = useState("all");
-
-  const printRef = useRef<HTMLDivElement>(null);
-  const handlePrint = useReactToPrint({
-    contentRef: printRef,
-  });
-
-  const canCreate = roles.includes("Business Manager");
-  const canApprove = roles.includes("Admin") || roles.includes("Super Admin");
-  const canDisburse = roles.includes("Cashier");
-
-  const loadExpenses = async (pageNumber = page) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams({
-        page: pageNumber.toString(),
-        limit: "10",
-      });
-      if (locationId) {
-        params.set("locationId", locationId);
-      }
-      // Add applied search filters
-      if (appliedSearchId.trim()) {
-        params.set("searchId", appliedSearchId.trim());
-      }
-      if (appliedSearchStatus && appliedSearchStatus !== "all") {
-        params.set("status", appliedSearchStatus);
-      }
-      if (appliedSearchType && appliedSearchType !== "all") {
-        params.set("expenseType", appliedSearchType);
-      }
-      if (appliedSearchMinAmount.trim()) {
-        params.set("minAmount", appliedSearchMinAmount.trim());
-      }
-      if (appliedSearchMaxAmount.trim()) {
-        params.set("maxAmount", appliedSearchMaxAmount.trim());
-      }
-      if (appliedSearchFromDate.trim()) {
-        params.set("fromDate", appliedSearchFromDate.trim());
-      }
-      if (appliedSearchToDate.trim()) {
-        params.set("toDate", appliedSearchToDate.trim());
-      }
-      if (appliedSearchRoute && appliedSearchRoute !== "all") {
-        params.set("routeId", appliedSearchRoute);
-      }
-      if (appliedSearchVehicle && appliedSearchVehicle !== "all") {
-        params.set("vehicleId", appliedSearchVehicle);
-      }
-      
-      const response = await fetch(`/api/expenses?${params.toString()}`);
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data?.message || "Failed to load expenses.");
-      }
-      setExpenses(data.expenses ?? []);
-      setTotalPages(data?.pagination?.totalPages || 1);
-      setPage(data?.pagination?.page || pageNumber);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load expenses.");
-    } finally {
-      setLoading(false);
-    }
+  // Apply filters handler
+  const handleApplyFilters = () => {
+    setFilterStatus(tempFilterStatus);
+    setFilterType(tempFilterType);
+    setSearchQuery(tempSearchQuery);
+    setFilterFromDate(tempFilterFromDate);
+    setFilterToDate(tempFilterToDate);
+    setFilterRoute(tempFilterRoute);
+    setFilterVehicle(tempFilterVehicle);
+    setFilterMinAmount(tempFilterMinAmount);
+    setFilterMaxAmount(tempFilterMaxAmount);
+    setPage(1); // Reset to first page when applying filters
   };
 
-  // Load routes and vehicles
-  const loadRoutesAndVehicles = async () => {
+  // Fetch routes and vehicles
+  const fetchRoutesAndVehicles = async () => {
     try {
       const [routesRes, vehiclesRes] = await Promise.all([
         fetch("/api/routes-vehicles/routes"),
@@ -218,918 +196,1066 @@ export function ExpenseModule({
         setVehicles(vehiclesData.vehicles || []);
       }
     } catch (err) {
-      console.error("Failed to load routes/vehicles:", err);
+      console.error("Failed to fetch routes and vehicles:", err);
     }
   };
 
-  // Load last 3 transactions for selected vehicle
-  const loadVehicleTransactions = async (vehicleId: string) => {
-    if (!vehicleId) {
-      setVehicleTransactions([]);
-      return;
-    }
-    
-    setLoadingTransactions(true);
+  useEffect(() => {
+    // Fetch routes and vehicles for both form and filters
+    if(showFilters && (routes.length === 0 || vehicles.length === 0)){
+    fetchRoutesAndVehicles();}
+  }, [showFilters]);
+
+  const fetchExpenses = async () => {
+    setLoading(true);
     try {
-      const response = await fetch(`/api/expenses?vehicleId=${vehicleId}&limit=3`);
-      if (response.ok) {
-        const data = await response.json();
-        setVehicleTransactions(data.expenses || []);
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: "10",
+      });
+
+      if (filterStatus !== "all") params.append("status", filterStatus);
+      if (filterType !== "all") params.append("expenseType", filterType);
+      if (locationId) params.append("locationId", locationId);
+      if (filterFromDate) params.append("fromDate", filterFromDate);
+      if (filterToDate) params.append("toDate", filterToDate);
+      if (filterRoute !== "all") params.append("routeId", filterRoute);
+      if (filterVehicle !== "all") params.append("vehicleId", filterVehicle);
+      if (filterMinAmount) params.append("minAmount", filterMinAmount);
+      if (filterMaxAmount) params.append("maxAmount", filterMaxAmount);
+
+      const res = await fetch(`/api/expenses?${params}`);
+      const data = await res.json();
+
+      if (res.ok) {
+        setExpenses(data.expenses || []);
+        setTotalPages(data.totalPages || 1);
+      } else {
+        setError(data.message || "Failed to fetch expenses");
       }
     } catch (err) {
-      console.error("Failed to load vehicle transactions:", err);
+      setError("Network error");
     } finally {
-      setLoadingTransactions(false);
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadRoutesAndVehicles();
-  }, []);
 
-  // Load vehicle transactions when vehicle is selected
-  useEffect(() => {
-    if (selectedVehicle) {
-      loadVehicleTransactions(selectedVehicle);
-    } else {
-      setVehicleTransactions([]);
-    }
-  }, [selectedVehicle]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [locationId, appliedSearchId, appliedSearchStatus, appliedSearchType, appliedSearchMinAmount, appliedSearchMaxAmount, appliedSearchFromDate, appliedSearchToDate, appliedSearchRoute, appliedSearchVehicle]);
-
-  useEffect(() => {
-    loadExpenses(page);
-  }, [page, locationId, appliedSearchId, appliedSearchStatus, appliedSearchType, appliedSearchMinAmount, appliedSearchMaxAmount, appliedSearchFromDate, appliedSearchToDate, appliedSearchRoute, appliedSearchVehicle]);
-
-  const handleApplyFilters = () => {
-    setAppliedSearchId(searchId);
-    setAppliedSearchStatus(searchStatus);
-    setAppliedSearchType(searchType);
-    setAppliedSearchMinAmount(searchMinAmount);
-    setAppliedSearchMaxAmount(searchMaxAmount);
-    setAppliedSearchFromDate(searchFromDate);
-    setAppliedSearchToDate(searchToDate);
-    setAppliedSearchRoute(searchRoute);
-    setAppliedSearchVehicle(searchVehicle);
-  };
-
-  const handleClearFilters = () => {
-    setSearchId("");
-    setSearchStatus("all");
-    setSearchType("all");
-    setSearchMinAmount("");
-    setSearchMaxAmount("");
-    setSearchFromDate("");
-    setSearchToDate("");
-    setSearchRoute("all");
-    setSearchVehicle("all");
-    // Also clear applied filters
-    setAppliedSearchId("");
-    setAppliedSearchStatus("all");
-    setAppliedSearchType("all");
-    setAppliedSearchMinAmount("");
-    setAppliedSearchMaxAmount("");
-    setAppliedSearchFromDate("");
-    setAppliedSearchToDate("");
-    setAppliedSearchRoute("all");
-    setAppliedSearchVehicle("all");
-  };
-
-  const handleCreate = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setError(null);
-    if (!expenseType || !amount) {
-      setError("Expense type and amount are required.");
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!expenseType || !amount || attachments.length === 0) {
+      setError("Please fill all required fields and upload at least one attachment");
       return;
     }
-    if (!details || details.trim() === "") {
-      setError("Details are required.");
-      return;
-    }
-    if (attachments.length === 0) {
-      setError("At least one attachment is required.");
-      return;
-    }
-    if (requiresRouteAndVehicle(expenseType) && (!selectedRoute || !selectedVehicle)) {
-      setError("Route and Vehicle are required for this expense type.");
-      return;
-    }
+
     setSaving(true);
+    setError(null);
+
     try {
-      const response = await fetch("/api/expenses", {
+      const res = await fetch("/api/expenses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           expenseType,
-          amount: Number.parseFloat(amount),
-          details: details || null,
+          amount: parseFloat(amount),
+          details,
           attachments,
-          routeId: requiresRouteAndVehicle(expenseType) ? selectedRoute : null,
-          vehicleId: requiresRouteAndVehicle(expenseType) ? selectedVehicle : null,
+          routeId: selectedRoute || undefined,
+          vehicleId: selectedVehicle || undefined,
         }),
       });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data?.message || "Failed to create expense.");
+
+      if (res.ok) {
+        // Reset form
+        setExpenseType("");
+        setAmount("");
+        setDetails("");
+        setAttachments([]);
+        setSelectedRoute("");
+        setSelectedVehicle("");
+        fetchExpenses();
+      } else {
+        const data = await res.json();
+        setError(data.message || "Failed to create expense");
       }
-      setExpenseType("");
-      setAmount("");
-      setDetails("");
-      setAttachments([]);
-      setSelectedRoute("");
-      setSelectedVehicle("");
-      await loadExpenses();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to create expense."
-      );
+      setError("Network error");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleAction = async (id: string, action: string) => {
-    setError(null);
+  // Handle expense actions
+  const handleExpenseAction = async (expenseId: string, action: "approve" | "disburse" | "reject") => {
+    setProcessingAction(true);
+    setActionError(null);
+
     try {
-      const response = await fetch(`/api/expenses/${id}`, {
+      const res = await fetch(`/api/expenses/${expenseId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
       });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data?.message || "Failed to update expense.");
+
+      if (res.ok) {
+        // Refresh the expenses list
+        fetchExpenses();
+        // Close the dialog
+        setSelectedExpense(null);
+      } else {
+        const data = await res.json();
+        setActionError(data.message || `Failed to ${action} expense`);
       }
-      await loadExpenses();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to update expense."
-      );
+      setActionError("Network error");
+    } finally {
+      setProcessingAction(false);
     }
   };
 
-  const statusColor = useMemo(
-    () =>
-      ({
-        PENDING: "bg-amber-100 text-amber-800",
-        APPROVED: "bg-blue-100 text-blue-800",
-        REJECTED: "bg-red-100 text-red-800",
-        DISBURSED: "bg-green-100 text-green-800",
-      } as Record<string, string>),
-    []
-  );
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+  });
 
-  const isImage = (fileType: string) => fileType.startsWith("image/");
-  const isPdf = (fileType: string) => fileType === "application/pdf";
-  const isPreviewable = (fileType: string) =>
-    isImage(fileType) || isPdf(fileType);
+  // Summary stats
+  const stats = {
+    total: expenses.length,
+    pending: expenses.filter((e) => e.status === "PENDING").length,
+    approved: expenses.filter((e) => e.status === "APPROVED").length,
+    disbursed: expenses.filter((e) => e.status === "DISBURSED").length,
+    totalAmount: expenses.reduce((sum, e) => sum + e.amount, 0),
+  };
 
   return (
     <div className="space-y-6">
-      {error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Something went wrong</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
+      {/* Page Header */}
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+          Expense Management
+        </h1>
+        <p className="text-slate-500 dark:text-slate-400">
+          Track, manage, and approve expense claims across your organization
+        </p>
+      </div>
 
-      {canCreate ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Create Expense Sheet</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Expense Type *</Label>
-                  <Select value={expenseType} onValueChange={setExpenseType} required>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {expenseTypes.map((type) => (
-                        <SelectItem key={type.value} value={type.value}>
-                          {type.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="amount">Amount *</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={amount}
-                    onChange={(event) => setAmount(event.target.value)}
-                    placeholder="0.00"
-                    required
-                  />
-                </div>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1E293B]">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                  Total Claims
+                </p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.total}</p>
               </div>
-
-              {/* Conditional Route and Vehicle Selection */}
-              {requiresRouteAndVehicle(expenseType) && (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Route *</Label>
-                    <Select value={selectedRoute} onValueChange={setSelectedRoute}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select route" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {routes.map((route) => (
-                          <SelectItem key={route.id} value={route.id}>
-                            {route.routeNo} - {route.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Vehicle *</Label>
-                    <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select vehicle" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {vehicles.map((vehicle) => (
-                          <SelectItem key={vehicle.id} value={vehicle.id}>
-                            {vehicle.vehicleNo}
-                            {vehicle.type || vehicle.model ? ` (${[vehicle.type, vehicle.model].filter(Boolean).join(' - ')})` : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              )}
-
-              {/* Vehicle Transaction History */}
-              {requiresRouteAndVehicle(expenseType) && selectedVehicle && (
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Last 3 Transactions for Selected Vehicle</Label>
-                  {loadingTransactions ? (
-                    <div className="text-sm text-muted-foreground p-3 border rounded-md">
-                      Loading transactions...
-                    </div>
-                  ) : vehicleTransactions.length === 0 ? (
-                    <div className="text-sm text-muted-foreground p-3 border rounded-md">
-                      No previous transactions found for this vehicle.
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {vehicleTransactions.map((transaction) => (
-                        <div
-                          key={transaction.id}
-                          className="p-3 border rounded-md bg-slate-50 dark:bg-slate-900"
-                        >
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <p className="text-sm font-medium">
-                                {expenseTypes.find((t) => t.value === transaction.expenseType)?.label ?? transaction.expenseType}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {new Date(transaction.createdAt).toLocaleDateString()} - {transaction.status}
-                              </p>
-                            </div>
-                            <p className="text-sm font-semibold">
-                              Rs. {transaction.amount.toFixed(2)}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label htmlFor="details">Details *</Label>
-                <Textarea
-                  id="details"
-                  value={details}
-                  onChange={(event) => setDetails(event.target.value)}
-                  placeholder="Add notes for this expense (required)"
-                  rows={4}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Upload Attachments (PDF, DOC, Images) *</Label>
-                  <UploadButton
-                    endpoint="expenseAttachment"
-                    appearance={{
-                      button: "bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:text-white dark:hover:bg-blue-600 font-medium px-4 py-2 rounded-md transition-colors",
-                      container: "w-full flex justify-start",
-                      allowedContent: "text-slate-600 dark:text-slate-400 text-sm"
-                    }}
-                    content={{
-                      button: "Choose Files",
-                      allowedContent: "PDF, DOC, DOCX, PNG, JPG (Max 5MB)"
-                    }}
-                    onClientUploadComplete={(
-                      files: Array<{
-                        url: string;
-                        key: string;
-                        name: string;
-                        type: string;
-                        size: number;
-                      }>
-                    ) => {
-                      const uploaded = (files ?? []).map((file) => ({
-                        url: file.url,
-                        fileKey: file.key,
-                        fileName: file.name,
-                        fileType: file.type,
-                        fileSize: file.size,
-                      }));
-                      setAttachments((prev) => [...prev, ...uploaded]);
-                    }}
-                    onUploadError={(uploadError: { message: string }) => {
-                      setError(uploadError.message);
-                    }}
-                  />
-                {attachments.length > 0 ? (
-                  <div className="text-sm text-green-600 dark:text-green-400 font-medium">
-                    ✓ {attachments.length} file(s) ready to attach.
-                  </div>
-                ) : (
-                  <div className="text-sm text-red-600 dark:text-red-400">
-                    ⚠ At least one attachment is required.
-                  </div>
-                )}
-              </div>
-
-              <div className="flex justify-end">
-                <Button type="submit" disabled={saving}>
-                  {saving ? "Submitting..." : "Submit Expense"}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {/* Search and Filter Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Search Expenses</CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              <Search className="h-4 w-4 mr-2" />
-              {showFilters ? "Hide Filters" : "Show Filters"}
-            </Button>
-          </div>
-        </CardHeader>
-        {showFilters && (
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleApplyFilters();
-                }
-              }}
-            >
-              {/* Search by ID */}
-              <div className="space-y-2">
-                <Label htmlFor="searchId">Expense ID</Label>
-                <Input
-                  id="searchId"
-                  placeholder="Search by ID..."
-                  value={searchId}
-                  onChange={(e) => setSearchId(e.target.value)}
-                />
-              </div>
-
-              {/* Search by Status */}
-              <div className="space-y-2">
-                <Label htmlFor="searchStatus">Status</Label>
-                <Select value={searchStatus} onValueChange={setSearchStatus}>
-                  <SelectTrigger id="searchStatus">
-                    <SelectValue placeholder="All statuses" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="PENDING">Pending</SelectItem>
-                    <SelectItem value="APPROVED">Approved</SelectItem>
-                    <SelectItem value="REJECTED">Rejected</SelectItem>
-                    <SelectItem value="DISBURSED">Disbursed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Search by Type */}
-              <div className="space-y-2">
-                <Label htmlFor="searchType">Expense Type</Label>
-                <Select value={searchType} onValueChange={setSearchType}>
-                  <SelectTrigger id="searchType">
-                    <SelectValue placeholder="All types" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    {expenseTypes.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>
-                        {type.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Search by Min Amount */}
-              <div className="space-y-2">
-                <Label htmlFor="searchMinAmount">Min Amount</Label>
-                <Input
-                  id="searchMinAmount"
-                  type="number"
-                  placeholder="Min amount"
-                  value={searchMinAmount}
-                  onChange={(e) => setSearchMinAmount(e.target.value)}
-                />
-              </div>
-
-              {/* Search by Max Amount */}
-              <div className="space-y-2">
-                <Label htmlFor="searchMaxAmount">Max Amount</Label>
-                <Input
-                  id="searchMaxAmount"
-                  type="number"
-                  placeholder="Max amount"
-                  value={searchMaxAmount}
-                  onChange={(e) => setSearchMaxAmount(e.target.value)}
-                />
-              </div>
-
-              {/* Search by From Date */}
-              <div className="space-y-2">
-                <Label htmlFor="searchFromDate">From Date</Label>
-                <Input
-                  id="searchFromDate"
-                  type="date"
-                  value={searchFromDate}
-                  onChange={(e) => setSearchFromDate(e.target.value)}
-                />
-              </div>
-
-              {/* Search by To Date */}
-              <div className="space-y-2">
-                <Label htmlFor="searchToDate">To Date</Label>
-                <Input
-                  id="searchToDate"
-                  type="date"
-                  value={searchToDate}
-                  onChange={(e) => setSearchToDate(e.target.value)}
-                />
-              </div>
-
-              {/* Search by Route */}
-              <div className="space-y-2">
-                <Label htmlFor="searchRoute">Route</Label>
-                <Select value={searchRoute} onValueChange={setSearchRoute}>
-                  <SelectTrigger id="searchRoute">
-                    <SelectValue placeholder="All routes" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Routes</SelectItem>
-                    {routes.map((route) => (
-                      <SelectItem key={route.id} value={route.id}>
-                        {route.routeNo} - {route.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Search by Vehicle */}
-              <div className="space-y-2">
-                <Label htmlFor="searchVehicle">Vehicle</Label>
-                <Select value={searchVehicle} onValueChange={setSearchVehicle}>
-                  <SelectTrigger id="searchVehicle">
-                    <SelectValue placeholder="All vehicles" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Vehicles</SelectItem>
-                    {vehicles.map((vehicle) => (
-                      <SelectItem key={vehicle.id} value={vehicle.id}>
-                        {vehicle.vehicleNo}
-                        {vehicle.type || vehicle.model ? ` (${[vehicle.type, vehicle.model].filter(Boolean).join(' - ')})` : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Apply Filters Button */}
-              <div className="flex items-end">
-                <Button
-                  variant="default"
-                  size="default"
-                  onClick={handleApplyFilters}
-                  className="w-full"
-                >
-                  <Search className="h-4 w-4 mr-2" />
-                  Apply Filters
-                </Button>
-              </div>
-
-              {/* Clear Filters Button */}
-              <div className="flex items-end">
-                <Button
-                  variant="outline"
-                  size="default"
-                  onClick={handleClearFilters}
-                  className="w-full"
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  Clear Filters
-                </Button>
+              <div className="p-3 rounded-xl bg-blue-100 dark:bg-blue-900/30">
+                <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
           </CardContent>
-        )}
-      </Card>
+        </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Expense Sheets</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <p className="text-sm text-muted-foreground">Loading expenses...</p>
-          ) : expenses.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No expense data available.
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Route</TableHead>
-                  <TableHead>Vehicle</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Attachments</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Updated</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {expenses.map((expense) => (
-                  <TableRow key={expense.id}>
-                    <TableCell>
-                      {expenseTypes.find((t) => t.value === expense.expenseType)
-                        ?.label ?? expense.expenseType}
-                    </TableCell>
-                    <TableCell>{expense.amount.toFixed(2)}</TableCell>
-                    <TableCell>
-                      {expense.location
-                        ? `${expense.location.city} - ${expense.location.name}`
-                        : "-"}
-                    </TableCell>
-                    <TableCell>
-                      {expense.route
-                        ? `${expense.route.routeNo} - ${expense.route.name}`
-                        : "-"}
-                    </TableCell>
-                    <TableCell>
-                      {expense.vehicle
-                        ? expense.vehicle.vehicleNo
-                        : "-"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={statusColor[expense.status] || ""}>
-                        {expense.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{expense.attachments.length}</TableCell>
-                    <TableCell>
-                      {new Date(expense.createdAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      {new Date(expense.updatedAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setSelectedExpense(expense);
-                            setPreviewAttachment(
-                              expense.attachments[0] ?? null
-                            );
-                          }}
+        <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1E293B]">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                  Pending
+                </p>
+                <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                  {stats.pending}
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-amber-100 dark:bg-amber-900/30">
+                <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1E293B]">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                  Approved
+                </p>
+                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                  {stats.approved}
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-emerald-100 dark:bg-emerald-900/30">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1E293B]">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                  Disbursed
+                </p>
+                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  {stats.disbursed}
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-blue-100 dark:bg-blue-900/30">
+                <DollarSign className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-200 dark:border-slate-700 bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-white/80 mb-1">Total Amount</p>
+                <p className="text-xl font-bold">
+                  {new Intl.NumberFormat("en-PK", {
+                    style: "currency",
+                    currency: "PKR",
+                    minimumFractionDigits: 0,
+                  }).format(stats.totalAmount)}
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-white/20">
+                <TrendingUp className="h-5 w-5" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Content - Tabbed Interface */}
+      <Tabs defaultValue="expenses" className="space-y-6">
+        <TabsList className={`grid w-full ${canCreate ? "grid-cols-2": "grid-cols-1"} lg:w-auto lg:inline-grid bg-slate-100 dark:bg-slate-800`}>
+          <TabsTrigger value="expenses" className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700">
+            <FileText className="h-4 w-4 mr-2" />
+            All Expenses
+          </TabsTrigger>
+          {canCreate && (
+            <TabsTrigger value="new" className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700">
+              <Plus className="h-4 w-4 mr-2" />
+              New Claim
+            </TabsTrigger>
+          )}
+        </TabsList>
+
+        {/* All Expenses Tab */}
+        <TabsContent value="expenses" className="space-y-4">
+          {/* Filters */}
+          <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1E293B]">
+            <CardHeader className={showFilters ? "border-b border-slate-100 dark:border-slate-700" : ""}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg text-slate-900 dark:text-white">
+                    Filter & Search
+                  </CardTitle>
+                  <CardDescription className="text-slate-500 dark:text-slate-400">
+                    Find specific expense claims
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="border-slate-300 dark:border-slate-600"
+                >
+                  <Filter className="h-4 w-4 mr-2" />
+                  {showFilters ? "Hide" : "Show"} Filters
+                  {showFilters ? (
+                    <ChevronDown className="h-4 w-4 ml-2" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 ml-2" />
+                  )}
+                </Button>
+              </div>
+            </CardHeader>
+
+            <AnimatePresence>
+              {showFilters && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <CardContent className="pt-6 pb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {/* Status Filter */}
+                      <div>
+                        <Label className="text-slate-700 dark:text-slate-300">Status</Label>
+                        <Select value={tempFilterStatus} onValueChange={setTempFilterStatus}>
+                          <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Statuses</SelectItem>
+                            <SelectItem value="PENDING">Pending</SelectItem>
+                            <SelectItem value="APPROVED">Approved</SelectItem>
+                            <SelectItem value="DISBURSED">Disbursed</SelectItem>
+                            <SelectItem value="REJECTED">Rejected</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Expense Type Filter */}
+                      <div>
+                        <Label className="text-slate-700 dark:text-slate-300">Expense Type</Label>
+                        <Select value={tempFilterType} onValueChange={setTempFilterType}>
+                          <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Types</SelectItem>
+                            {expenseTypes.map((type) => (
+                              <SelectItem key={type.value} value={type.value}>
+                                {type.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Route Filter */}
+                      <div>
+                        <Label className="text-slate-700 dark:text-slate-300">Route</Label>
+                        <Select value={tempFilterRoute} onValueChange={setTempFilterRoute}>
+                          <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Routes</SelectItem>
+                            {routes.map((route) => (
+                              <SelectItem key={route.id} value={route.id}>
+                                {route.routeNo} - {route.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Vehicle Filter */}
+                      <div>
+                        <Label className="text-slate-700 dark:text-slate-300">Vehicle</Label>
+                        <Select value={tempFilterVehicle} onValueChange={setTempFilterVehicle}>
+                          <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Vehicles</SelectItem>
+                            {vehicles.map((vehicle) => (
+                              <SelectItem key={vehicle.id} value={vehicle.id}>
+                                {vehicle.vehicleNo}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* From Date */}
+                      <div>
+                        <Label className="text-slate-700 dark:text-slate-300">From Date</Label>
+                        <div className="relative">
+                          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                          <Input
+                            type="date"
+                            value={tempFilterFromDate}
+                            onChange={(e) => setTempFilterFromDate(e.target.value)}
+                            className="pl-10 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
+                          />
+                        </div>
+                      </div>
+
+                      {/* To Date */}
+                      <div>
+                        <Label className="text-slate-700 dark:text-slate-300">To Date</Label>
+                        <div className="relative">
+                          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                          <Input
+                            type="date"
+                            value={tempFilterToDate}
+                            onChange={(e) => setTempFilterToDate(e.target.value)}
+                            className="pl-10 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Min Amount */}
+                      <div>
+                        <Label className="text-slate-700 dark:text-slate-300">Min Amount</Label>
+                        <div className="relative">
+                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                          <Input
+                            type="number"
+                            placeholder="0"
+                            value={tempFilterMinAmount}
+                            onChange={(e) => setTempFilterMinAmount(e.target.value)}
+                            className="pl-10 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Max Amount */}
+                      <div>
+                        <Label className="text-slate-700 dark:text-slate-300">Max Amount</Label>
+                        <div className="relative">
+                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                          <Input
+                            type="number"
+                            placeholder="999999"
+                            value={tempFilterMaxAmount}
+                            onChange={(e) => setTempFilterMaxAmount(e.target.value)}
+                            className="pl-10 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="mt-6 flex justify-end gap-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setTempFilterStatus("all");
+                          setTempFilterType("all");
+                          setTempFilterRoute("all");
+                          setTempFilterVehicle("all");
+                          setTempFilterFromDate("");
+                          setTempFilterToDate("");
+                          setTempFilterMinAmount("");
+                          setTempFilterMaxAmount("");
+                        }}
+                        className="border-slate-300 dark:border-slate-600"
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Clear
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleApplyFilters}
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                        Apply Filters
+                      </Button>
+                    </div>
+                  </CardContent>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </Card>
+
+          {/* Expenses Table */}
+          <Card className="mb-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1E293B]">
+            <CardContent className="p-0">
+              {loading ? (
+                <div className="flex items-center justify-center p-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+                </div>
+              ) : expenses.length === 0 ? (
+                <div className="flex flex-col items-center justify-center p-12 text-center">
+                  <AlertCircle className="h-12 w-12 text-slate-300 dark:text-slate-600 mb-4" />
+                  <p className="text-lg font-medium text-slate-900 dark:text-white mb-2">
+                    No expenses found
+                  </p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    Try adjusting your filters or create a new expense claim
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                        <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
+                          Type
+                        </TableHead>
+                        <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
+                          Amount
+                        </TableHead>
+                        <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
+                          Status
+                        </TableHead>
+                        <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
+                          Date
+                        </TableHead>
+                        <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
+                          Actions
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {expenses.map((expense) => (
+                        <TableRow
+                          key={expense.id}
+                          className="hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
+                          onClick={() => setSelectedExpense(expense)}
                         >
-                          View
-                        </Button>
-                        {canApprove && expense.status === "PENDING" ? (
-                          <>
-                            <Button
-                              size="sm"
-                              onClick={() =>
-                                handleAction(expense.id, "approve")
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-medium text-slate-900 dark:text-white">
+                                {expenseTypes.find((t) => t.value === expense.expenseType)
+                                  ?.label || expense.expenseType}
+                              </span>
+                              {expense.details && (
+                                <span className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-xs">
+                                  {expense.details}
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-semibold text-slate-900 dark:text-white">
+                              {new Intl.NumberFormat("en-PK", {
+                                style: "currency",
+                                currency: "PKR",
+                              }).format(expense.amount)}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              className={
+                                expense.status === "PENDING"
+                                  ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                                  : expense.status === "APPROVED"
+                                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                                  : expense.status === "DISBURSED"
+                                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                                  : "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400"
                               }
                             >
-                              Approve
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleAction(expense.id, "reject")}
-                            >
-                              Reject
-                            </Button>
-                          </>
-                        ) : null}
-                        {canDisburse && expense.status === "APPROVED" ? (
-                          <Button
-                            size="sm"
-                            onClick={() => handleAction(expense.id, "disburse")}
-                          >
-                            Mark Disbursed
-                          </Button>
-                        ) : null}
-                        {canDisburse && expense.status === "DISBURSED" ? (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => {
-                              setExpenseToPrint(expense);
-                              setTimeout(() => handlePrint(), 100);
-                            }}
-                          >
-                            <Printer className="h-4 w-4 mr-1" />
-                            Print
-                          </Button>
-                        ) : null}
+                              {expense.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-slate-600 dark:text-slate-400">
+                              {new Date(expense.createdAt).toLocaleDateString()}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedExpense(expense);
+                                }}
+                                className="hover:bg-slate-100 dark:hover:bg-slate-700"
+                                title="View Details"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              
+                              {expense.status === "DISBURSED" && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // Use separate state for printing to avoid opening view dialog
+                                    setExpenseToPrint(expense);
+                                    setTimeout(() => {
+                                      handlePrint();
+                                    }, 50);
+                                  }}
+                                  className="hover:bg-blue-100 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+                                  title="Print Voucher"
+                                >
+                                  <Printer className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* New Claim Tab */}
+        {canCreate && (
+          <TabsContent value="new">
+            <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1E293B]">
+              <CardHeader className="border-b border-slate-100 dark:border-slate-700">
+                <CardTitle className="text-xl text-slate-900 dark:text-white">
+                  Submit New Expense Claim
+                </CardTitle>
+                <CardDescription className="text-slate-500 dark:text-slate-400">
+                  Fill in the details below to create a new expense claim
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-6">
+                <form onSubmit={handleCreate} className="space-y-6">
+                  {error && (
+                    <div className="p-4 rounded-lg bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800">
+                      <p className="text-sm text-rose-700 dark:text-rose-400">{error}</p>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label className="text-slate-700 dark:text-slate-300">
+                        Expense Type <span className="text-rose-500">*</span>
+                      </Label>
+                      <Select value={expenseType} onValueChange={setExpenseType} required>
+                        <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                          <SelectValue placeholder="Select expense type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {expenseTypes.map((type) => (
+                            <SelectItem key={type.value} value={type.value}>
+                              {type.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-slate-700 dark:text-slate-300">
+                        Amount (PKR) <span className="text-rose-500">*</span>
+                      </Label>
+                      <div className="relative">
+                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={amount}
+                          onChange={(e) => setAmount(e.target.value)}
+                          placeholder="0.00"
+                          className="pl-10 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
+                          required
+                        />
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                    </div>
+                  </div>
 
-      {totalPages > 1 && (
-        <div className="flex justify-end">
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  onClick={() => setPage(Math.max(1, page - 1))}
-                  className={
-                    page === 1
-                      ? "pointer-events-none opacity-50"
-                      : "cursor-pointer"
-                  }
-                />
-              </PaginationItem>
-              {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
-                let pageNum = i + 1;
-                if (totalPages > 5 && page > 3) {
-                  pageNum = Math.min(totalPages, page - 2 + i);
-                  if (pageNum < 1) pageNum = 1;
-                }
-                return (
-                  <PaginationItem key={pageNum}>
-                    <PaginationLink
-                      onClick={() => setPage(pageNum)}
-                      isActive={page === pageNum}
+                  {requiresRouteAndVehicle(expenseType) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                      <div className="space-y-2">
+                        <Label className="text-slate-700 dark:text-slate-300">Route</Label>
+                        <Select value={selectedRoute} onValueChange={setSelectedRoute}>
+                          <SelectTrigger className="bg-white dark:bg-slate-800">
+                            <SelectValue placeholder="Select route" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {routes.map((route) => (
+                              <SelectItem key={route.id} value={route.id}>
+                                {route.routeNo} - {route.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-slate-700 dark:text-slate-300">Vehicle</Label>
+                        <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
+                          <SelectTrigger className="bg-white dark:bg-slate-800">
+                            <SelectValue placeholder="Select vehicle" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {vehicles.map((vehicle) => (
+                              <SelectItem key={vehicle.id} value={vehicle.id}>
+                                {vehicle.vehicleNo}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label className="text-slate-700 dark:text-slate-300">Details</Label>
+                    <Textarea
+                      value={details}
+                      onChange={(e) => setDetails(e.target.value)}
+                      placeholder="Add any additional details or notes..."
+                      className="min-h-[100px] bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label className="text-slate-700 dark:text-slate-300">
+                      Attachments <span className="text-rose-500">*</span>
+                    </Label>
+                    <div className="p-6 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:border-blue-400 dark:hover:border-blue-500 transition-colors">
+                      <div className="flex flex-col items-center justify-center gap-3">
+                        <div className="p-4 rounded-full bg-blue-100 dark:bg-blue-900/30">
+                          <Upload className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                            Upload supporting documents
+                          </p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            PDFs, images, or receipts (Max 10MB)
+                          </p>
+                        </div>
+                        <UploadButton
+                          endpoint="expenseAttachment"
+                          onClientUploadComplete={(files) => {
+                            const uploaded = (files ?? []).map((file) => ({
+                              url: file.url,
+                              fileKey: file.key,
+                              fileName: file.name,
+                              fileType: file.type,
+                              fileSize: file.size,
+                            }));
+                            setAttachments((prev) => [...prev, ...uploaded]);
+                          }}
+                          onUploadError={(error: { message: string }) => {
+                            setError(error.message);
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {attachments.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                          Uploaded Files ({attachments.length})
+                        </p>
+                        <div className="space-y-2">
+                          {attachments.map((file, idx) => (
+                            <div
+                              key={idx}
+                              className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                            >
+                              <div className="flex items-center gap-3">
+                                <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                <span className="text-sm text-slate-700 dark:text-slate-300">
+                                  {file.fileName}
+                                </span>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  setAttachments((prev) =>
+                                    prev.filter((_, i) => i !== idx)
+                                  )
+                                }
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setExpenseType("");
+                        setAmount("");
+                        setDetails("");
+                        setAttachments([]);
+                        setSelectedRoute("");
+                        setSelectedVehicle("");
+                      }}
+                      className="border-slate-300 dark:border-slate-600"
                     >
-                      {pageNum}
-                    </PaginationLink>
-                  </PaginationItem>
-                );
-              })}
-              <PaginationItem>
-                <PaginationNext
-                  onClick={() => setPage(Math.min(totalPages, page + 1))}
-                  className={
-                    page === totalPages
-                      ? "pointer-events-none opacity-50"
-                      : "cursor-pointer"
-                  }
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        </div>
-      )}
+                      Reset
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={saving || !expenseType || !amount || attachments.length === 0}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      {saving ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="h-4 w-4 mr-2" />
+                          Submit Claim
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+      </Tabs>
 
-      <Dialog
-        open={Boolean(selectedExpense)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setSelectedExpense(null);
-            setPreviewAttachment(null);
-          }
-        }}
-      >
-        <DialogContent className="max-h-[90vh] w-[95vw] max-w-3xl overflow-y-auto">
+      {/* Expense Details Dialog */}
+      <Dialog open={!!selectedExpense} onOpenChange={() => setSelectedExpense(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-[#1E293B]">
           <DialogHeader>
-            <DialogTitle>Expense Details</DialogTitle>
+            <DialogTitle className="text-slate-900 dark:text-white">
+              Expense Details
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 dark:text-slate-400">
+              View complete information about this expense claim
+            </DialogDescription>
           </DialogHeader>
-          {selectedExpense ? (
+          {selectedExpense && (
             <div className="space-y-6">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <p className="text-sm text-muted-foreground">Type</p>
-                  <p className="font-medium">
-                    {expenseTypes.find(
-                      (t) => t.value === selectedExpense.expenseType
-                    )?.label ?? selectedExpense.expenseType}
-                  </p>
+              {/* Error Display */}
+              {actionError && (
+                <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800">
+                  <p className="text-sm text-rose-700 dark:text-rose-400">{actionError}</p>
                 </div>
+              )}
+
+              {/* Status Badge */}
+              <div className="flex items-center justify-between p-4 rounded-lg bg-slate-50 dark:bg-slate-800">
                 <div>
-                  <p className="text-sm text-muted-foreground">Amount</p>
-                  <p className="font-medium">
-                    {selectedExpense.amount.toFixed(2)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Location</p>
-                  <p className="font-medium">
-                    {selectedExpense.location
-                      ? `${selectedExpense.location.city} - ${selectedExpense.location.name}`
-                      : "-"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Status</p>
-                  <Badge className={statusColor[selectedExpense.status] || ""}>
+                  <Label className="text-xs text-slate-500 dark:text-slate-400">Current Status</Label>
+                  <Badge
+                    className={`mt-1 ${
+                      selectedExpense.status === "PENDING"
+                        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                        : selectedExpense.status === "APPROVED"
+                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                        : selectedExpense.status === "DISBURSED"
+                        ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                        : "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400"
+                    }`}
+                  >
                     {selectedExpense.status}
                   </Badge>
                 </div>
+                <div className="text-right">
+                  <Label className="text-xs text-slate-500 dark:text-slate-400">Expense ID</Label>
+                  <p className="text-sm font-mono font-medium text-slate-900 dark:text-white mt-1">
+                    {selectedExpense.id.substring(0, 8).toUpperCase()}
+                  </p>
+                </div>
+              </div>
+
+              {/* Main Details */}
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">Created</p>
-                  <p className="font-medium">
+                  <Label className="text-xs text-slate-500 dark:text-slate-400">Expense Type</Label>
+                  <p className="text-sm font-medium text-slate-900 dark:text-white mt-1">
+                    {expenseTypes.find((t) => t.value === selectedExpense.expenseType)?.label}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-xs text-slate-500 dark:text-slate-400">Amount</Label>
+                  <p className="text-lg font-bold text-slate-900 dark:text-white mt-1">
+                    {new Intl.NumberFormat("en-PK", {
+                      style: "currency",
+                      currency: "PKR",
+                    }).format(selectedExpense.amount)}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-xs text-slate-500 dark:text-slate-400">Created Date</Label>
+                  <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">
                     {new Date(selectedExpense.createdAt).toLocaleString()}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Updated</p>
-                  <p className="font-medium">
+                  <Label className="text-xs text-slate-500 dark:text-slate-400">Last Updated</Label>
+                  <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">
                     {new Date(selectedExpense.updatedAt).toLocaleString()}
                   </p>
                 </div>
-                {selectedExpense.route && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Route</p>
-                    <p className="font-medium">
-                      {selectedExpense.route.routeNo} - {selectedExpense.route.name}
-                    </p>
-                  </div>
-                )}
-                {selectedExpense.vehicle && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Vehicle</p>
-                    <p className="font-medium">
-                      {selectedExpense.vehicle.vehicleNo}
-                      {selectedExpense.vehicle.type || selectedExpense.vehicle.model
-                        ? ` (${[selectedExpense.vehicle.type, selectedExpense.vehicle.model].filter(Boolean).join(' - ')})`
-                        : ''}
-                    </p>
-                  </div>
-                )}
               </div>
 
-              {selectedExpense.details ? (
+              {/* Additional Context */}
+              {(selectedExpense.route || selectedExpense.vehicle) && (
+                <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                  <Label className="text-xs text-blue-700 dark:text-blue-400 mb-2">Vehicle Information</Label>
+                  <div className="grid grid-cols-2 gap-3 mt-2">
+                    {selectedExpense.route && (
+                      <div>
+                        <Label className="text-xs text-slate-500 dark:text-slate-400">Route</Label>
+                        <p className="text-sm text-slate-700 dark:text-slate-300">
+                          {selectedExpense.route.routeNo} - {selectedExpense.route.name}
+                        </p>
+                      </div>
+                    )}
+                    {selectedExpense.vehicle && (
+                      <div>
+                        <Label className="text-xs text-slate-500 dark:text-slate-400">Vehicle</Label>
+                        <p className="text-sm text-slate-700 dark:text-slate-300">
+                          {selectedExpense.vehicle.vehicleNo}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Details */}
+              {selectedExpense.details && (
                 <div>
-                  <p className="text-sm text-muted-foreground">Details</p>
-                  <p className="whitespace-pre-wrap">
+                  <Label className="text-xs text-slate-500 dark:text-slate-400">Details & Notes</Label>
+                  <p className="text-sm text-slate-700 dark:text-slate-300 mt-1 p-3 rounded-lg bg-slate-50 dark:bg-slate-800">
                     {selectedExpense.details}
                   </p>
                 </div>
-              ) : null}
+              )}
 
-              <div className="grid gap-4 lg:grid-cols-2">
-                <div className="space-y-2 min-w-0">
-                  <p className="text-sm text-muted-foreground">Attachments</p>
-                  {selectedExpense.attachments.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">None</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {selectedExpense.attachments.map((file) => (
-                        <div
-                          key={file.fileKey}
-                          className="flex flex-col gap-2 rounded border px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between"
-                        >
-                          <button
-                            type="button"
-                            className="text-left min-w-0"
-                            onClick={() => setPreviewAttachment(file)}
-                          >
-                            <div className="font-medium break-words">
-                              {file.fileName}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {file.fileType}
-                            </div>
-                          </button>
-                          <div className="flex flex-wrap gap-2 sm:justify-end">
-                            <Button
-                              asChild
-                              size="sm"
-                              variant="outline"
-                              className="h-8 px-3"
-                            >
+              {/* Attachments with Preview */}
+              <div>
+                <Label className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+                  Attachments ({selectedExpense.attachments.length})
+                </Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                  {selectedExpense.attachments.map((file, idx) => {
+                    const isImage = file.fileType?.startsWith("image/");
+                    const isPDF = file.fileType === "application/pdf";
+
+                    return (
+                      <div
+                        key={idx}
+                        className="group relative rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 overflow-hidden hover:border-blue-400 dark:hover:border-blue-500 transition-all"
+                      >
+                        {/* Preview Area */}
+                        {isImage ? (
+                          <div className="aspect-video bg-slate-100 dark:bg-slate-900 relative">
+                            <img
+                              src={file.url}
+                              alt={file.fileName}
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                          </div>
+                        ) : isPDF ? (
+                          <div className="aspect-video bg-gradient-to-br from-rose-100 to-orange-100 dark:from-rose-900/30 dark:to-orange-900/30 flex items-center justify-center">
+                            <FileText className="h-16 w-16 text-rose-600 dark:text-rose-400" />
+                          </div>
+                        ) : (
+                          <div className="aspect-video bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 flex items-center justify-center">
+                            <FileText className="h-16 w-16 text-blue-600 dark:text-blue-400" />
+                          </div>
+                        )}
+
+                        {/* File Info */}
+                        <div className="p-3">
+                          <p className="text-sm font-medium text-slate-900 dark:text-white truncate mb-1">
+                            {file.fileName}
+                          </p>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                              {(file.fileSize / 1024).toFixed(0)} KB
+                            </span>
+                            <div className="flex gap-2">
                               <a
                                 href={file.url}
                                 target="_blank"
-                                rel="noreferrer"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
                               >
-                                Open
+                                <Eye className="h-3 w-3" />
+                                View
                               </a>
-                            </Button>
-                            <Button
-                              asChild
-                              size="sm"
-                              variant="secondary"
-                              className="h-8 px-3"
-                            >
-                              <a href={file.url} download>
+                              <a
+                                href={file.url}
+                                download={file.fileName}
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+                              >
+                                <Download className="h-3 w-3" />
                                 Download
                               </a>
-                            </Button>
+                            </div>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className="space-y-2 min-w-0">
-                  <p className="text-sm text-muted-foreground">Preview</p>
-                  {previewAttachment ? (
-                    isPreviewable(previewAttachment.fileType) ? (
-                      <div className="rounded border p-2">
-                        {isImage(previewAttachment.fileType) ? (
-                          <img
-                            src={previewAttachment.url}
-                            alt={previewAttachment.fileName}
-                            className="max-h-72 w-full object-contain"
-                          />
-                        ) : (
-                          <iframe
-                            src={previewAttachment.url}
-                            className="h-72 w-full"
-                            title={previewAttachment.fileName}
-                          />
-                        )}
                       </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        Preview not available. Use Open or Download.
-                      </p>
-                    )
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Select a file to preview.
-                    </p>
-                  )}
+                    );
+                  })}
                 </div>
               </div>
 
-              {canDisburse && selectedExpense.status === "DISBURSED" ? (
-                <div className="flex justify-end gap-2 pt-4 border-t">
-                  <Button
-                    variant="default"
-                    onClick={() => {
-                      setExpenseToPrint(selectedExpense);
-                      setTimeout(() => handlePrint(), 100);
-                    }}
-                  >
-                    <Printer className="h-4 w-4 mr-2" />
-                    Print Voucher
-                  </Button>
+              {/* Action Buttons */}
+              <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-700">
+                <Button
+                  variant="outline"
+                  onClick={() => setSelectedExpense(null)}
+                  disabled={processingAction}
+                  className="border-slate-300 dark:border-slate-600"
+                >
+                  Close
+                </Button>
+
+                <div className="flex gap-2">
+                  {/* Approve Button - Show for Admin/BM when status is PENDING */}
+                  {isAdmin && selectedExpense.status === "PENDING" && (
+                    <Button
+                      onClick={() => handleExpenseAction(selectedExpense.id, "approve")}
+                      disabled={processingAction}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    >
+                      {processingAction ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                      )}
+                      Approve
+                    </Button>
+                  )}
+
+                  {/* Disburse Button - Show for Admin when status is APPROVED */}
+                  {canDisburse && selectedExpense.status === "APPROVED" && (
+                    <Button
+                      onClick={() => handleExpenseAction(selectedExpense.id, "disburse")}
+                      disabled={processingAction}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      {processingAction ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <DollarSign className="h-4 w-4 mr-2" />
+                      )}
+                      Disburse
+                    </Button>
+                  )}
+
+                  {/* Reject Button - Show for Admin when status is PENDING */}
+                  {isAdmin && selectedExpense.status === "PENDING" && (
+                    <Button
+                      onClick={() => handleExpenseAction(selectedExpense.id, "reject")}
+                      disabled={processingAction}
+                      variant="destructive"
+                      className="bg-rose-600 hover:bg-rose-700 text-white"
+                    >
+                      {processingAction ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <XCircle className="h-4 w-4 mr-2" />
+                      )}
+                      Reject
+                    </Button>
+                  )}
                 </div>
-              ) : null}
+              </div>
             </div>
-          ) : null}
+          )}
         </DialogContent>
       </Dialog>
 
-      {/* Hidden print component */}
-      <div className="hidden">
-        {expenseToPrint && (
-          <ExpenseVoucherPrint ref={printRef} expense={expenseToPrint} />
-        )}
+      {/* Hidden Print Component */}
+      <div style={{ display: "none" }}>
+        <ExpenseVoucherPrint ref={printRef} expense={expenseToPrint} />
       </div>
     </div>
   );

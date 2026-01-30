@@ -8,18 +8,40 @@ type ExpenseVoucherPrintProps = {
     expenseType: string;
     amount: number;
     details: string | null;
+    status?: string;
+    createdAt?: string;
     updatedAt: string | Date;
     location?: {
       name: string;
       city: string;
     };
-  };
+    route?: {
+      routeNo: string;
+      name: string;
+    };
+    vehicle?: {
+      vehicleNo: string;
+      type: string | null;
+      model: string | null;
+    };
+    attachments?: Array<{
+      url: string;
+      fileKey: string;
+      fileName: string;
+      fileType: string;
+      fileSize: number;
+    }>;
+  } | null;
 };
 
 export const ExpenseVoucherPrint = React.forwardRef<
   HTMLDivElement,
   ExpenseVoucherPrintProps
 >(({ expense }, ref) => {
+  // Return null if no expense is provided
+  if (!expense) {
+    return <div ref={ref} />;
+  }
   const expenseTypeLabels: Record<string, string> = {
     VEHICLES_FUEL: "Vehicles Fuel",
     VEHICLES_RENTAL: "Vehicles Rental",

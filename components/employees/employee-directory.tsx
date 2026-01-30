@@ -280,75 +280,75 @@ export default function EmployeeDirectory() {
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
       <div className="p-4 border-b">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="border bg-gradient-to-r from-sky-100 to-sky-200">
+          <Card className="border-l-4 border-l-blue-600 border-slate-200 dark:border-slate-700 shadow-sm rounded-2xl bg-white dark:bg-[#1E293B]">
             <CardHeader className="pb-2 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-medium text-sky-800">
+              <CardTitle className="text-sm font-medium text-slate-500">
                 Employees (Shown / Total)
               </CardTitle>
-              <Users className="h-5 w-5 text-sky-600" />
+              <Users className="h-5 w-5 text-blue-600" />
             </CardHeader>
 
             <CardContent>
-              <div className="text-2xl font-semibold text-sky-900">
+              <div className="text-2xl font-bold text-[#0A192F] dark:text-white">
                 {mounted ? totalShown : ""}{" "}
-                <span className="text-sky-700 text-base">
+                <span className="text-slate-400 text-lg font-normal">
                   / {mounted ? totalEmployees : ""}
                 </span>
               </div>
-              <p className="text-sm text-sky-700">
-                Based on current search & filters
+              <p className="text-xs text-slate-500 mt-1">
+                Based on current search
               </p>
             </CardContent>
           </Card>
 
-          <Card className="border bg-gradient-to-r from-emerald-100 to-emerald-200">
+          <Card className="border-l-4 border-l-emerald-500 border-slate-200 dark:border-slate-700 shadow-sm rounded-2xl bg-white dark:bg-[#1E293B]">
             <CardHeader className="pb-2 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-medium text-emerald-800">
+              <CardTitle className="text-sm font-medium text-slate-500">
                 Active
               </CardTitle>
               <Activity className="h-5 w-5 text-emerald-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-semibold text-emerald-900">
+              <div className="text-2xl font-bold text-[#0A192F] dark:text-white">
                 {mounted ? activeCount : ""}
               </div>
-              <p className="text-sm text-emerald-700">
-                Currently active employees
+              <p className="text-xs text-emerald-600 font-medium mt-1">
+                Currently active
               </p>
             </CardContent>
           </Card>
 
-          <Card className="border bg-gradient-to-r from-amber-100 to-amber-200">
+          <Card className="border-l-4 border-l-amber-500 border-slate-200 dark:border-slate-700 shadow-sm rounded-2xl bg-white dark:bg-[#1E293B]">
             <CardHeader className="pb-2 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-medium text-amber-800">
+              <CardTitle className="text-sm font-medium text-slate-500">
                 On Leave / Remote
               </CardTitle>
               <Briefcase className="h-5 w-5 text-amber-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-semibold text-amber-900">
+              <div className="text-2xl font-bold text-[#0A192F] dark:text-white">
                 {mounted ? onLeaveCount : ""}{" "}
-                <span className="text-amber-700 text-base">
+                <span className="text-slate-400 text-lg font-normal">
                   / {mounted ? remoteCount : ""}
                 </span>
               </div>
-              <p className="text-sm text-amber-700">On leave vs remote</p>
+              <p className="text-xs text-amber-600 font-medium mt-1">On leave vs remote</p>
             </CardContent>
           </Card>
 
-          <Card className="border bg-gradient-to-r from-blue-100 to-blue-200">
+          <Card className="border-l-4 border-l-indigo-500 border-slate-200 dark:border-slate-700 shadow-sm rounded-2xl bg-white dark:bg-[#1E293B]">
             <CardHeader className="pb-2 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-medium text-blue-800">
+              <CardTitle className="text-sm font-medium text-slate-500">
                 Departments
               </CardTitle>
-              <Building2 className="h-5 w-5 text-blue-600" />
+              <Building2 className="h-5 w-5 text-indigo-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-semibold text-blue-900">
+              <div className="text-2xl font-bold text-[#0A192F] dark:text-white">
                 {mounted ? departmentCount : ""}
               </div>
-              <p className="text-sm text-blue-700">
-                Distinct departments in view
+              <p className="text-xs text-slate-500 mt-1">
+                Distinct departments
               </p>
             </CardContent>
           </Card>

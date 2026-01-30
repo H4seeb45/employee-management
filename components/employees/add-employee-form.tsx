@@ -72,7 +72,6 @@ export function AddEmployeeForm({ onSubmit, onCancel }: AddEmployeeFormProps) {
   };
 
   const handleBirthDateSelect = (date: Date | undefined) => {
-    debugger;
     setBirthDate(date);
     if (date) {
       setFormData((prev) => ({

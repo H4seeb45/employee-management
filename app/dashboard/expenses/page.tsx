@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useLayout } from "@/components/layout/layout-provider";
 
 type Location = {
   id: string;
@@ -20,49 +21,30 @@ type Location = {
 };
 
 export default function ExpensesPage() {
-  const [loading, setLoading] = useState(true);
-  const [roles, setRoles] = useState<string[]>([]);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const { user, userLoading } = useLayout();
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedLocationId, setSelectedLocationId] = useState("all");
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
 
-  useEffect(() => {
-    const loadSession = async () => {
-      try {
-        const response = await fetch("/api/auth/me");
-        if (!response.ok) {
-          setRoles([]);
-          setLoading(false);
-          return;
-        }
-        const data = await response.json();
-        const sessionRoles: string[] = data?.user?.roles ?? [];
-        setRoles(sessionRoles);
-        const superAdmin = sessionRoles.includes("Super Admin");
-        setIsSuperAdmin(superAdmin);
-        if (superAdmin) {
-          setIsLoadingLocations(true);
-          try {
-            const locationsResponse = await fetch("/api/locations");
-            const locationsData = await locationsResponse.json();
-            if (locationsResponse.ok) {
-              setLocations(locationsData.locations ?? locationsData ?? []);
-            }
-          } finally {
-            setIsLoadingLocations(false);
-          }
-        }
-      } catch {
-        setRoles([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadSession();
-  }, []);
+  const roles = user?.roles ?? [];
+  const isSuperAdmin = roles.includes("Super Admin");
 
-  if (loading) {
+  useEffect(() => {
+    if (isSuperAdmin && !userLoading) {
+      setIsLoadingLocations(true);
+      fetch("/api/locations")
+        .then(res => res.json())
+        .then(data => {
+          if (data.locations || Array.isArray(data)) {
+            setLocations(data.locations ?? data ?? []);
+          }
+        })
+        .catch(err => console.error("Failed to load locations", err))
+        .finally(() => setIsLoadingLocations(false));
+    }
+  }, [isSuperAdmin, userLoading]);
+
+  if (userLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <Loader2 className="h-5 w-5 animate-spin" />

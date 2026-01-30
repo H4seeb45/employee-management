@@ -16,6 +16,15 @@ import {
   UserX,
   Clock3,
 } from "lucide-react";
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip as ChartTooltip,
+  Legend
+} from 'chart.js';
+import { Doughnut } from 'react-chartjs-2';
+
+ChartJS.register(ArcElement, ChartTooltip, Legend);
 // No local mockAttendance fallback — use real data from LayoutProvider
 import { useLayout } from "@/components/layout/layout-provider";
 import { useToast } from "@/hooks/use-toast";
@@ -212,7 +221,7 @@ export function AttendanceTracker() {
 
     const newRecords = selectedEmployees.map((empId: string, index: number) => {
       // Resolve employee from the proper list (NOT from moksData)
-      const employee = employeeById.get(empId) ?? { id: empId };
+      const employee = employeeById.get(empId) ?? { id: empId, employeeId: empId };
 
       // Calculate working hours and statuses
       let workingHours = 0;
@@ -255,7 +264,7 @@ export function AttendanceTracker() {
     // Persist each record via the LayoutProvider API helper
     (async () => {
       try {
-        await Promise.all(newRecords.map((r) => addAttendance(r)));
+        await Promise.all(newRecords.map((r: any) => addAttendance(r)));
         setBulkAttendanceOpen(false);
         toast({
           title: "Bulk Attendance Marked",
@@ -420,79 +429,123 @@ export function AttendanceTracker() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/50 dark:to-blue-900/50 border-blue-200 dark:border-blue-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
-                Total Records
-              </p>
-              <p className="text-3xl font-bold text-blue-900 dark:text-blue-100">
-                {summaryStats.totalRecords}
-              </p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Chart Section */}
+        <Card className="p-6 border-slate-200 dark:border-slate-700 shadow-sm rounded-2xl flex flex-col items-center justify-center bg-white dark:bg-[#1E293B]">
+            <h3 className="text-lg font-semibold mb-4 text-[#0A192F] dark:text-white self-start">Overview</h3>
+            <div className="w-[180px] h-[180px]">
+                <Doughnut
+                    data={{
+                        labels: ['Present', 'Absent', 'Half Day', 'Late'],
+                        datasets: [
+                            {
+                                data: [
+                                    summaryStats.presentCount,
+                                    summaryStats.absentCount,
+                                    summaryStats.halfDayCount,
+                                    summaryStats.lateCount
+                                ],
+                                backgroundColor: [
+                                    '#10b981', // Present (Emerald)
+                                    '#f43f5e', // Absent (Rose)
+                                    '#f59e0b', // Half Day (Amber)
+                                    '#6366f1', // Late (Indigo)
+                                ],
+                                borderWidth: 0,
+                            },
+                        ],
+                    }}
+                    options={{
+                        cutout: '70%',
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { enabled: true } // Use default tooltip for now
+                        }
+                    }}
+                />
             </div>
-            <div className="p-3 bg-blue-200 dark:bg-blue-800 rounded-full">
-              <Users className="h-6 w-6 text-blue-600 dark:text-blue-300" />
+            <div className="mt-4 flex gap-4 text-xs font-medium">
+                <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-emerald-500"></div>Present</div>
+                <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-rose-500"></div>Absent</div>
+                <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-amber-500"></div>Half Day</div>
             </div>
-          </div>
         </Card>
 
-        <Card className="p-6 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/50 dark:to-green-900/50 border-green-200 dark:border-green-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-green-600 dark:text-green-400">
-                Present
-              </p>
-              <p className="text-3xl font-bold text-green-900 dark:text-green-100">
-                {summaryStats.presentCount}
-              </p>
-              <p className="text-xs text-green-600 dark:text-green-400">
-                {summaryStats.attendanceRate}% attendance rate
-              </p>
-            </div>
-            <div className="p-3 bg-green-200 dark:bg-green-800 rounded-full">
-              <UserCheck className="h-6 w-6 text-green-600 dark:text-green-300" />
-            </div>
-          </div>
-        </Card>
+        {/* Stats Grid */}
+        <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Card className="p-6 border-l-4 border-l-blue-600 border-slate-200 dark:border-slate-700 shadow-sm rounded-2xl bg-white dark:bg-[#1E293B]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-500">
+                    Total Records
+                  </p>
+                  <p className="text-3xl font-bold text-[#0A192F] dark:text-white">
+                    {summaryStats.totalRecords}
+                  </p>
+                </div>
+                <div className="p-3 bg-blue-50 rounded-xl">
+                  <Users className="h-6 w-6 text-blue-600" />
+                </div>
+              </div>
+            </Card>
 
-        <Card className="p-6 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950/50 dark:to-red-900/50 border-red-200 dark:border-red-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-red-600 dark:text-red-400">
-                Absent
-              </p>
-              <p className="text-3xl font-bold text-red-900 dark:text-red-100">
-                {summaryStats.absentCount}
-              </p>
-              <p className="text-xs text-red-600 dark:text-red-400">
-                {summaryStats.lateCount} late arrivals
-              </p>
-            </div>
-            <div className="p-3 bg-red-200 dark:bg-red-800 rounded-full">
-              <UserX className="h-6 w-6 text-red-600 dark:text-red-300" />
-            </div>
-          </div>
-        </Card>
+            <Card className="p-6 border-l-4 border-l-emerald-500 border-slate-200 dark:border-slate-700 shadow-sm rounded-2xl bg-white dark:bg-[#1E293B]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-500">
+                    Present
+                  </p>
+                  <p className="text-3xl font-bold text-[#0A192F] dark:text-white">
+                    {summaryStats.presentCount}
+                  </p>
+                  <p className="text-xs text-emerald-600 font-medium">
+                    {summaryStats.attendanceRate}% Rate
+                  </p>
+                </div>
+                <div className="p-3 bg-emerald-50 rounded-xl">
+                  <UserCheck className="h-6 w-6 text-emerald-600" />
+                </div>
+              </div>
+            </Card>
 
-        <Card className="p-6 bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950/50 dark:to-amber-900/50 border-amber-200 dark:border-amber-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
-                Avg. Hours
-              </p>
-              <p className="text-3xl font-bold text-amber-900 dark:text-amber-100">
-                {summaryStats.avgWorkingHours}
-              </p>
-              <p className="text-xs text-amber-600 dark:text-amber-400">
-                {summaryStats.halfDayCount} half days
-              </p>
-            </div>
-            <div className="p-3 bg-amber-200 dark:bg-amber-800 rounded-full">
-              <Clock3 className="h-6 w-6 text-amber-600 dark:text-amber-300" />
-            </div>
-          </div>
-        </Card>
+             <Card className="p-6 border-l-4 border-l-rose-500 border-slate-200 dark:border-slate-700 shadow-sm rounded-2xl bg-white dark:bg-[#1E293B]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-500">
+                    Absent / Late
+                  </p>
+                  <p className="text-3xl font-bold text-[#0A192F] dark:text-white">
+                    {summaryStats.absentCount}
+                  </p>
+                  <p className="text-xs text-rose-600 font-medium">
+                    {summaryStats.lateCount} Late Arrivals
+                  </p>
+                </div>
+                <div className="p-3 bg-rose-50 rounded-xl">
+                  <UserX className="h-6 w-6 text-rose-600" />
+                </div>
+              </div>
+            </Card>
+
+             <Card className="p-6 border-l-4 border-l-amber-500 border-slate-200 dark:border-slate-700 shadow-sm rounded-2xl bg-white dark:bg-[#1E293B]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-500">
+                    Avg. Hours
+                  </p>
+                  <p className="text-3xl font-bold text-[#0A192F] dark:text-white">
+                    {summaryStats.avgWorkingHours}
+                  </p>
+                  <p className="text-xs text-amber-600 font-medium">
+                    {summaryStats.halfDayCount} Half Days
+                  </p>
+                </div>
+                <div className="p-3 bg-amber-50 rounded-xl">
+                  <Clock3 className="h-6 w-6 text-amber-600" />
+                </div>
+              </div>
+            </Card>
+        </div>
       </div>
 
       <Card className="shadow-sm p-6 bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-900 dark:to-gray-900">

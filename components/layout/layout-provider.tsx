@@ -35,17 +35,6 @@ export type LeaveRequest = {
   status: string;
 };
 
-export type Project = {
-  id: string;
-  name: string;
-  client: string;
-  startDate: string;
-  deadline: string;
-  team: string[];
-  progress: number;
-  status: string;
-};
-
 export type Attendance = {
   id: string;
   employeeId: string;
@@ -59,8 +48,26 @@ export type Attendance = {
   status: string;
 };
 
+export type UserSession = {
+  id: string;
+  name: string;
+  email: string;
+  roles: string[];
+  locationId: string | null;
+  location?: {
+    id: string;
+    name: string;
+    city: string;
+  } | null;
+};
+
 // Define the context type
 type LayoutContextType = {
+  // User session
+  user: UserSession | null;
+  userLoading: boolean;
+  refreshUser: () => Promise<void>;
+
   employees: Employee[];
   addEmployee: (employee: Employee) => Promise<void>;
   updateEmployee: (employee: Employee) => Promise<void>;
@@ -70,11 +77,6 @@ type LayoutContextType = {
   addLeaveRequest: (request: LeaveRequest) => Promise<void>;
   updateLeaveRequest: (request: LeaveRequest) => Promise<void>;
   deleteLeaveRequest: (id: string) => Promise<void>;
-
-  projects: Project[];
-  addProject: (project: Project) => Promise<void>;
-  updateProject: (project: Project) => Promise<void>;
-  deleteProject: (id: string) => Promise<void>;
 
   attendance: Attendance[];
   addAttendance: (record: Attendance) => Promise<void>;
@@ -95,10 +97,13 @@ const LayoutContext = createContext<LayoutContextType | undefined>(undefined);
 
 // Create a provider component
 export function LayoutProvider({ children }: { children: ReactNode }) {
+  // User session state
+  const [user, setUser] = useState<UserSession | null>(null);
+  const [userLoading, setUserLoading] = useState(true);
+
   // Initialize state as empty — we'll fetch from the API on mount
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
   const [attendance, setAttendance] = useState<Attendance[]>([]);
 
   // Initialize sidebar state based on screen size
@@ -121,6 +126,37 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
     return false;
   });
 
+  // Fetch user session
+  const fetchUser = async () => {
+    try {
+      setUserLoading(true);
+      const response = await fetch("/api/auth/me");
+      if (response.ok) {
+        const {user} = await response.json();
+        setUser({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          roles: user.roles || [],
+          locationId: user.locationId || null,
+          location: user.location || null,
+        });
+      } else {
+        setUser(null);
+      }
+    } catch (err) {
+      console.error("Failed to load user session", err);
+      setUser(null);
+    } finally {
+      setUserLoading(false);
+    }
+  };
+
+  // Fetch user on mount
+  useEffect(() => {
+    fetchUser();
+  }, []);
+
   // Fetch initial data from the API on mount
   useEffect(() => {
     async function load() {
@@ -133,7 +169,6 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
         ]);
 
         setEmployees(Array.isArray(empRes) ? empRes : []);
-        setProjects(Array.isArray(projRes) ? projRes : []);
         setAttendance(Array.isArray(attRes) ? attRes : []);
         setLeaveRequests(Array.isArray(leaveRes) ? leaveRes : []);
       } catch (err) {
@@ -141,7 +176,7 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    load();
+    // load();
   }, []);
 
   useEffect(() => {
@@ -230,46 +265,6 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // CRUD operations for projects
-  const addProject = async (project: Project) => {
-    try {
-      const res = await fetch("/api/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(project),
-      });
-      const created = await res.json();
-      setProjects((prev) => [...prev, created]);
-    } catch (err) {
-      console.error("Failed to add project", err);
-    }
-  };
-
-  const updateProject = async (project: Project) => {
-    try {
-      const res = await fetch(`/api/projects/${project.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(project),
-      });
-      const updated = await res.json();
-      setProjects((prev) =>
-        prev.map((p) => (p.id === updated.id ? updated : p))
-      );
-    } catch (err) {
-      console.error("Failed to update project", err);
-    }
-  };
-
-  const deleteProject = async (id: string) => {
-    try {
-      await fetch(`/api/projects/${id}`, { method: "DELETE" });
-      setProjects((prev) => prev.filter((p) => p.id !== id));
-    } catch (err) {
-      console.error("Failed to delete project", err);
-    }
-  };
-
   // CRUD operations for attendance
   const addAttendance = async (record: Attendance) => {
     try {
@@ -313,6 +308,10 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
   return (
     <LayoutContext.Provider
       value={{
+        user,
+        userLoading,
+        refreshUser: fetchUser,
+
         employees,
         addEmployee,
         updateEmployee,
@@ -322,11 +321,6 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
         addLeaveRequest,
         updateLeaveRequest,
         deleteLeaveRequest,
-
-        projects,
-        addProject,
-        updateProject,
-        deleteProject,
 
         attendance,
         addAttendance,

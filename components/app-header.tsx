@@ -27,13 +27,22 @@ import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 
 export function AppHeader() {
   const [searchQuery, setSearchQuery] = useState("");
   const { theme, setTheme } = useTheme();
   const { sidebarOpen, setSidebarOpen, setDarkMode } = useLayout();
   const { toast } = useToast();
+  const pathname = usePathname();
 
   const [ready, setReady] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
@@ -48,8 +57,17 @@ export function AppHeader() {
     }>
   >([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [mounted, setMounted] = useState(false);
 
   const router = useRouter();
+
+  // Ensure theme is loaded before rendering toggle
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Generate breadcrumbs from path
+  const breadcrumbs = pathname === "/" ? [] : pathname.split("/").filter(Boolean);
 
   const handleThemeToggle = () => {
     const newTheme = theme === "dark" ? "light" : "dark";
@@ -63,23 +81,18 @@ export function AppHeader() {
     });
   };
 
+  const { user, userLoading } = useLayout();
+  
   useEffect(() => {
-    const loadSession = async () => {
-      try {
-        const response = await fetch("/api/auth/me");
-        if (!response.ok) {
-          router.replace("/login");
-          return;
-        }
-        const data = await response.json();
-        setEmail(data?.user?.email ?? null);
-        setReady(true);
-      } catch {
+    if (!userLoading) {
+      if (!user) {
         router.replace("/login");
+      } else {
+        setEmail(user.email);
+        setReady(true);
       }
-    };
-    loadSession();
-  }, [router]);
+    }
+  }, [user, userLoading, router]);
 
   useEffect(() => {
     let intervalId: ReturnType<typeof setInterval> | null = null;
@@ -96,7 +109,8 @@ export function AppHeader() {
     };
 
     loadNotifications();
-    intervalId = setInterval(loadNotifications, 30000);
+    // recall every 10 minutes
+    intervalId = setInterval(loadNotifications, 600000);
 
     return () => {
       if (intervalId) clearInterval(intervalId);
@@ -137,8 +151,8 @@ export function AppHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
-      <div className="flex items-center gap-2">
+    <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-slate-200/70 dark:border-slate-800 bg-white/80 dark:bg-[#0A192F]/80 backdrop-blur-md px-6 md:px-8 shadow-sm transition-all duration-200">
+      <div className="flex items-center gap-4">
         <Button
           variant="ghost"
           size="icon"
@@ -147,29 +161,48 @@ export function AppHeader() {
         >
           <Menu className="h-5 w-5" />
         </Button>
+        
+        {/* Breadcrumbs */}
+        <div className="hidden md:flex overflow-x-auto">
+             <Breadcrumb>
+              <BreadcrumbList>
+                {breadcrumbs.filter(x => x !== 'dashboard').map((segment, index, arr) => {
+                    const filteredArr = arr.filter(x => x !== 'dashboard');
+                    const href = `/${filteredArr.slice(0, index + 1).join("/")}`;
+                    const isLast = index === filteredArr.length - 1;
+                    const formattedDetails = segment.split("-").map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(" ");
+                    
+                    return (
+                        <div key={segment} className="flex items-center gap-1.5 sm:gap-2.5">
+                            {index > 0 && <BreadcrumbSeparator />}
+                            <BreadcrumbItem>
+                                {isLast ? (
+                                    <BreadcrumbPage className="font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">{formattedDetails}</BreadcrumbPage>
+                                ) : (
+                                    <BreadcrumbLink href={href} className="whitespace-nowrap">{formattedDetails}</BreadcrumbLink>
+                                )}
+                            </BreadcrumbItem>
+                        </div>
+                    );
+                })}
+              </BreadcrumbList>
+            </Breadcrumb>
+        </div>
       </div>
 
       <div className="w-full flex items-center justify-end">
-        {/* <div className="relative w-full max-w-md">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search employees, projects..."
-            className="w-full bg-background pl-8 md:w-[300px] lg:w-[400px]"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div> */}
         <div className="flex items-center gap-4">
           <div className="hidden md:flex items-center gap-2">
-            <Label htmlFor="theme-mode" className="text-sm">
+            <Label htmlFor="theme-mode" className="text-xs text-slate-600 dark:text-slate-400">
               Dark Mode
             </Label>
-            <Switch
-              id="theme-mode"
-              checked={theme === "dark"}
-              onCheckedChange={handleThemeToggle}
-            />
+            {mounted && (
+              <Switch
+                id="theme-mode"
+                checked={theme === "dark"}
+                onCheckedChange={handleThemeToggle}
+              />
+            )}
           </div>
 
           <DropdownMenu>
@@ -177,9 +210,9 @@ export function AppHeader() {
               <Button
                 variant="outline"
                 size="icon"
-                className="rounded-full relative"
+                className="rounded-full relative border-slate-200 dark:border-slate-700 dark:bg-slate-800/50"
               >
-                <Bell className="h-[1.2rem] w-[1.2rem]" />
+                <Bell className="h-4 w-4 text-slate-600 dark:text-slate-400" />
                 {unreadCount > 0 ? (
                   <span className="absolute -top-1 -right-1 h-4 min-w-4 rounded-full bg-red-500 px-1 text-[10px] font-medium text-white flex items-center justify-center">
                     {unreadCount}
@@ -238,28 +271,23 @@ export function AppHeader() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" className="rounded-full">
-                <User className="h-[1.2rem] w-[1.2rem]" />
+              <Button variant="outline" size="icon" className="rounded-full border-slate-200 dark:border-slate-700 dark:bg-slate-800/50">
+                <User className="h-4 w-4 text-slate-600 dark:text-slate-400" />
                 <span className="sr-only">User menu</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {/* <DropdownMenuSeparator />
-
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="md:hidden cursor-pointer">
-                <Moon className="mr-2 h-4 w-4" />
-                <span>Dark Mode</span>
-                <div className="ml-auto">
-                  <Switch
-                    checked={theme === "dark"}
-                    onCheckedChange={handleThemeToggle}
-                  />
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="md:hidden" /> */}
+            <DropdownMenuContent align="end" className="w-56 p-2">
+               <div className="flex items-center gap-2 p-2 mb-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                  <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs">
+                    {email?.[0]?.toUpperCase() || 'U'}
+                  </div>
+                  <div className="flex flex-col">
+                     <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">My Account</span>
+                     <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-[120px]">{email}</span>
+                  </div>
+               </div>
               <DropdownMenuItem
-                className="cursor-pointer"
+                className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
                 onClick={handleLogout}
               >
                 <LogOut className="mr-2 h-4 w-4" />

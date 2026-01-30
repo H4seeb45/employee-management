@@ -78,19 +78,22 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Search by date range
+  // Search by date range (based on creation date)
   const fromDate = searchParams.get("fromDate");
   const toDate = searchParams.get("toDate");
   if (fromDate || toDate) {
-    where.updatedAt = {};
+    where.createdAt = {};
     if (fromDate) {
-      where.updatedAt.gte = new Date(fromDate);
+      // Set to start of the day
+      const fromDateStart = new Date(fromDate);
+      fromDateStart.setHours(0, 0, 0, 0);
+      where.createdAt.gte = fromDateStart;
     }
     if (toDate) {
-      // Add 1 day to include the entire "to" date
+      // Set to end of the day (23:59:59.999)
       const toDateEnd = new Date(toDate);
-      toDateEnd.setDate(toDateEnd.getDate() + 1);
-      where.updatedAt.lt = toDateEnd;
+      toDateEnd.setHours(23, 59, 59, 999);
+      where.createdAt.lte = toDateEnd;
     }
   }
 
