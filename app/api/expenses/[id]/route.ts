@@ -9,6 +9,12 @@ import {
 
 type RouteParams = { params: Promise<{ id: string }> };
 
+const getMonthRange = (date = new Date()) => {
+  const start = new Date(date.getFullYear(), date.getMonth(), 1);
+  const end = new Date(date.getFullYear(), date.getMonth() + 1, 1);
+  return { start, end };
+};
+
 export async function GET(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
   const user = await getCurrentUser(request);
@@ -66,6 +72,38 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         { status: 400 }
       );
     }
+
+    // Budget check upon approval
+    const budget = await prisma.budget.findUnique({
+      where: { locationId: expense.locationId },
+    });
+
+    if (!budget || budget.status !== "APPROVED") {
+      return NextResponse.json(
+        { message: "No approved budget found for this location. Cannot approve expenses." },
+        { status: 400 }
+      );
+    }
+
+    const { start, end } = getMonthRange();
+    const totalThisMonth = await prisma.expenseSheet.aggregate({
+      where: {
+        locationId: expense.locationId,
+        createdAt: { gte: start, lt: end },
+        status: "APPROVED", // Only count already approved ones
+        id: { not: expense.id }
+      },
+      _sum: { amount: true },
+    });
+
+    const used = totalThisMonth._sum.amount ?? 0;
+    if (used + expense.amount > budget.amount) {
+      return NextResponse.json(
+        { message: "Insufficient budget to approve this expense." },
+        { status: 400 }
+      );
+    }
+
     const updated = await prisma.expenseSheet.update({
       where: { id },
       data: {

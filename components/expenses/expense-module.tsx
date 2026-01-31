@@ -151,6 +151,15 @@ export function ExpenseModule({
   const [disburseChequeDate, setDisburseChequeDate] = useState("");
   const [disburseAmount, setDisburseAmount] = useState("");
 
+  // Budget States
+  const [budgetInfo, setBudgetInfo] = useState<{
+    totalBudget: number;
+    spentThisMonth: number;
+    remainingBudget: number;
+    hasApprovedBudget: boolean;
+  } | null>(null);
+  const [loadingBudget, setLoadingBudget] = useState(false);
+
   const printRef = useRef<HTMLDivElement>(null);
 
   // Permission checks
@@ -231,6 +240,30 @@ export function ExpenseModule({
     fetchRoutesAndVehicles();}
   }, [routes.length,vehicles.length]);
 
+  const fetchBudgetInfo = async () => {
+    setLoadingBudget(true);
+    try {
+      const params = new URLSearchParams();
+      if (locationId) params.append("locationId", locationId);
+      
+      const res = await fetch(`/api/expenses/stats?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setBudgetInfo(data.budgetInfo);
+      }
+    } catch (err) {
+      console.error("Failed to fetch budget info:", err);
+    } finally {
+      setLoadingBudget(false);
+    }
+  };
+
+  useEffect(() => {
+    if (canCreate) {
+      fetchBudgetInfo();
+    }
+  }, [locationId, canCreate]);
+
   const fetchExpenses = async () => {
     setLoading(true);
     try {
@@ -273,13 +306,33 @@ export function ExpenseModule({
     // Validate all required fields
     const needsRouteAndVehicle = requiresRouteAndVehicle(expenseType);
     
-    if (!expenseType || !amount || !details || attachments.length === 0) {
-      setError("All fields are required. Please fill in expense type, amount, details, and upload at least one attachment.");
+    if (!expenseType || !amount || !details) {
+      setError("All fields are required.");
+      setSaving(false);
+      return;
+    }
+
+    if (!budgetInfo?.hasApprovedBudget) {
+      setError("No approved budget found for this location. Please set a budget first.");
+      setSaving(false);
+      return;
+    }
+
+    if (parseFloat(amount) > budgetInfo.remainingBudget) {
+      setError(`Insufficient budget. Remaining: ${new Intl.NumberFormat("en-PK", { style: "currency", currency: "PKR" }).format(budgetInfo.remainingBudget)}`);
+      setSaving(false);
+      return;
+    }
+    
+    if (attachments.length === 0) {
+      setError("Please upload at least one attachment.");
+      setSaving(false);
       return;
     }
     
     if (needsRouteAndVehicle && (!selectedRoute || !selectedVehicle)) {
       setError("Route and Vehicle are required for this expense type.");
+      setSaving(false);
       return;
     }
 
@@ -313,6 +366,7 @@ export function ExpenseModule({
         setSuccess("Expense created successfully!");
         setError(null);
         fetchExpenses();
+        fetchBudgetInfo(); // Refresh budget info after creation
         
         // Clear success message after 5 seconds
         setTimeout(() => setSuccess(null), 5000);
@@ -883,14 +937,20 @@ export function ExpenseModule({
         {/* New Claim Tab */}
         {canCreate && (
           <TabsContent value="new">
-            <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1E293B]">
-              <CardHeader className="border-b border-slate-100 dark:border-slate-700">
-                <CardTitle className="text-xl text-slate-900 dark:text-white">
-                  Submit New Expense Claim
-                </CardTitle>
-                <CardDescription className="text-slate-500 dark:text-slate-400">
-                  Fill in the details below to create a new expense claim
-                </CardDescription>
+            <Card className="border-blue-100 dark:border-blue-900/30 overflow-hidden">
+              <CardHeader className="bg-blue-50/50 dark:bg-blue-900/10 flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg">Create New Expense Claim</CardTitle>
+                  <CardDescription>Submit a new expense for approval</CardDescription>
+                </div>
+                {budgetInfo && (
+                  <div className="text-right">
+                    <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Remaining Budget</p>
+                    <p className={`text-lg font-bold ${budgetInfo.remainingBudget > 0 ? 'text-blue-600' : 'text-rose-600'}`}>
+                      {new Intl.NumberFormat("en-PK", { style: "currency", currency: "PKR" }).format(budgetInfo.remainingBudget)}
+                    </p>
+                  </div>
+                )}
               </CardHeader>
               <CardContent className="p-6">
                 <form onSubmit={handleCreate} className="space-y-6">

@@ -171,28 +171,35 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const location = await prisma.location.findUnique({
-    where: { id: user.locationId },
-    select: { monthlyPettyCashLimit: true },
+  // Budget Check
+  const budget = await prisma.budget.findUnique({
+    where: { locationId: user.locationId },
   });
 
-  if (location?.monthlyPettyCashLimit && location.monthlyPettyCashLimit > 0) {
-    const { start, end } = getMonthRange();
-    const totalThisMonth = await prisma.expenseSheet.aggregate({
-      where: {
-        locationId: user.locationId,
-        createdAt: { gte: start, lt: end },
-        status: { not: "REJECTED" },
-      },
-      _sum: { amount: true },
-    });
-    const used = totalThisMonth._sum.amount ?? 0;
-    if (used + amount > location.monthlyPettyCashLimit) {
-      return NextResponse.json(
-        { message: "Monthly petty cash limit exceeded." },
-        { status: 400 }
-      );
-    }
+  if (!budget || budget.status !== "APPROVED") {
+    return NextResponse.json(
+      { message: "No approved budget found for this location. Please set a budget first." },
+      { status: 400 }
+    );
+  }
+
+  const { start, end } = getMonthRange();
+  const totalThisMonth = await prisma.expenseSheet.aggregate({
+    where: {
+      locationId: user.locationId,
+      createdAt: { gte: start, lt: end },
+      status: { not: "REJECTED" },
+    },
+    _sum: { amount: true },
+  });
+  const used = totalThisMonth._sum.amount ?? 0;
+  
+  if (used + amount > budget.amount) {
+    const remaining = budget.amount - used;
+    return NextResponse.json(
+      { message: `Insufficient budget. Remaining: ${remaining.toLocaleString("en-PK", { style: "currency", currency: "PKR" })}` },
+      { status: 400 }
+    );
   }
 
   const created = await prisma.expenseSheet.create({

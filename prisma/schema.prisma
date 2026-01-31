@@ -51,6 +51,8 @@ model User {
   rejectedExpenseSheets  ExpenseSheet[] @relation("ExpenseRejectedBy")
   disbursedExpenseSheets ExpenseSheet[] @relation("ExpenseDisbursedBy")
   notifications          Notification[]
+  budgets                Budget[]       @relation("BudgetCreatedBy")
+  approvedBudgets        Budget[]       @relation("BudgetApprovedBy")
   createdAt              DateTime       @default(now())
   updatedAt              DateTime       @updatedAt
 }
@@ -81,6 +83,7 @@ model Location {
   expenseSheets         ExpenseSheet[]
   routes                Route[]        @relation("RouteLocation")
   vehicles              Vehicle[]      @relation("VehicleLocation")
+  budget                Budget?
 
   @@unique([name, city])
 }
@@ -293,4 +296,24 @@ model Vehicle {
   expenseSheets ExpenseSheet[]
 
   @@unique([vehicleNo, locationId])
+}
+
+enum BudgetStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Budget {
+  id            String       @id @default(cuid())
+  amount        Float
+  status        BudgetStatus @default(PENDING)
+  locationId    String       @unique
+  location      Location     @relation(fields: [locationId], references: [id])
+  createdById   String
+  createdBy     User         @relation("BudgetCreatedBy", fields: [createdById], references: [id])
+  approvedById  String?
+  approvedBy    User?        @relation("BudgetApprovedBy", fields: [approvedById], references: [id])
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 }
