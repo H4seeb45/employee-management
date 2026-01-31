@@ -78,6 +78,11 @@ type ExpenseSheet = {
   route?: { routeNo: string; name: string };
   vehicle?: { vehicleNo: string; type: string | null; model: string | null };
   attachments: ExpenseAttachment[];
+  accountTitle?: string;
+  accountNo?: string;
+  bankName?: string;
+  chequeDate?: string;
+  disbursedAmount?: number;
 };
 
 export function ExpenseModule({
@@ -138,6 +143,13 @@ export function ExpenseModule({
   // Action states
   const [processingAction, setProcessingAction] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  // Disbursement Form States
+  const [disburseAccountTitle, setDisburseAccountTitle] = useState("");
+  const [disburseAccountNo, setDisburseAccountNo] = useState("");
+  const [disburseBankName, setDisburseBankName] = useState("");
+  const [disburseChequeDate, setDisburseChequeDate] = useState("");
+  const [disburseAmount, setDisburseAmount] = useState("");
 
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -321,13 +333,30 @@ export function ExpenseModule({
     setActionError(null);
 
     try {
+      const body: any = { action };
+      
+      if (action === "disburse" && selectedExpense?.disburseType === "Cheque / Online Transfer") {
+        body.accountTitle = disburseAccountTitle;
+        body.accountNo = disburseAccountNo;
+        body.bankName = disburseBankName;
+        body.chequeDate = disburseChequeDate;
+        body.disbursedAmount = disburseAmount;
+      }
+
       const res = await fetch(`/api/expenses/${expenseId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify(body),
       });
 
       if (res.ok) {
+        // Reset disburse states
+        setDisburseAccountTitle("");
+        setDisburseAccountNo("");
+        setDisburseBankName("");
+        setDisburseChequeDate("");
+        setDisburseAmount("");
+
         // Refresh the expenses list
         fetchExpenses();
         // Close the dialog
@@ -1198,6 +1227,48 @@ export function ExpenseModule({
                 </div>
               )}
 
+              {/* Payment Details - Show if DISBURSED and Cheque / Online Transfer */}
+              {selectedExpense.status === "DISBURSED" && selectedExpense.disburseType === "Cheque / Online Transfer" && (
+                <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+                  <Label className="text-xs text-emerald-700 dark:text-emerald-400 mb-2">Disbursement Payment Details</Label>
+                  <div className="grid grid-cols-2 gap-4 mt-2">
+                    <div>
+                      <Label className="text-xs text-slate-500 dark:text-slate-400">Account Title</Label>
+                      <p className="text-sm font-medium text-slate-900 dark:text-white mt-0.5">
+                        {selectedExpense.accountTitle || "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-slate-500 dark:text-slate-400">Account / Cheque No.</Label>
+                      <p className="text-sm font-medium text-slate-900 dark:text-white mt-0.5">
+                        {selectedExpense.accountNo || "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-slate-500 dark:text-slate-400">Bank Name</Label>
+                      <p className="text-sm font-medium text-slate-900 dark:text-white mt-0.5">
+                        {selectedExpense.bankName || "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-slate-500 dark:text-slate-400">Cheque Date</Label>
+                      <p className="text-sm font-medium text-slate-900 dark:text-white mt-0.5">
+                        {selectedExpense.chequeDate ? new Date(selectedExpense.chequeDate).toLocaleDateString() : "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-slate-500 dark:text-slate-400">Disbursed Amount</Label>
+                      <p className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
+                        {selectedExpense.disbursedAmount ? new Intl.NumberFormat("en-PK", {
+                          style: "currency",
+                          currency: "PKR",
+                        }).format(selectedExpense.disbursedAmount) : "N/A"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Details */}
               {selectedExpense.details && (
                 <div>
@@ -1280,6 +1351,64 @@ export function ExpenseModule({
                   })}
                 </div>
               </div>
+              
+              {/* Disbursement Details Form - Show for Cheque / Online Transfer when status is APPROVED */}
+              {canDisburse(selectedExpense) && selectedExpense.status === "APPROVED" && selectedExpense.disburseType === "Cheque / Online Transfer" && (
+                <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-4">
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-blue-600" />
+                    Payment Details
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Account Title <span className="text-rose-500">*</span></Label>
+                      <Input
+                        value={disburseAccountTitle}
+                        onChange={(e) => setDisburseAccountTitle(e.target.value)}
+                        placeholder="Enter account title"
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Account / Cheque No. <span className="text-rose-500">*</span></Label>
+                      <Input
+                        value={disburseAccountNo}
+                        onChange={(e) => setDisburseAccountNo(e.target.value)}
+                        placeholder="Enter account or cheque no"
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Bank Name <span className="text-rose-500">*</span></Label>
+                      <Input
+                        value={disburseBankName}
+                        onChange={(e) => setDisburseBankName(e.target.value)}
+                        placeholder="Enter bank name"
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Cheque Date <span className="text-rose-500">*</span></Label>
+                      <Input
+                        type="date"
+                        value={disburseChequeDate}
+                        onChange={(e) => setDisburseChequeDate(e.target.value)}
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Disbursed Amount <span className="text-rose-500">*</span></Label>
+                      <Input
+                        type="number"
+                        value={disburseAmount}
+                        onChange={(e) => setDisburseAmount(e.target.value)}
+                        placeholder="Enter amount"
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-700">
@@ -1309,11 +1438,15 @@ export function ExpenseModule({
                     </Button>
                   )}
 
-                  {/* Disburse Button - Show for Admin when status is APPROVED */}
+                  {/* Disburse Button - Show for Cashier or Accountant when status is APPROVED */}
                   {canDisburse(selectedExpense) && selectedExpense.status === "APPROVED" && (
                     <Button
                       onClick={() => handleExpenseAction(selectedExpense.id, "disburse")}
-                      disabled={processingAction}
+                      disabled={
+                        processingAction || 
+                        (selectedExpense.disburseType === "Cheque / Online Transfer" && 
+                         (!disburseAccountTitle || !disburseAccountNo || !disburseBankName || !disburseChequeDate || !disburseAmount))
+                      }
                       className="bg-blue-600 hover:bg-blue-700 text-white"
                     >
                       {processingAction ? (

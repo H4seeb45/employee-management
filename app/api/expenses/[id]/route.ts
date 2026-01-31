@@ -153,13 +153,37 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         { status: 400 }
       );
     }
+
+    const disburseData: any = {
+      status: "DISBURSED",
+      disbursedById: user.id,
+      disbursedAt: new Date(),
+    };
+
+    if (expense.disburseType === "Cheque / Online Transfer") {
+      const accountTitle = body?.accountTitle?.toString();
+      const accountNo = body?.accountNo?.toString();
+      const bankName = body?.bankName?.toString();
+      const chequeDate = body?.chequeDate ? new Date(body.chequeDate) : null;
+      const disbursedAmount = Number.parseFloat(body?.disbursedAmount);
+
+      if (!accountTitle || !accountNo || !bankName || !chequeDate || Number.isNaN(disbursedAmount)) {
+        return NextResponse.json(
+          { message: "All cheque/online disbursement details are required." },
+          { status: 400 }
+        );
+      }
+
+      disburseData.accountTitle = accountTitle;
+      disburseData.accountNo = accountNo;
+      disburseData.bankName = bankName;
+      disburseData.chequeDate = chequeDate;
+      disburseData.disbursedAmount = disbursedAmount;
+    }
+
     const updated = await prisma.expenseSheet.update({
       where: { id },
-      data: {
-        status: "DISBURSED",
-        disbursedById: user.id,
-        disbursedAt: new Date(),
-      },
+      data: disburseData,
     });
     return NextResponse.json({ expense: updated });
   }

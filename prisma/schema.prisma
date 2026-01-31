@@ -160,6 +160,11 @@ model ExpenseSheet {
   disbursedById String?
   disbursedBy   User?               @relation("ExpenseDisbursedBy", fields: [disbursedById], references: [id])
   disbursedAt   DateTime?
+  accountTitle  String?
+  accountNo     String?
+  bankName      String?
+  chequeDate    DateTime?
+  disbursedAmount Float?
   attachments   ExpenseAttachment[]
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt

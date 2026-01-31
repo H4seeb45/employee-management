@@ -31,6 +31,12 @@ type ExpenseVoucherPrintProps = {
       fileType: string;
       fileSize: number;
     }>;
+    disburseType?: string;
+    accountTitle?: string;
+    accountNo?: string;
+    bankName?: string;
+    chequeDate?: string | Date;
+    disbursedAmount?: number;
   } | null;
 };
 
@@ -142,7 +148,7 @@ export const ExpenseVoucherPrint = React.forwardRef<
         {`
           @media print {
             @page {
-              size: A4 landscape;
+              size: A4 portrait;
               margin: 10mm;
             }
             body {
@@ -165,7 +171,9 @@ export const ExpenseVoucherPrint = React.forwardRef<
         {/* Document Title */}
         <div className="text-center mb-4">
           <div className="inline-block border-2 border-black px-6 py-2">
-            <h2 className="text-lg font-bold tracking-wide">CASH PAYMENT VOUCHER</h2>
+            <h2 className="text-lg font-bold tracking-wide">{`${
+              (expense.disburseType || "Cash") === "Cash" ? "CASH" : "CHEQUE / ONLINE TRANSFER"
+            } PAYMENT VOUCHER`}</h2>
           </div>
         </div>
 
@@ -191,51 +199,96 @@ export const ExpenseVoucherPrint = React.forwardRef<
           )}
         </div>
 
-        {/* Payment Details Table */}
-        <div className="mb-4">
-          <table className="w-full border-2 border-black text-sm">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="border-2 border-black text-left py-2 px-3 font-bold w-12">Sr #</th>
-                <th className="border-2 border-black text-left py-2 px-3 font-bold">Description / Details</th>
-                <th className="border-2 border-black text-right py-2 px-3 font-bold w-32">Amount (PKR)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className="border-2 border-black py-2 px-3 text-center">1</td>
-                <td className="border-2 border-black py-2 px-3">
-                  {expense.details || "No details provided"}
-                </td>
-                <td className="border-2 border-black py-2 px-3 text-right font-semibold">
-                  {expense.amount.toLocaleString("en-PK", {
-                    style: "currency",
-                    currency: "PKR",
-                  })}
-                </td>
-              </tr>
-              <tr className="bg-gray-50">
-                <td colSpan={2} className="border-2 border-black py-2 px-3 text-right font-bold">
-                  TOTAL AMOUNT:
-                </td>
-                <td className="border-2 border-black py-2 px-3 text-right font-bold">
-                  {expense.amount.toLocaleString("en-PK", {
-                    style: "currency",
-                    currency: "PKR",
-                  })}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        {/* Payment / Disbursement Details Section */}
+        {(expense.disburseType || "Cash") === "Cash" ? (
+          /* Standard Table for Cash Payments */
+          <div className="mb-4">
+            <table className="w-full border-2 border-black text-sm">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="border-2 border-black text-left py-2 px-3 font-bold w-12">Sr #</th>
+                  <th className="border-2 border-black text-left py-2 px-3 font-bold">Description / Details</th>
+                  <th className="border-2 border-black text-right py-2 px-3 font-bold w-32">Amount (PKR)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="border-2 border-black py-2 px-3 text-center">1</td>
+                  <td className="border-2 border-black py-2 px-3">
+                    {expense.details || "No details provided"}
+                  </td>
+                  <td className="border-2 border-black py-2 px-3 text-right font-semibold">
+                    {expense.amount.toLocaleString("en-PK", {
+                      style: "currency",
+                      currency: "PKR",
+                    })}
+                  </td>
+                </tr>
+                <tr className="bg-gray-50">
+                  <td colSpan={2} className="border-2 border-black py-2 px-3 text-right font-bold">
+                    TOTAL AMOUNT:
+                  </td>
+                  <td className="border-2 border-black py-2 px-3 text-right font-bold">
+                    {expense.amount.toLocaleString("en-PK", {
+                      style: "currency",
+                      currency: "PKR",
+                    })}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          /* Disbursement Details Box for Cheque/Online Transfer */
+          <div className="mb-4 p-3 border-2 border-black bg-gray-50 text-sm">
+            <h3 className="font-bold border-b border-black mb-3 pb-1 uppercase tracking-wider">Disbursement Details</h3>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+                <div className="flex border-b border-dotted border-gray-400 pb-1">
+                  <span className="font-bold w-40">Account Title:</span>
+                  <span className="flex-1">{expense.accountTitle || "N/A"}</span>
+                </div>
+                <div className="flex border-b border-dotted border-gray-400 pb-1">
+                  <span className="font-bold w-40">Account / Cheque No:</span>
+                  <span className="flex-1">{expense.accountNo || "N/A"}</span>
+                </div>
+                <div className="flex border-b border-dotted border-gray-400 pb-1">
+                  <span className="font-bold w-40">Bank Name:</span>
+                  <span className="flex-1">{expense.bankName || "N/A"}</span>
+                </div>
+                <div className="flex border-b border-dotted border-gray-400 pb-1">
+                  <span className="font-bold w-40">Cheque Date:</span>
+                  <span className="flex-1">
+                    {expense.chequeDate ? new Date(expense.chequeDate).toLocaleDateString("en-GB") : "N/A"}
+                  </span>
+                </div>
+                <div className="flex border-b border-dotted border-gray-400 pb-1">
+                  <span className="font-bold w-40 text-blue-800">Disbursed Amount:</span>
+                  <span className="flex-1 font-bold text-lg">
+                    {expense.disbursedAmount?.toLocaleString("en-PK", {
+                      style: "currency",
+                      currency: "PKR",
+                    }) || "N/A"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Add Expense Details in this view too for context */}
+              <div className="bg-white p-2 border border-black/10 mt-2">
+                <span className="font-bold text-xs uppercase text-gray-500 block mb-1">Description / Particulars:</span>
+                <p className="text-sm italic">{expense.details || "No details provided"}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Amount in Words */}
-        <div className="mb-4 border-2 border-gray-400 p-3 bg-gray-50">
+        {/* <div className="mb-4 border-2 border-gray-400 p-3 bg-gray-50">
           <div className="font-bold mb-1 text-xs">Amount in Words:</div>
           <div className="text-sm font-medium uppercase">
             {numberToWords(expense.amount)}
           </div>
-        </div>
+        </div> */}
 
         {/* Footer Note */}
         <div className="mt-4 pt-3 border-t border-gray-300 text-center text-xs text-gray-600">
