@@ -137,6 +137,7 @@ enum ExpenseType {
   VEHICLES_RENT
   WAREHOUSE_RENT
   WORKER_WELFARE
+  INVESTOR_PAYMENT  
 }
 
 model ExpenseSheet {
