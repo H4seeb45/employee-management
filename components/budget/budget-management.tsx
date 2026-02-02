@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { 
-  DollarSign, 
+  Banknote, 
   CheckCircle2, 
   XCircle, 
   Clock, 
@@ -16,10 +16,13 @@ import {
   RefreshCw
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { expenseTypes } from "@/components/expenses/expense-types";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 type Budget = {
   id: string;
   amount: number;
+  categories: Record<string, number>;
   status: "PENDING" | "APPROVED" | "REJECTED";
   locationId: string;
   location: { name: string; city: string };
@@ -32,7 +35,7 @@ type Budget = {
 export function BudgetManagement({ roles }: { roles: string[] }) {
   const [loading, setLoading] = useState(true);
   const [budgets, setBudgets] = useState<Budget[]>([]);
-  const [amount, setAmount] = useState("");
+  const [categoryBudgets, setCategoryBudgets] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -69,13 +72,13 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
       const res = await fetch("/api/budgets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: parseFloat(amount) }),
+        body: JSON.stringify({ categories: categoryBudgets }),
       });
 
       const data = await res.json();
       if (res.ok) {
         setSuccess("Budget submitted for approval!");
-        setAmount("");
+        setCategoryBudgets({});
         fetchBudgets();
       } else {
         setError(data.message || "Failed to set budget");
@@ -159,35 +162,54 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
             <CardDescription>Enter the requested amount for this month's petty cash.</CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
-            <form onSubmit={handleSetBudget} className="flex gap-4 items-end">
-              <div className="space-y-2 flex-1">
-                <Label htmlFor="amount">Budget Amount (PKR)</Label>
-                <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    className="pl-9"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    required
-                  />
-                </div>
+            <form onSubmit={handleSetBudget} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {expenseTypes.map((type) => (
+                  <div key={type.value} className="space-y-2">
+                    <Label htmlFor={type.value} className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      {type.label}
+                    </Label>
+                    <div className="relative">
+                      <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input
+                        id={type.value}
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        className="pl-9 h-9"
+                        value={categoryBudgets[type.value] || ""}
+                        onChange={(e) => setCategoryBudgets({
+                          ...categoryBudgets,
+                          [type.value]: e.target.value
+                        })}
+                      />
+                    </div>
+                  </div>
+                ))}
               </div>
-              <Button 
-                type="submit" 
-                disabled={saving || budgets.some(b => b.status === "APPROVED")}
-                className="bg-blue-600 hover:bg-blue-700 h-10 px-8"
-              >
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Submit Budget"}
-              </Button>
+
+              <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-800">
+                <div>
+                  <p className="text-sm font-medium text-slate-500">Total Budget Amount</p>
+                  <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                    {new Intl.NumberFormat("en-PK", { style: "currency", currency: "PKR" }).format(
+                      Object.values(categoryBudgets).reduce((sum, val) => sum + (parseFloat(val) || 0), 0)
+                    )}
+                  </p>
+                </div>
+                <Button 
+                  type="submit" 
+                  disabled={saving || budgets.some(b => b.status === "APPROVED")}
+                  className="bg-blue-600 hover:bg-blue-700 h-11 px-10 font-semibold shadow-lg shadow-blue-500/20"
+                >
+                  {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : "Submit Budget for Approval"}
+                </Button>
+              </div>
             </form>
             {budgets.some(b => b.status === "APPROVED") && (
-              <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 flex items-center gap-1">
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-4 flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" />
-                Budget has been approved. You cannot set a new one or modify it.
+                An approved budget already exists. You cannot set a new one.
               </p>
             )}
           </CardContent>
@@ -204,13 +226,13 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
           budgets.map((budget) => (
             <Card key={budget.id} className="overflow-hidden">
               <CardContent className="p-0">
-                <div className="flex items-center justify-between p-6">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between p-6 gap-6">
                   <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                      <DollarSign className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                    <div className="h-12 w-12 shrink-0 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                      <Banknote className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="font-bold text-lg text-slate-900 dark:text-white">
                           {new Intl.NumberFormat("en-PK", { style: "currency", currency: "PKR" }).format(budget.amount)}
                         </span>
@@ -232,24 +254,24 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4">
-                    <div className="text-right hidden sm:block">
-                      <p className="text-xs text-slate-400 flex items-center justify-end gap-1">
+                  <div className="flex flex-row lg:flex-col items-center lg:items-end justify-between lg:justify-center gap-4 w-full lg:w-auto border-t lg:border-t-0 pt-4 lg:pt-0 border-slate-100 dark:border-slate-800">
+                    <div className="text-left lg:text-right">
+                      <p className="text-[10px] text-slate-400 flex items-center lg:justify-end gap-1 uppercase tracking-wider font-medium">
                         <Clock className="h-3 w-3" />
                         Uploaded: {new Date(budget.createdAt).toLocaleDateString()}
                       </p>
-                      <p className="text-xs text-slate-400">By: {budget.createdBy.email}</p>
+                      <p className="text-xs text-slate-500 mt-0.5 font-medium">By: {budget.createdBy.email.split('@')[0]}</p>
                       {budget.approvedBy && (
-                        <p className="text-xs text-emerald-500">Approved by: {budget.approvedBy.email}</p>
+                        <p className="text-xs text-emerald-500 font-medium">Approved by: {budget.approvedBy.email.split('@')[0]}</p>
                       )}
                     </div>
 
                     {isAdmin && budget.status === "PENDING" && (
-                      <div className="flex gap-2 border-l pl-4 border-slate-200 dark:border-slate-800">
+                      <div className="flex gap-2">
                         <Button 
                           size="sm" 
                           variant="ghost" 
-                          className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                          className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 h-8 px-3"
                           onClick={() => handleAction(budget.id, "reject")}
                           disabled={saving}
                         >
@@ -258,7 +280,7 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
                         </Button>
                         <Button 
                           size="sm" 
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 px-3"
                           onClick={() => handleAction(budget.id, "approve")}
                           disabled={saving}
                         >
@@ -269,6 +291,38 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
                     )}
                   </div>
                 </div>
+
+                {budget.categories && typeof budget.categories === "object" && Object.keys(budget.categories).length > 0 && (
+                  <div className="px-6 pb-6 border-t border-slate-50 dark:border-slate-800/50">
+                     <Accordion type="single" collapsible className="w-full border-none">
+                      <AccordionItem value="breakdown" className="border-none">
+                        <AccordionTrigger className="py-3 hover:no-underline text-xs text-blue-600 font-semibold justify-start gap-2 h-auto">
+                          <span className="bg-blue-50 dark:bg-blue-900/40 px-3 py-1 rounded-full border border-blue-100 dark:border-blue-800 flex items-center gap-2">
+                            <AlertCircle className="h-3 w-3" />
+                            {Object.keys(budget.categories).length} Categories Breakdown
+                          </span>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-3 mt-2 p-4 bg-slate-50 dark:bg-slate-900/30 rounded-xl border border-slate-100 dark:border-slate-800/50 text-[11px]">
+                            {Object.entries(budget.categories as Record<string, number>)
+                              .sort(([, a], [, b]) => b - a)
+                              .map(([key, val]) => {
+                                const label = expenseTypes.find(t => t.value === key)?.label || key;
+                                return (
+                                  <div key={key} className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-1.5 h-auto">
+                                    <span className="text-slate-500 font-medium truncate max-w-[140px]" title={label}>{label}</span>
+                                    <span className="font-bold text-slate-900 dark:text-slate-100 shrink-0">
+                                      {new Intl.NumberFormat("en-PK", { style: "currency", currency: "PKR", maximumFractionDigits: 0 }).format(val)}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))

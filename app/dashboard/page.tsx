@@ -18,7 +18,7 @@ import {
   Calendar,
   TrendingUp,
   TrendingDown,
-  DollarSign,
+  Banknote,
   FileText,
   UserPlus,
   ArrowRight,
@@ -118,7 +118,7 @@ export default function DashboardPage() {
   const quickActions = [
     { label: "Add Employee", icon: UserPlus, href: "/dashboard/employees", color: "blue" },
     { label: "Mark Attendance", icon: Clock, href: "/dashboard/attendance", color: "emerald" },
-    { label: "Submit Expense", icon: DollarSign, href: "/dashboard/expenses", color: "amber" },
+    { label: "Submit Expense", icon: Banknote, href: "/dashboard/expenses", color: "amber" },
     { label: "Leave Request", icon: FileText, href: "/dashboard/leave-management", color: "purple" },
   ];
 

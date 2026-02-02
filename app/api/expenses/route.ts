@@ -184,6 +184,35 @@ export async function POST(request: NextRequest) {
   }
 
   const { start, end } = getMonthRange();
+  
+  // 1. Check Category-Specific Limit
+  const categories = budget.categories as Record<string, number> | null;
+  const categoryLimit = categories ? categories[expenseType] : null;
+
+  if (categoryLimit !== null && categoryLimit !== undefined) {
+    const categorySpent = await prisma.expenseSheet.aggregate({
+      where: {
+        locationId: user.locationId,
+        expenseType: expenseType as any,
+        createdAt: { gte: start, lt: end },
+        status: { not: "REJECTED" },
+      },
+      _sum: { amount: true },
+    });
+
+    const usedInCategory = categorySpent._sum.amount ?? 0;
+    if (usedInCategory + amount > categoryLimit) {
+      const remainingInCategory = categoryLimit - usedInCategory;
+      return NextResponse.json(
+        { 
+          message: `Category limit exceeded for ${expenseType}. Remaining category budget: ${remainingInCategory.toLocaleString("en-PK", { style: "currency", currency: "PKR" })} (Limit: ${categoryLimit.toLocaleString("en-PK", { style: "currency", currency: "PKR" })})` 
+        },
+        { status: 400 }
+      );
+    }
+  }
+
+  // 2. Check Total Overall Budget Limit
   const totalThisMonth = await prisma.expenseSheet.aggregate({
     where: {
       locationId: user.locationId,
@@ -192,12 +221,12 @@ export async function POST(request: NextRequest) {
     },
     _sum: { amount: true },
   });
-  const used = totalThisMonth._sum.amount ?? 0;
+  const usedTotal = totalThisMonth._sum.amount ?? 0;
   
-  if (used + amount > budget.amount) {
-    const remaining = budget.amount - used;
+  if (usedTotal + amount > budget.amount) {
+    const remainingTotal = budget.amount - usedTotal;
     return NextResponse.json(
-      { message: `Insufficient budget. Remaining: ${remaining.toLocaleString("en-PK", { style: "currency", currency: "PKR" })}` },
+      { message: `Total monthly budget exceeded. Remaining: ${remainingTotal.toLocaleString("en-PK", { style: "currency", currency: "PKR" })} (Total Budget: ${budget.amount.toLocaleString("en-PK", { style: "currency", currency: "PKR" })})` },
       { status: 400 }
     );
   }

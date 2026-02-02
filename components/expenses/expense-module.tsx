@@ -32,7 +32,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  DollarSign,
+  Banknote,
   Plus,
   Search,
   Filter,
@@ -50,6 +50,7 @@ import {
   X,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   Printer,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -287,7 +288,7 @@ export function ExpenseModule({
 
       if (res.ok) {
         setExpenses(data.expenses || []);
-        setTotalPages(data.totalPages || 1);
+        setTotalPages(data?.pagination?.totalPages || 1);
         setError(null);
       } else {
         setError(data.message || "Failed to fetch expenses");
@@ -546,7 +547,7 @@ export function ExpenseModule({
                 </p>
               </div>
               <div className="p-3 rounded-xl bg-blue-100 dark:bg-blue-900/30">
-                <DollarSign className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <Banknote className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
           </CardContent>
@@ -732,7 +733,7 @@ export function ExpenseModule({
                       <div>
                         <Label className="text-slate-700 dark:text-slate-300">Min Amount</Label>
                         <div className="relative">
-                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                          <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                           <Input
                             type="number"
                             placeholder="0"
@@ -747,7 +748,7 @@ export function ExpenseModule({
                       <div>
                         <Label className="text-slate-700 dark:text-slate-300">Max Amount</Label>
                         <div className="relative">
-                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                          <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                           <Input
                             type="number"
                             placeholder="999999"
@@ -812,123 +813,159 @@ export function ExpenseModule({
                   </p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                        <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
-                          Type
-                        </TableHead>
-                        <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
-                          Amount
-                        </TableHead>
-                        <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
-                          Status
-                        </TableHead>
-                        <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
-                          Disburse Type
-                        </TableHead>
-                        <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
-                          Date
-                        </TableHead>
-                        <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
-                          Actions
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {expenses.map((expense) => (
-                        <TableRow
-                          key={expense.id}
-                          className="hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
-                          onClick={() => setSelectedExpense(expense)}
-                        >
-                          <TableCell>
-                            <div className="flex flex-col">
-                              <span className="font-medium text-slate-900 dark:text-white">
-                                {expenseTypes.find((t) => t.value === expense.expenseType)
-                                  ?.label || expense.expenseType}
-                              </span>
-                              {expense.details && (
-                                <span className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-xs">
-                                  {expense.details}
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
+                            Type
+                          </TableHead>
+                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
+                            Amount
+                          </TableHead>
+                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
+                            Status
+                          </TableHead>
+                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
+                            Disburse Type
+                          </TableHead>
+                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
+                            Date
+                          </TableHead>
+                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
+                            Actions
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {expenses.map((expense) => (
+                          <TableRow
+                            key={expense.id}
+                            className="hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
+                            onClick={() => setSelectedExpense(expense)}
+                          >
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span className="font-medium text-slate-900 dark:text-white">
+                                  {expenseTypes.find((t) => t.value === expense.expenseType)
+                                    ?.label || expense.expenseType}
                                 </span>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <span className="font-semibold text-slate-900 dark:text-white">
-                              {new Intl.NumberFormat("en-PK", {
-                                style: "currency",
-                                currency: "PKR",
-                              }).format(expense.amount)}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              className={
-                                expense.status === "PENDING"
-                                  ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                                  : expense.status === "APPROVED"
-                                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                                  : expense.status === "DISBURSED"
-                                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                                  : "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400"
-                              }
-                            >
-                              {expense.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-sm text-slate-700 dark:text-slate-300">
-                              {expense.disburseType || "Cash"}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-sm text-slate-600 dark:text-slate-400">
-                              {new Date(expense.createdAt).toLocaleDateString()}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedExpense(expense);
-                                }}
-                                className="hover:bg-slate-100 dark:hover:bg-slate-700"
-                                title="View Details"
+                                {expense.details && (
+                                  <span className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-xs">
+                                    {expense.details}
+                                  </span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span className="font-semibold text-slate-900 dark:text-white">
+                                {new Intl.NumberFormat("en-PK", {
+                                  style: "currency",
+                                  currency: "PKR",
+                                }).format(expense.amount)}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                className={
+                                  expense.status === "PENDING"
+                                    ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                                    : expense.status === "APPROVED"
+                                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                                    : expense.status === "DISBURSED"
+                                    ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                                    : "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400"
+                                }
                               >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              
-                              {expense.status === "DISBURSED" && (
+                                {expense.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-sm text-slate-700 dark:text-slate-300">
+                                {expense.disburseType || "Cash"}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-sm text-slate-600 dark:text-slate-400">
+                                {new Date(expense.createdAt).toLocaleDateString()}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1">
                                 <Button
                                   size="sm"
                                   variant="ghost"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    // Use separate state for printing to avoid opening view dialog
-                                    setExpenseToPrint(expense);
-                                    setTimeout(() => {
-                                      handlePrint();
-                                    }, 50);
+                                    setSelectedExpense(expense);
                                   }}
-                                  className="hover:bg-blue-100 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400"
-                                  title="Print Voucher"
+                                  className="hover:bg-slate-100 dark:hover:bg-slate-700"
+                                  title="View Details"
                                 >
-                                  <Printer className="h-4 w-4" />
+                                  <Eye className="h-4 w-4" />
                                 </Button>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                                
+                                {expense.status === "DISBURSED" && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      // Use separate state for printing to avoid opening view dialog
+                                      setExpenseToPrint(expense);
+                                      setTimeout(() => {
+                                        handlePrint();
+                                      }, 50);
+                                    }}
+                                    className="hover:bg-blue-100 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+                                    title="Print Voucher"
+                                  >
+                                    <Printer className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Pagination Controls */}
+                  <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 dark:border-slate-800">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      Page <span className="font-medium text-slate-900 dark:text-white">{page}</span> of{" "}
+                      <span className="font-medium text-slate-900 dark:text-white">{totalPages}</span>
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPage(Math.max(1, page - 1));
+                        }}
+                        disabled={page === 1 || loading}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPage(Math.min(totalPages, page + 1));
+                        }}
+                        disabled={page === totalPages || loading}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
@@ -1006,7 +1043,7 @@ export function ExpenseModule({
                         Amount (PKR) <span className="text-rose-500">*</span>
                       </Label>
                       <div className="relative">
-                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input
                           type="number"
                           step="0.01"
@@ -1416,7 +1453,7 @@ export function ExpenseModule({
               {canDisburse(selectedExpense) && selectedExpense.status === "APPROVED" && selectedExpense.disburseType === "Cheque / Online Transfer" && (
                 <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-4">
                   <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-blue-600" />
+                    <Banknote className="h-4 w-4 text-blue-600" />
                     Payment Details
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1512,7 +1549,7 @@ export function ExpenseModule({
                       {processingAction ? (
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       ) : (
-                        <DollarSign className="h-4 w-4 mr-2" />
+                        <Banknote className="h-4 w-4 mr-2" />
                       )}
                       Disburse
                     </Button>

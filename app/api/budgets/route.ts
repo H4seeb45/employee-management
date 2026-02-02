@@ -58,10 +58,22 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => null);
-  const amount = Number.parseFloat(body?.amount);
+  const rawCategories = body?.categories || {};
+  
+  // Clean and convert categories to numbers, filtering out zero/invalid values
+  const categories: Record<string, number> = {};
+  Object.entries(rawCategories).forEach(([key, val]) => {
+    const numVal = Number(val);
+    if (!isNaN(numVal) && numVal > 0) {
+      categories[key] = numVal;
+    }
+  });
+  
+  // Calculate total amount from cleaned categories
+  const amount = Object.values(categories).reduce((sum: number, val: number) => sum + val, 0);
 
-  if (Number.isNaN(amount) || amount <= 0) {
-    return NextResponse.json({ message: "A valid positive amount is required." }, { status: 400 });
+  if (amount <= 0) {
+    return NextResponse.json({ message: "A valid positive budget is required across categories." }, { status: 400 });
   }
 
   // Check if budget already exists for this location
@@ -78,6 +90,7 @@ export async function POST(request: NextRequest) {
       where: { id: existingBudget.id },
       data: {
         amount,
+        categories,
         status: "PENDING",
         createdById: user.id,
       },
@@ -88,6 +101,7 @@ export async function POST(request: NextRequest) {
   const budget = await prisma.budget.create({
     data: {
       amount,
+      categories,
       locationId: user.locationId,
       createdById: user.id,
     },
