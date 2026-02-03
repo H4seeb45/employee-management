@@ -190,6 +190,8 @@ export function ExpenseModule({
       "VEHICLE_FUEL",
       "VEHICLE_RENTAL",
       "VEHICLES_RENT",
+      "VEHICLE_PARKING",
+      "VEHICLE_PASSING",
     ];
     return vehicleTypes.includes(type);
   };
