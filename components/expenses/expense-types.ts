@@ -41,4 +41,7 @@ export const expenseTypes = [
   { value: "WAREHOUSE_RENT", label: "Warehouse Rent" },
   { value: "WORKER_WELFARE", label: "Worker Welfare" },
   { value: "INVESTOR_PAYMENT", label: "Investor Payment" },
+  { value: "VEHICLE_PARKING", label: "Vehicle Parking" },
+  { value: "VEHICLE_PASSING", label: "Vehicle Passing" },
+  { value: "GUARD_TEA_EXP", label: "Guard Tea Exp." },
 ];
