@@ -19,8 +19,10 @@ import {
   Shield,
   ChevronRight,
   LogOut,
+  PieChart,
 } from "lucide-react";
 import { useLayout } from "@/components/layout/layout-provider";
+import { motion, AnimatePresence } from "framer-motion";
 
 const sidebarItems = [
   { name: "Dashboard", href: "/dashboard", icon: BarChart3 },
@@ -52,6 +54,12 @@ const sidebarItems = [
     adminOnly: true,
   },
   { name: "Users", href: "/dashboard/users", icon: Users, adminOnly: true },
+  {
+    name: "Reports",
+    href: "/dashboard/reports",
+    icon: PieChart,
+    requiredRoles: ["Admin", "Super Admin", "Business Manager", "Accountant"],
+  },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
@@ -64,11 +72,13 @@ export function AppSidebar() {
   // Check if we're on mobile
   useEffect(() => {
     const checkIfMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-      if (window.innerWidth < 768) {
-        setSidebarOpen(false);
-      } else {
-        setSidebarOpen(true);
+      const mobile = window.innerWidth < 768;
+      const wasMobile = isMobile;
+      setIsMobile(mobile);
+      
+      // Only force sidebar state if we transitioned between mobile/desktop
+      if (mobile !== wasMobile) {
+        setSidebarOpen(!mobile);
       }
     };
 
@@ -78,7 +88,7 @@ export function AppSidebar() {
     return () => {
       window.removeEventListener("resize", checkIfMobile);
     };
-  }, [setSidebarOpen]);
+  }, [isMobile]);
 
   const roles = user?.roles ?? [];
   const email = user?.email ?? null;
@@ -89,9 +99,21 @@ export function AppSidebar() {
     roles.includes("Cashier") && !isAdmin && !isBusinessManager && !isSuperAdmin;
   const roleLabel = roles.length > 0 ? roles.join(", ") : "No role";
   const avatarLetter = email?.[0]?.toUpperCase() || "U";
-
   return (
     <>
+      {/* Mobile Backdrop Overlay - High Premium Glassmorphism */}
+      <AnimatePresence>
+        {isMobile && sidebarOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSidebarOpen(false)}
+            className="fixed inset-0 z-30 bg-slate-900/60 backdrop-blur-sm md:hidden"
+          />
+        )}
+      </AnimatePresence>
+
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-40 w-64 bg-gradient-to-b from-[#0A192F] via-[#0D1F3C] to-[#0A192F] text-white shadow-2xl transform transition-transform duration-300 ease-in-out md:translate-x-0 border-r border-slate-700/50",
@@ -123,14 +145,16 @@ export function AppSidebar() {
               </div>
 
               {/* Mobile Close Button */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="md:hidden text-slate-400 hover:text-white hover:bg-white/10 rounded-lg"
-                onClick={() => setSidebarOpen(false)}
-              >
-                <X className="h-5 w-5" />
-              </Button>
+              {isMobile && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-slate-400 hover:text-white hover:bg-white/10 rounded-lg"
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              )}
             </div>
           </div>
 

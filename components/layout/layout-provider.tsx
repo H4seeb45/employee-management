@@ -112,7 +112,7 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
   // Initialize sidebar state based on screen size
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window !== "undefined") {
-      return window.innerWidth >= 768;
+      return window.innerWidth <= 768;
     }
     return true;
   });

@@ -1118,12 +1118,25 @@ export function ExpenseModule({
                           <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                             Upload supporting documents
                           </p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                          {/* <p className="text-xs text-slate-500 dark:text-slate-400">
                             PDFs, images, or receipts (Max 10MB)
-                          </p>
+                          </p> */}
                         </div>
                         <UploadButton
                           endpoint="expenseAttachment"
+                          appearance={{
+                            button: "bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:text-white dark:hover:bg-blue-600 font-medium px-4 py-2 rounded-md transition-colors",
+                            container: "w-full flex justify-start",
+                            allowedContent: "text-slate-600 dark:text-slate-400 text-sm"
+                          }}
+                          content={{
+                            button({ ready, isUploading }) {
+                              if (isUploading) return <Loader2 className="h-4 w-4 animate-spin" />;
+                              if (ready) return "Choose Files";
+                              return "Getting ready...";
+                            },
+                            allowedContent: "PDF, DOC, DOCX, PNG, JPG (Max 5MB)"
+                          }}
                           onClientUploadComplete={(files) => {
                             const uploaded = (files ?? []).map((file) => ({
                               url: file.url,
@@ -1135,7 +1148,15 @@ export function ExpenseModule({
                             setAttachments((prev) => [...prev, ...uploaded]);
                           }}
                           onUploadError={(error: { message: string }) => {
-                            setError(error.message);
+                            let friendlyMessage = error.message;
+                            
+                            if (error.message.includes("FileSizeMismatch")) {
+                              friendlyMessage = "The file is too large. Please upload a file smaller than 5MB.";
+                            } else if (error.message.includes("Invalid config")) {
+                              friendlyMessage = "File type mismatch. Please try a different file format.";
+                            }
+
+                            setError(friendlyMessage);
                           }}
                         />
                       </div>
