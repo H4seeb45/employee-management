@@ -109,6 +109,8 @@ export function ExpenseModule({
   const [attachments, setAttachments] = useState<ExpenseAttachment[]>([]);
   const [selectedRoute, setSelectedRoute] = useState("");
   const [selectedVehicle, setSelectedVehicle] = useState("");
+  const [vehicleTransactions, setVehicleTransactions] = useState<ExpenseSheet[]>([]);
+  const [loadingTransactions, setLoadingTransactions] = useState(false);
 
   // Dialog states
   const [selectedExpense, setSelectedExpense] = useState<ExpenseSheet | null>(null);
@@ -236,6 +238,34 @@ export function ExpenseModule({
       console.error("Failed to fetch routes and vehicles:", err);
     }
   };
+
+  const loadVehicleTransactions = async (vehicleId: string) => {
+    if (!vehicleId) {
+      setVehicleTransactions([]);
+      return;
+    }
+
+    setLoadingTransactions(true);
+    try {
+      const response = await fetch(`/api/expenses?vehicleId=${vehicleId}&limit=3`);
+      if (response.ok) {
+        const data = await response.json();
+        setVehicleTransactions(data.expenses || []);
+      }
+    } catch (err) {
+      console.error("Failed to load vehicle transactions:", err);
+    } finally {
+      setLoadingTransactions(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedVehicle) {
+      loadVehicleTransactions(selectedVehicle);
+    } else {
+      setVehicleTransactions([]);
+    }
+  }, [selectedVehicle]);
 
   useEffect(() => {
     // Fetch routes and vehicles for both form and filters
@@ -992,6 +1022,7 @@ export function ExpenseModule({
                 )}
               </CardHeader>
               <CardContent className="p-6">
+                
                 <form onSubmit={handleCreate} className="space-y-6">
                   {error && (
                     <div className="p-4 rounded-lg bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800">
@@ -1079,7 +1110,7 @@ export function ExpenseModule({
 
                       <div className="space-y-2">
                         <Label className="text-slate-700 dark:text-slate-300">Vehicle <span className="text-rose-500">*</span></Label>
-                        <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
+                        <Select value={selectedVehicle} onValueChange={(value) => {setSelectedVehicle(value); setSelectedVehicle(value);}}>
                           <SelectTrigger className="bg-white dark:bg-slate-800">
                             <SelectValue placeholder="Select vehicle" />
                           </SelectTrigger>
@@ -1095,6 +1126,44 @@ export function ExpenseModule({
                     </div>
                   )}
 
+                  {/* Vehicle Transaction History */}
+                  {requiresRouteAndVehicle(expenseType) && selectedVehicle && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Last 3 Transactions for Selected Vehicle</Label>
+                      {loadingTransactions ? (
+                        <div className="text-sm text-muted-foreground p-3 border rounded-md">
+                          Loading transactions...
+                        </div>
+                      ) : vehicleTransactions.length === 0 ? (
+                        <div className="text-sm text-muted-foreground p-3 border rounded-md">
+                          No previous transactions found for this vehicle.
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {vehicleTransactions.map((transaction) => (
+                            <div
+                              key={transaction.id}
+                              className="p-3 border rounded-md bg-slate-50 dark:bg-slate-900"
+                            >
+                              <div className="flex justify-between items-start">
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium">
+                                    {expenseTypes.find((t) => t.value === transaction.expenseType)?.label ?? transaction.expenseType}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {new Date(transaction.createdAt).toLocaleDateString()} - {transaction?.route?.name} - {transaction.status}
+                                  </p>
+                                </div>
+                                <p className="text-sm font-semibold">
+                                  Rs. {transaction.amount.toFixed(2)}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <Label className="text-slate-700 dark:text-slate-300">Details <span className="text-rose-500">*</span></Label>
                     <Textarea
