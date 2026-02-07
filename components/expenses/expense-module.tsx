@@ -154,7 +154,7 @@ export function ExpenseModule({
   const [disburseChequeDate, setDisburseChequeDate] = useState("");
   const [disburseAmount, setDisburseAmount] = useState("");
 
-  // Budget States
+  // Budget and Stats States
   const [budgetInfo, setBudgetInfo] = useState<{
     totalBudget: number;
     spentThisMonth: number;
@@ -162,6 +162,11 @@ export function ExpenseModule({
     hasApprovedBudget: boolean;
   } | null>(null);
   const [loadingBudget, setLoadingBudget] = useState(false);
+  const [stats, setStats] = useState<{
+    statusCounts: Record<string, number>;
+    typeTotals: Record<string, number>;
+  }>({ statusCounts: {}, typeTotals: {} });
+  const [loadingStats, setLoadingStats] = useState(false);
 
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -273,8 +278,9 @@ export function ExpenseModule({
     fetchRoutesAndVehicles();}
   }, [routes.length,vehicles.length]);
 
-  const fetchBudgetInfo = async () => {
+  const fetchBudgetAndStats = async () => {
     setLoadingBudget(true);
+    setLoadingStats(true);
     try {
       const params = new URLSearchParams();
       if (locationId) params.append("locationId", locationId);
@@ -283,19 +289,22 @@ export function ExpenseModule({
       if (res.ok) {
         const data = await res.json();
         setBudgetInfo(data.budgetInfo);
+        setStats({
+          statusCounts: data.statusCounts || {},
+          typeTotals: data.typeTotals || {},
+        });
       }
     } catch (err) {
-      console.error("Failed to fetch budget info:", err);
+      console.error("Failed to fetch budget info and stats:", err);
     } finally {
       setLoadingBudget(false);
+      setLoadingStats(false);
     }
   };
 
   useEffect(() => {
-    if (canCreate) {
-      fetchBudgetInfo();
-    }
-  }, [locationId, canCreate]);
+    fetchBudgetAndStats();
+  }, [locationId]);
 
   const fetchExpenses = async () => {
     setLoading(true);
@@ -399,7 +408,7 @@ export function ExpenseModule({
         setSuccess("Expense created successfully!");
         setError(null);
         fetchExpenses();
-        fetchBudgetInfo(); // Refresh budget info after creation
+        fetchBudgetAndStats(); // Refresh budget info and stats after creation
         
         // Clear success message after 5 seconds
         setTimeout(() => setSuccess(null), 5000);
@@ -492,13 +501,13 @@ export function ExpenseModule({
     contentRef: printRef,
   });
 
-  // Summary stats
-  const stats = {
-    total: expenses.length,
-    pending: expenses.filter((e) => e.status === "PENDING").length,
-    approved: expenses.filter((e) => e.status === "APPROVED").length,
-    disbursed: expenses.filter((e) => e.status === "DISBURSED").length,
-    totalAmount: expenses.reduce((sum, e) => sum + e.amount, 0),
+  // Summary stats - calculated from API stats, not paginated expenses
+  const summaryStats = {
+    total: Object.values(stats.statusCounts).reduce((sum, count) => sum + count, 0),
+    pending: stats.statusCounts["PENDING"] || 0,
+    approved: stats.statusCounts["APPROVED"] || 0,
+    disbursed: stats.statusCounts["DISBURSED"] || 0,
+    totalAmount: Object.values(stats.typeTotals).reduce((sum, amount) => sum + amount, 0),
   };
 
   return (
@@ -522,7 +531,7 @@ export function ExpenseModule({
                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
                   Total Claims
                 </p>
-                <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.total}</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-white">{loadingStats ? "..." : summaryStats.total}</p>
               </div>
               <div className="p-3 rounded-xl bg-blue-100 dark:bg-blue-900/30">
                 <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -539,7 +548,7 @@ export function ExpenseModule({
                   Pending
                 </p>
                 <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                  {stats.pending}
+                  {loadingStats ? "..." : summaryStats.pending}
                 </p>
               </div>
               <div className="p-3 rounded-xl bg-amber-100 dark:bg-amber-900/30">
@@ -557,7 +566,7 @@ export function ExpenseModule({
                   Approved
                 </p>
                 <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                  {stats.approved}
+                  {loadingStats ? "..." : summaryStats.approved}
                 </p>
               </div>
               <div className="p-3 rounded-xl bg-emerald-100 dark:bg-emerald-900/30">
@@ -575,7 +584,7 @@ export function ExpenseModule({
                   Disbursed
                 </p>
                 <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                  {stats.disbursed}
+                  {loadingStats ? "..." : summaryStats.disbursed}
                 </p>
               </div>
               <div className="p-3 rounded-xl bg-blue-100 dark:bg-blue-900/30">
@@ -591,11 +600,11 @@ export function ExpenseModule({
               <div>
                 <p className="text-xs font-medium text-white/80 mb-1">Total Amount</p>
                 <p className="text-xl font-bold">
-                  {new Intl.NumberFormat("en-PK", {
+                  {loadingStats ? "..." : new Intl.NumberFormat("en-PK", {
                     style: "currency",
                     currency: "PKR",
                     minimumFractionDigits: 0,
-                  }).format(stats.totalAmount)}
+                  }).format(summaryStats.totalAmount)}
                 </p>
               </div>
               <div className="p-3 rounded-xl bg-white/20">
