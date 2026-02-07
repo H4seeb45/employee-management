@@ -8,6 +8,9 @@ export default defineConfig({
     seed: "node prisma/seed.js",
   },
   datasource: {
-    url: env("DATABASE_URL"),
+    // Use staging database when in development, production otherwise
+    url: process.env.NODE_ENV === 'development' && process.env.DATABASE_URL_STAGING
+      ? env("DATABASE_URL_STAGING")
+      : env("DATABASE_URL"),
   },
 });

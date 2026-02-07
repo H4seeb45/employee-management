@@ -210,6 +210,11 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+  } else{
+    return NextResponse.json(
+      { message: `Expense limit for ${expenseType} not found in budget categories. Please set a budget for this expense type first.` },
+      { status: 400 }
+    );
   }
 
   // 2. Check Total Overall Budget Limit

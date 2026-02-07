@@ -4,9 +4,15 @@ const { PrismaPg } = require("@prisma/adapter-pg");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 
-const dbUrl = process.env.DATABASE_URL ? process.env.DATABASE_URL.trim() : "";
-const adapter = dbUrl ? new PrismaPg({ connectionString: dbUrl }) : undefined;
-const prisma = dbUrl ? new PrismaClient({ adapter }) : new PrismaClient();
+// Use staging database when in development, production otherwise
+const isLocalhost = process.env.NODE_ENV === 'development';
+
+const databaseUrl = isLocalhost && process.env.DATABASE_URL_STAGING
+  ? process.env.DATABASE_URL_STAGING.trim()
+  : process.env.DATABASE_URL?.trim() || "";
+
+const adapter = databaseUrl ? new PrismaPg({ connectionString: databaseUrl }) : undefined;
+const prisma = databaseUrl ? new PrismaClient({ adapter }) : new PrismaClient();
 
 const roles = ["Business Manager", "Cashier", "Admin", "Super Admin", "Employee"];
 
@@ -125,73 +131,7 @@ const employees = [
     joinDate: "2023-04-05",
     status: "Remote",
     avatar: "/placeholder.svg?height=40&width=40",
-  },
-  {
-    id: "EMP005",
-    employeeId: "EMP005",
-    employeeName: "Employee EMP005",
-    position: "UX Designer",
-    department: "Design",
-    email: "emp005@example.com",
-    joinDate: "2023-03-20",
-    status: "Active",
-    avatar: "/placeholder.svg?height=40&width=40",
-  },
-  {
-    id: "EMP006",
-    employeeId: "EMP006",
-    employeeName: "Employee EMP006",
-    position: "Financial Analyst",
-    department: "Finance",
-    email: "emp006@example.com",
-    joinDate: "2023-03-15",
-    status: "Active",
-    avatar: "/placeholder.svg?height=40&width=40",
-  },
-  {
-    id: "EMP007",
-    employeeId: "EMP007",
-    employeeName: "Employee EMP007",
-    position: "Sales Representative",
-    department: "Sales",
-    email: "emp007@example.com",
-    joinDate: "2023-03-10",
-    status: "Active",
-    avatar: "/placeholder.svg?height=40&width=40",
-  },
-  {
-    id: "EMP008",
-    employeeId: "EMP008",
-    employeeName: "Employee EMP008",
-    position: "Operations Manager",
-    department: "Operations",
-    email: "emp008@example.com",
-    joinDate: "2023-03-05",
-    status: "On Leave",
-    avatar: "/placeholder.svg?height=40&width=40",
-  },
-  {
-    id: "EMP009",
-    employeeId: "EMP009",
-    employeeName: "Employee EMP009",
-    position: "Content Writer",
-    department: "Marketing",
-    email: "emp009@example.com",
-    joinDate: "2023-02-25",
-    status: "Active",
-    avatar: "/placeholder.svg?height=40&width=40",
-  },
-  {
-    id: "EMP010",
-    employeeId: "EMP010",
-    employeeName: "Employee EMP010",
-    position: "DevOps Engineer",
-    department: "Engineering",
-    email: "emp010@example.com",
-    joinDate: "2023-02-20",
-    status: "Remote",
-    avatar: "/placeholder.svg?height=40&width=40",
-  },
+  }
 ];
 
 const attendance = [
@@ -218,103 +158,7 @@ const attendance = [
     checkOutStatus: "on-time",
     workingHours: "8.0",
     status: "Present",
-  },
-  {
-    id: "3",
-    employeeId: "EMP003",
-    employeeName: "Employee EMP003",
-    date: "2023-05-01",
-    checkIn: "08:45 AM",
-    checkOut: "05:45 PM",
-    checkInStatus: "on-time",
-    checkOutStatus: "on-time",
-    workingHours: "9.0",
-    status: "Present",
-  },
-  {
-    id: "4",
-    employeeId: "EMP004",
-    employeeName: "Employee EMP004",
-    date: "2023-05-01",
-    checkIn: "09:15 AM",
-    checkOut: "04:30 PM",
-    checkInStatus: "on-time",
-    checkOutStatus: "early",
-    workingHours: "7.25",
-    status: "Present",
-  },
-  {
-    id: "5",
-    employeeId: "EMP005",
-    employeeName: "Employee EMP005",
-    date: "2023-05-01",
-    checkIn: "",
-    checkOut: "",
-    checkInStatus: "",
-    checkOutStatus: "",
-    workingHours: "0",
-    status: "Absent",
-  },
-  {
-    id: "6",
-    employeeId: "EMP001",
-    employeeName: "Employee EMP001",
-    date: "2023-04-30",
-    checkIn: "08:55 AM",
-    checkOut: "06:05 PM",
-    checkInStatus: "on-time",
-    checkOutStatus: "on-time",
-    workingHours: "9.17",
-    status: "Present",
-  },
-  {
-    id: "7",
-    employeeId: "EMP002",
-    employeeName: "Employee EMP002",
-    date: "2023-04-30",
-    checkIn: "09:00 AM",
-    checkOut: "01:00 PM",
-    checkInStatus: "on-time",
-    checkOutStatus: "early",
-    workingHours: "4.0",
-    status: "Half Day",
-  },
-  {
-    id: "8",
-    employeeId: "EMP003",
-    employeeName: "Employee EMP003",
-    date: "2023-04-30",
-    checkIn: "08:50 AM",
-    checkOut: "05:50 PM",
-    checkInStatus: "on-time",
-    checkOutStatus: "on-time",
-    workingHours: "9.0",
-    status: "Present",
-  },
-  {
-    id: "9",
-    employeeId: "EMP004",
-    employeeName: "Employee EMP004",
-    date: "2023-04-30",
-    checkIn: "09:10 AM",
-    checkOut: "06:10 PM",
-    checkInStatus: "on-time",
-    checkOutStatus: "on-time",
-    workingHours: "9.0",
-    status: "Present",
-  },
-  {
-    id: "10",
-    employeeId: "EMP005",
-    employeeName: "Employee EMP005",
-    date: "2023-04-30",
-    checkIn: "09:05 AM",
-    checkOut: "06:00 PM",
-    checkInStatus: "on-time",
-    checkOutStatus: "on-time",
-    workingHours: "8.92",
-    status: "Present",
-  },
+  }
 ];
 
 const leaveRequests = [

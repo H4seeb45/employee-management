@@ -7,10 +7,19 @@ declare global {
   var prisma: PrismaClient | undefined;
 }
 
-const adapter = process.env.DATABASE_URL
-  ? new PrismaPg({ connectionString: process.env.DATABASE_URL.trim() })
+// Use staging database when on localhost, production otherwise
+const isLocalhost = typeof window !== 'undefined' 
+  ? window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  : process.env.NODE_ENV === 'development';
+
+const databaseUrl = isLocalhost && process.env.DATABASE_URL_STAGING
+  ? process.env.DATABASE_URL_STAGING.trim()
+  : process.env.DATABASE_URL?.trim() || "";
+
+const adapter = databaseUrl
+  ? new PrismaPg({ connectionString: databaseUrl })
   : undefined;
-const dbUrl = process.env.DATABASE_URL ? process.env.DATABASE_URL.trim() : "";
+const dbUrl = databaseUrl;
 
 export const prisma =
   global.prisma || (dbUrl ? new PrismaClient({ adapter }) : new PrismaClient());

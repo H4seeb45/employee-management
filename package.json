@@ -7,7 +7,14 @@
     "build": "npx prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
-    "prisma:seed": "node prisma/seed.js"
+    "prisma:seed": "node prisma/seed.js",
+    "db:push:staging": "cross-env NODE_ENV=development npx prisma db push",
+    "db:push:prod": "cross-env NODE_ENV=production npx prisma db push",
+    "db:seed:staging": "cross-env NODE_ENV=development node prisma/seed.js",
+    "db:seed:prod": "cross-env NODE_ENV=production node prisma/seed.js",
+    "prisma:studio:staging": "cross-env NODE_ENV=development npx prisma studio",
+    "prisma:studio:prod": "cross-env NODE_ENV=production npx prisma studio",
+    "prisma:generate": "npx prisma generate"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -77,6 +84,7 @@
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cross-env": "^10.1.0",
     "postcss": "^8",
     "prisma": "^7.2.0",
     "tailwindcss": "^3.4.17",
