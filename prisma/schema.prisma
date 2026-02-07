@@ -141,6 +141,7 @@ enum ExpenseType {
   VEHICLE_PARKING
   VEHICLE_PASSING
   GUARD_TEA_EXP
+  GARBAGE_COLLECTION
 }
 
 model ExpenseSheet {

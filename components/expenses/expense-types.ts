@@ -44,4 +44,5 @@ export const expenseTypes = [
   { value: "VEHICLE_PARKING", label: "Vehicle Parking" },
   { value: "VEHICLE_PASSING", label: "Vehicle Passing" },
   { value: "GUARD_TEA_EXP", label: "Guard Tea Exp." },
+  { value: "GARBAGE_COLLECTION", label: "Garbage Collection" },
 ];
