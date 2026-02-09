@@ -1420,18 +1420,40 @@ export function ExpenseModule({
                         <div className="space-y-3">
                           {fixedAssets.map((asset, index) => (
                             <div key={index} className="flex gap-3 items-end">
-                              <div className="flex-1 space-y-1">
+                              <div className="flex-1 max-w-40 space-y-1">
                                 <Label className="text-xs text-slate-500">Asset Name</Label>
-                                <Input 
+                                <Select
                                   value={asset.name}
-                                  onChange={(e) => {
+                                  onValueChange={(val) => {
                                     const newAssets = [...fixedAssets];
-                                    newAssets[index].name = e.target.value;
+                                    newAssets[index].name = val;
                                     setFixedAssets(newAssets);
                                   }}
-                                  placeholder="e.g. Laptop, Desk"
-                                  className="h-9"
-                                />
+                                >
+                                  <SelectTrigger className="h-9">
+                                    <SelectValue placeholder="Select Asset Type" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {[
+                                      "Office Chairs",
+                                      "Laptops",
+                                      "Computer",
+                                      "Office Tables",
+                                      "Mobile Phones",
+                                      "Printer",
+                                      "Car",
+                                      "Vehicles",
+                                      "Bike",
+                                      "Warehouse",
+                                      "Fans",
+                                      "Lights"
+                                    ].map((option) => (
+                                      <SelectItem key={option} value={option}>
+                                        {option}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                               </div>
                               <div className="w-32 space-y-1">
                                 <Label className="text-xs text-slate-500">Amount</Label>
@@ -1835,7 +1857,8 @@ export function ExpenseModule({
                   <Label className="text-xs text-blue-700 dark:text-blue-400 mb-2 font-bold uppercase tracking-wider">Fixed Asset Breakdown</Label>
                   <div className="space-y-2 mt-2">
                     {(selectedExpense.items as any[]).map((item, idx) => (
-                      <div key={idx} className="flex justify-between items-center text-sm border-b border-blue-100 dark:border-blue-900/40 last:border-0 pb-1.5 pt-1">
+                      // border-b
+                      <div key={idx} className="flex justify-between items-center text-sm border-blue-100 dark:border-blue-900/40 last:border-0 pb-1.5 pt-1">
                         <span className="text-slate-700 dark:text-slate-300 font-medium">{item.name}</span>
                         <span className="font-bold text-slate-900 dark:text-slate-100">Rs. {Number(item.amount).toLocaleString()}</span>
                       </div>
@@ -1864,7 +1887,8 @@ export function ExpenseModule({
                         [vehicle, route] = item.name.split("|").map((s: string) => s.trim());
                       }
                       return (
-                        <div key={idx} className="grid grid-cols-3 gap-2 text-sm border-b border-blue-100 dark:border-blue-900/40 last:border-0 pb-1.5 pt-1">
+                        // border-b
+                        <div key={idx} className="grid grid-cols-3 gap-2 text-sm border-blue-100 dark:border-blue-900/40 last:border-0 pb-1.5 pt-1">
                           <span className="text-slate-700 dark:text-slate-300 font-medium truncate">{vehicle || "N/A"}</span>
                           <span className="text-slate-600 dark:text-slate-400 truncate">{route || "N/A"}</span>
                           <span className="font-bold text-slate-900 dark:text-slate-100 text-right">Rs. {Number(item.amount).toLocaleString()}</span>
