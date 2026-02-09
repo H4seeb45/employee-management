@@ -130,9 +130,9 @@ export function ExpenseModule({
   const [bulkItems, setBulkItems] = useState<{ 
     vehicleNo?: string; 
     routeNo?: string; 
-    description?: string; 
+    description: string; 
     amount: string 
-  }[]>([{ amount: "", vehicleNo: "", routeNo: "" }]);
+  }[]>([{ amount: "", vehicleNo: "", routeNo: "", description: "" }]);
 
   // Dialog states
   const [selectedExpense, setSelectedExpense] = useState<ExpenseSheet | null>(null);
@@ -473,8 +473,8 @@ export function ExpenseModule({
     const isBulk = entryMode === "bulk" && category === "Expense" && expenseType !== "TOLLS_TAXES";
 
     if (isBulk) {
-      if (bulkItems.some(i => (needsRouteAndVehicle && (!i.vehicleNo || !i.routeNo)) || !i.amount)) {
-        setError(`Please specify ${needsRouteAndVehicle ? "Vehicle, Route, and Amount" : "Amount"} for all bulk entries.`);
+      if (bulkItems.some(i => (needsRouteAndVehicle && (!i.vehicleNo || !i.routeNo)) || !i.amount || !i.description)) {
+        setError(`Please specify ${needsRouteAndVehicle ? "Vehicle, Route, Description and Amount" : "Description and Amount"} for all bulk entries.`);
         setSaving(false);
         return;
       }
@@ -1353,7 +1353,7 @@ export function ExpenseModule({
                         <div className="space-y-4">
                            <div className="flex items-center justify-between">
                              <Label className="text-slate-700 dark:text-slate-300">
-                               Amount (PKR) <span className="text-rose-500">*</span>
+                               Amount (PKR) {entryMode === "single" && <span className="text-rose-500">*</span>}
                              </Label>
                              {expenseType && expenseType !== "TOLLS_TAXES" && (
                                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700">
@@ -1405,7 +1405,7 @@ export function ExpenseModule({
                                 type="button" 
                                 variant="outline" 
                                 size="sm"
-                                onClick={() => setBulkItems([...bulkItems, { amount: "" }])}
+                                onClick={() => setBulkItems([...bulkItems, { amount: "", description: "" }])}
                                 className="h-8"
                               >
                                 <Plus className="h-3 w-3 mr-1" /> Add Row
@@ -1415,8 +1415,8 @@ export function ExpenseModule({
                             <div className="space-y-3">
                               {bulkItems.map((item, index) => (
                                 <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end p-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm">
-                                  <div className="md:col-span-3 space-y-1">
-                                    <Label className="text-[10px] uppercase tracking-wider text-slate-500">Vehicle</Label>
+                                 {requiresRouteAndVehicle(expenseType) && <><div className="md:col-span-3 space-y-1">
+                                    <Label className="text-[10px] uppercase tracking-wider text-slate-500">Vehicle <span className="text-red-500">*</span></Label>
                                     <Select
                                       value={item.vehicleNo}
                                       onValueChange={(val) => {
@@ -1436,7 +1436,7 @@ export function ExpenseModule({
                                     </Select>
                                   </div>
                                   <div className="md:col-span-3 space-y-1">
-                                    <Label className="text-[10px] uppercase tracking-wider text-slate-500">Route</Label>
+                                    <Label className="text-[10px] uppercase tracking-wider text-slate-500">Route <span className="text-red-500">*</span></Label>
                                     <Select
                                       value={item.routeNo}
                                       onValueChange={(val) => {
@@ -1454,9 +1454,9 @@ export function ExpenseModule({
                                         ))}
                                       </SelectContent>
                                     </Select>
-                                  </div>
+                                  </div></>}
                                   <div className="md:col-span-3 space-y-1">
-                                    <Label className="text-[10px] uppercase tracking-wider text-slate-500">Detail / Description</Label>
+                                    <Label className="text-[10px] uppercase tracking-wider text-slate-500">Detail <span className="text-red-500">*</span></Label>
                                     <Input 
                                       value={item.description}
                                       onChange={(e) => {
@@ -1469,7 +1469,7 @@ export function ExpenseModule({
                                     />
                                   </div>
                                   <div className="md:col-span-2 space-y-1">
-                                    <Label className="text-[10px] uppercase tracking-wider text-slate-500">Amount</Label>
+                                    <Label className="text-[10px] uppercase tracking-wider text-slate-500">Amount <span className="text-red-500">*</span></Label>
                                     <Input 
                                       type="number"
                                       value={item.amount}
