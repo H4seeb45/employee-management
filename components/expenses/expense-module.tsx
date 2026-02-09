@@ -221,7 +221,7 @@ export function ExpenseModule({
   // Fetch expenses - only when applied filters or page changes
   useEffect(() => {
     fetchExpenses();
-  }, [page, filterStatus, filterType, filterFromDate, filterToDate, filterRoute, filterVehicle, filterMinAmount, filterMaxAmount, locationId]);
+  }, [page, searchQuery, filterStatus, filterType, filterFromDate, filterToDate, filterRoute, filterVehicle, filterMinAmount, filterMaxAmount, locationId]);
 
   // Apply filters handler
   const handleApplyFilters = () => {
@@ -343,6 +343,17 @@ export function ExpenseModule({
       const params = new URLSearchParams();
       if (locationId) params.append("locationId", locationId);
       
+      // Add all active filters to stats request
+      if (searchQuery) params.append("searchId", searchQuery);
+      if (filterStatus !== "all") params.append("status", filterStatus);
+      if (filterType !== "all") params.append("expenseType", filterType);
+      if (filterFromDate) params.append("fromDate", filterFromDate);
+      if (filterToDate) params.append("toDate", filterToDate);
+      if (filterRoute !== "all") params.append("routeId", filterRoute);
+      if (filterVehicle !== "all") params.append("vehicleId", filterVehicle);
+      if (filterMinAmount) params.append("minAmount", filterMinAmount);
+      if (filterMaxAmount) params.append("maxAmount", filterMaxAmount);
+      
       const res = await fetch(`/api/expenses/stats?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
@@ -362,7 +373,7 @@ export function ExpenseModule({
 
   useEffect(() => {
     fetchBudgetAndStats();
-  }, [locationId]);
+  }, [locationId, searchQuery, filterStatus, filterType, filterFromDate, filterToDate, filterRoute, filterVehicle, filterMinAmount, filterMaxAmount]);
 
   const fetchExpenses = async () => {
     setLoading(true);
@@ -372,6 +383,7 @@ export function ExpenseModule({
         limit: "10",
       });
 
+      if (searchQuery) params.append("searchId", searchQuery);
       if (filterStatus !== "all") params.append("status", filterStatus);
       if (filterType !== "all") params.append("expenseType", filterType);
       if (locationId) params.append("locationId", locationId);
@@ -718,6 +730,91 @@ export function ExpenseModule({
 
         {/* All Expenses Tab */}
         <TabsContent value="expenses" className="space-y-4">
+          {/* Active Filter Badges at Top Right */}
+          <div className="flex justify-end">
+            <AnimatePresence>
+              {(searchQuery || filterStatus !== "all" || filterType !== "all" || filterFromDate || filterToDate || filterRoute !== "all" || filterVehicle !== "all" || filterMinAmount || filterMaxAmount) && (
+                <motion.div 
+                  key="active-filters-top"
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="flex flex-wrap items-center justify-end gap-2 mb-2"
+                >
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mr-1">Active Filters:</span>
+                  
+                  {searchQuery && (
+                    <Badge variant="secondary" className="gap-1 px-2 py-0.5 h-6 bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:border-slate-600 text-[10px]">
+                      "{searchQuery}"
+                      <X className="h-3 w-3 cursor-pointer hover:text-slate-900 dark:hover:text-slate-100" onClick={() => {setSearchQuery(""); setTempSearchQuery("");}} />
+                    </Badge>
+                  )}
+
+                  {filterStatus !== "all" && (
+                    <Badge variant="secondary" className="gap-1 px-2 py-0.5 h-6 bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800 text-[10px]">
+                      {filterStatus}
+                      <X className="h-3 w-3 cursor-pointer hover:text-blue-900 dark:hover:text-blue-100" onClick={() => {setFilterStatus("all"); setTempFilterStatus("all");}} />
+                    </Badge>
+                  )}
+                  
+                  {filterType !== "all" && (
+                    <Badge variant="secondary" className="gap-1 px-2 py-0.5 h-6 bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-800 text-[10px]">
+                      {expenseTypes.find(t => t.value === filterType)?.label || filterType}
+                      <X className="h-3 w-3 cursor-pointer hover:text-purple-900 dark:hover:text-purple-100" onClick={() => {setFilterType("all"); setTempFilterType("all");}} />
+                    </Badge>
+                  )}
+
+                  {(filterFromDate || filterToDate) && (
+                    <Badge variant="secondary" className="gap-1 px-2 py-0.5 h-6 bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-800 text-[10px]">
+                      {filterFromDate || '...'} - {filterToDate || '...'}
+                      <X className="h-3 w-3 cursor-pointer hover:text-emerald-900 dark:hover:text-emerald-100" onClick={() => {setFilterFromDate(""); setFilterToDate(""); setTempFilterFromDate(""); setTempFilterToDate("");}} />
+                    </Badge>
+                  )}
+
+                  {filterRoute !== "all" && (
+                    <Badge variant="secondary" className="gap-1 px-2 py-0.5 h-6 bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800 text-[10px]">
+                      Route: {routes.find(r => r.id === filterRoute)?.routeNo || filterRoute}
+                      <X className="h-3 w-3 cursor-pointer hover:text-amber-900 dark:hover:text-amber-100" onClick={() => {setFilterRoute("all"); setTempFilterRoute("all");}} />
+                    </Badge>
+                  )}
+
+                  {filterVehicle !== "all" && (
+                    <Badge variant="secondary" className="gap-1 px-2 py-0.5 h-6 bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:border-slate-600 text-[10px]">
+                      {vehicles.find(v => v.id === filterVehicle)?.vehicleNo || filterVehicle}
+                      <X className="h-3 w-3 cursor-pointer hover:text-slate-900 dark:hover:text-slate-100" onClick={() => {setFilterVehicle("all"); setTempFilterVehicle("all");}} />
+                    </Badge>
+                  )}
+
+                  {(filterMinAmount || filterMaxAmount) && (
+                    <Badge variant="secondary" className="gap-1 px-2 py-0.5 h-6 bg-rose-50 text-rose-700 border-rose-100 dark:bg-rose-900/40 dark:text-rose-300 dark:border-rose-800 text-[10px]">
+                      Rs. {filterMinAmount || '0'}-{filterMaxAmount || 'Any'}
+                      <X className="h-3 w-3 cursor-pointer hover:text-rose-900 dark:hover:text-rose-100" onClick={() => {setFilterMinAmount(""); setFilterMaxAmount(""); setTempFilterMinAmount(""); setTempFilterMaxAmount("");}} />
+                    </Badge>
+                  )}
+
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-6 px-2 text-[9px] font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-900/20"
+                    onClick={() => {
+                      setSearchQuery(""); setTempSearchQuery("");
+                      setFilterStatus("all"); setTempFilterStatus("all");
+                      setFilterType("all"); setTempFilterType("all");
+                      setFilterFromDate(""); setTempFilterFromDate("");
+                      setFilterToDate(""); setTempFilterToDate("");
+                      setFilterRoute("all"); setTempFilterRoute("all");
+                      setFilterVehicle("all"); setTempFilterVehicle("all");
+                      setFilterMinAmount(""); setTempFilterMinAmount("");
+                      setFilterMaxAmount(""); setTempFilterMaxAmount("");
+                    }}
+                  >
+                    CLEAR ALL
+                  </Button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
           {/* Filters */}
           <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1E293B]">
             <CardHeader className={showFilters ? "border-b border-slate-100 dark:border-slate-700" : ""}>
@@ -746,10 +843,10 @@ export function ExpenseModule({
                 </Button>
               </div>
             </CardHeader>
-
             <AnimatePresence>
               {showFilters && (
                 <motion.div
+                  key="filter-form"
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
@@ -762,7 +859,7 @@ export function ExpenseModule({
                         <Label className="text-slate-700 dark:text-slate-300">Status</Label>
                         <Select value={tempFilterStatus} onValueChange={setTempFilterStatus}>
                           <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
-                            <SelectValue />
+                            <SelectValue placeholder="All Statuses" />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="all">All Statuses</SelectItem>
@@ -779,7 +876,7 @@ export function ExpenseModule({
                         <Label className="text-slate-700 dark:text-slate-300">Expense Type</Label>
                         <Select value={tempFilterType} onValueChange={setTempFilterType}>
                           <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
-                            <SelectValue />
+                            <SelectValue placeholder="All types" />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="all">All Types</SelectItem>
@@ -797,7 +894,7 @@ export function ExpenseModule({
                         <Label className="text-slate-700 dark:text-slate-300">Route</Label>
                         <Select value={tempFilterRoute} onValueChange={setTempFilterRoute}>
                           <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
-                            <SelectValue />
+                            <SelectValue placeholder="All Routes" />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="all">All Routes</SelectItem>
@@ -815,7 +912,7 @@ export function ExpenseModule({
                         <Label className="text-slate-700 dark:text-slate-300">Vehicle</Label>
                         <Select value={tempFilterVehicle} onValueChange={setTempFilterVehicle}>
                           <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
-                            <SelectValue />
+                            <SelectValue placeholder="All Vehicles" />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="all">All Vehicles</SelectItem>
@@ -831,29 +928,23 @@ export function ExpenseModule({
                       {/* From Date */}
                       <div>
                         <Label className="text-slate-700 dark:text-slate-300">From Date</Label>
-                        <div className="relative">
-                          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                          <Input
-                            type="date"
-                            value={tempFilterFromDate}
-                            onChange={(e) => setTempFilterFromDate(e.target.value)}
-                            className="pl-10 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
-                          />
-                        </div>
+                        <Input
+                          type="date"
+                          value={tempFilterFromDate}
+                          onChange={(e) => setTempFilterFromDate(e.target.value)}
+                          className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
+                        />
                       </div>
 
                       {/* To Date */}
                       <div>
                         <Label className="text-slate-700 dark:text-slate-300">To Date</Label>
-                        <div className="relative">
-                          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                          <Input
-                            type="date"
-                            value={tempFilterToDate}
-                            onChange={(e) => setTempFilterToDate(e.target.value)}
-                            className="pl-10 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
-                          />
-                        </div>
+                        <Input
+                          type="date"
+                          value={tempFilterToDate}
+                          onChange={(e) => setTempFilterToDate(e.target.value)}
+                          className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
+                        />
                       </div>
 
                       {/* Min Amount */}
@@ -1230,29 +1321,47 @@ export function ExpenseModule({
                                 <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end p-3 rounded-lg bg-white dark:bg-slate-800 border border-blue-50 dark:border-blue-900/20 shadow-sm">
                                   <div className="space-y-1">
                                     <Label className="text-[10px] uppercase tracking-wider text-slate-500">Vehicle No.</Label>
-                                    <Input 
+                                    <Select
                                       value={item.vehicleNo}
-                                      onChange={(e) => {
+                                      onValueChange={(val) => {
                                         const newItems = [...tollsTaxesItems];
-                                        newItems[index].vehicleNo = e.target.value;
+                                        newItems[index].vehicleNo = val;
                                         setTollsTaxesItems(newItems);
                                       }}
-                                      placeholder="ABC-123"
-                                      className="h-9"
-                                    />
+                                    >
+                                      <SelectTrigger className="h-9">
+                                        <SelectValue placeholder="Select Vehicle" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {vehicles.map((v) => (
+                                          <SelectItem key={v.id} value={v.vehicleNo}>
+                                            {v.vehicleNo}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
                                   </div>
                                   <div className="space-y-1">
                                     <Label className="text-[10px] uppercase tracking-wider text-slate-500">Route No.</Label>
-                                    <Input 
+                                    <Select
                                       value={item.routeNo}
-                                      onChange={(e) => {
+                                      onValueChange={(val) => {
                                         const newItems = [...tollsTaxesItems];
-                                        newItems[index].routeNo = e.target.value;
+                                        newItems[index].routeNo = val;
                                         setTollsTaxesItems(newItems);
                                       }}
-                                      placeholder="R-01"
-                                      className="h-9"
-                                    />
+                                    >
+                                      <SelectTrigger className="h-9">
+                                        <SelectValue placeholder="Select Route" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {routes.map((r) => (
+                                          <SelectItem key={r.id} value={r.routeNo}>
+                                            {r.routeNo} - {r.name}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
                                   </div>
                                   <div className="flex gap-2 items-end">
                                     <div className="flex-1 space-y-1">
@@ -1306,6 +1415,7 @@ export function ExpenseModule({
                             <Plus className="h-3 w-3 mr-1" /> Add Asset
                           </Button>
                         </div>
+                        
                         
                         <div className="space-y-3">
                           {fixedAssets.map((asset, index) => (

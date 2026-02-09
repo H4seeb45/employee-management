@@ -201,6 +201,18 @@ export const ExpenseVoucherPrint = React.forwardRef<
               <span>{expense.location.city} - {expense.location.name}</span>
             </div>
           )}
+          {expense.vehicle && (
+            <div className="flex">
+              <span className="font-bold w-28">Vehicle:</span>
+              <span>{expense.vehicle.vehicleNo}</span>
+            </div>
+          )}
+          {expense.route && (
+            <div className="flex">
+              <span className="font-bold w-24">Route:</span>
+              <span>{expense.route.routeNo} - {expense.route.name}</span>
+            </div>
+          )}
         </div>
 
         {/* Payment / Disbursement Details Section */}

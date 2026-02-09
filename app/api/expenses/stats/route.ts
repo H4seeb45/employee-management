@@ -15,19 +15,64 @@ export async function GET(request: NextRequest) {
 
   const isCashier = hasRole(user, "Cashier");
   const isBM = hasRole(user, "Business Manager");
+  const isAccountant = hasRole(user, "Accountant");
 
-  if (!isCashier && !isBM && !isAdminUser(user)) {
+  if (!isCashier && !isBM && !isAccountant && !isAdminUser(user)) {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);
   const isSuperAdmin = isSuperAdminUser(user);
-  const locationId = isSuperAdmin ? searchParams.get("locationId") : null;
-  const where = isSuperAdmin
+  const canViewAllLocations = isSuperAdmin || isAccountant;
+  const locationId = canViewAllLocations ? searchParams.get("locationId") : null;
+  
+  const where: any = canViewAllLocations
     ? locationId
       ? { locationId }
       : {}
     : { locationId: user.locationId };
+
+  if (isCashier && !isAdminUser(user)) {
+    where.disburseType = "Cash";
+  }
+
+  // Search by ID
+  const searchId = searchParams.get("searchId");
+  if (searchId) {
+    where.OR = [
+      { id: { contains: searchId, mode: "insensitive" } },
+      { details: { contains: searchId, mode: "insensitive" } }
+    ];
+  }
+
+  // Apply filters to summary stats if provided
+  const status = searchParams.get("status");
+  if (status && status !== "all") where.status = status;
+
+  const expenseType = searchParams.get("expenseType");
+  if (expenseType && expenseType !== "all") where.expenseType = expenseType;
+
+  const fromDate = searchParams.get("fromDate");
+  const toDate = searchParams.get("toDate");
+  if (fromDate || toDate) {
+    where.createdAt = {};
+    if (fromDate) where.createdAt.gte = new Date(new Date(fromDate).setHours(0, 0, 0, 0));
+    if (toDate) where.createdAt.lte = new Date(new Date(toDate).setHours(23, 59, 59, 999));
+  }
+
+  const minAmount = searchParams.get("minAmount");
+  const maxAmount = searchParams.get("maxAmount");
+  if (minAmount || maxAmount) {
+    where.amount = {};
+    if (minAmount) where.amount.gte = Number.parseFloat(minAmount);
+    if (maxAmount) where.amount.lte = Number.parseFloat(maxAmount);
+  }
+
+  const routeId = searchParams.get("routeId");
+  if (routeId && routeId !== "all") where.routeId = routeId;
+
+  const vehicleId = searchParams.get("vehicleId");
+  if (vehicleId && vehicleId !== "all") where.vehicleId = vehicleId;
 
   // Get month range
   const now = new Date();
@@ -47,7 +92,7 @@ export async function GET(request: NextRequest) {
     }),
     prisma.expenseSheet.aggregate({
       where: {
-        ...where,
+        ...(isSuperAdmin && locationId ? { locationId } : !isSuperAdmin ? { locationId: user.locationId } : {}),
         createdAt: { gte: startOfMonth, lt: endOfMonth },
         status: { not: "REJECTED" },
       },
