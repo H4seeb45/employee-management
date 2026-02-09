@@ -142,11 +142,14 @@ enum ExpenseType {
   VEHICLE_PASSING
   GUARD_TEA_EXP
   GARBAGE_COLLECTION
+  FIXED_ASSET
 }
 
 model ExpenseSheet {
   id            String              @id @default(cuid())
+  category      String              @default("Expense")
   expenseType   ExpenseType
+  items         Json?
   details       String?
   amount        Float
   status        ExpenseStatus       @default(PENDING)

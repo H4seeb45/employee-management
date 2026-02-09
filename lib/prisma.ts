@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import "dotenv/config";
+import { isLocalHost } from "./utils";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -8,9 +9,7 @@ declare global {
 }
 
 // Use staging database when on localhost, production otherwise
-const isLocalhost = typeof window !== 'undefined' 
-  ? window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  : process.env.NODE_ENV === 'development';
+const isLocalhost = isLocalHost();
 
 const databaseUrl = isLocalhost && process.env.DATABASE_URL_STAGING
   ? process.env.DATABASE_URL_STAGING.trim()

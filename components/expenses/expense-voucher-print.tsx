@@ -37,6 +37,8 @@ type ExpenseVoucherPrintProps = {
     bankName?: string;
     chequeDate?: string | Date;
     disbursedAmount?: number;
+    category?: string;
+    items?: any;
   } | null;
 };
 
@@ -59,6 +61,8 @@ export const ExpenseVoucherPrint = React.forwardRef<
     REPAIR_MAINTENANCE: "Repair & Maintenance",
     STATIONERY: "Stationery",
     KITCHEN_EXPENSE: "Kitchen Expense",
+    FIXED_ASSET: "Fixed Asset",
+    TOLLS_TAXES: "Tolls & Taxes",
   };
 
   const numberToWords = (num: number): string => {
@@ -279,6 +283,66 @@ export const ExpenseVoucherPrint = React.forwardRef<
                 <p className="text-sm italic">{expense.details || "No details provided"}</p>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Breakdown Section for Fixed Assets or Tolls & Taxes */}
+        {expense.items && Array.isArray(expense.items) && expense.items.length > 0 && (
+          <div className="mb-4">
+            <h3 className="text-xs font-bold uppercase border-black mb-2 pb-1">
+              {(expense.category === "Fixed Asset" || expense.expenseType === "FIXED_ASSET") ? "Asset List / Breakdown" : "Payment Breakdown Details"}
+            </h3>
+            <table className="w-full border-2 border-black text-[11px]">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="border border-black p-1 text-left w-6">#</th>
+                  {expense.expenseType === "TOLLS_TAXES" ? (
+                    <>
+                      <th className="border border-black p-1 text-left">Vehicle No.</th>
+                      <th className="border border-black p-1 text-left">Route No.</th>
+                    </>
+                  ) : (
+                    <th className="border border-black p-1 text-left">Item / Asset Name</th>
+                  )}
+                  <th className="border border-black p-1 text-right w-28">Amount (PKR)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {expense.items.map((item: any, idx: number) => {
+                  let vehicle = item.vehicleNo;
+                  let route = item.routeNo;
+                  // Handle legacy or combined format
+                  if (!vehicle && item.name && item.name.includes("|")) {
+                    [vehicle, route] = item.name.split("|").map((s: string) => s.trim());
+                  }
+                  
+                  return (
+                    <tr key={idx}>
+                      <td className="border border-black p-1 text-center">{idx + 1}</td>
+                      {expense.expenseType === "TOLLS_TAXES" ? (
+                        <>
+                          <td className="border border-black p-1">{vehicle || "N/A"}</td>
+                          <td className="border border-black p-1">{route || "N/A"}</td>
+                        </>
+                      ) : (
+                        <td className="border border-black p-1">{item.name || "N/A"}</td>
+                      )}
+                      <td className="border border-black p-1 text-right font-medium">
+                        {item.amount?.toLocaleString()}
+                      </td>
+                    </tr>
+                  );
+                })}
+                <tr className="bg-gray-50 font-bold">
+                  <td colSpan={expense.expenseType === "TOLLS_TAXES" ? 3 : 2} className="border border-black p-1 text-right">
+                    Total
+                  </td>
+                  <td className="border border-black p-1 text-right">
+                    {expense.amount.toLocaleString()}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         )}
 

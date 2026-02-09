@@ -52,6 +52,8 @@ import {
   ChevronRight,
   ChevronLeft,
   Printer,
+  Trash2,
+  PlusCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { UploadButton } from "@/lib/uploadthing";
@@ -76,7 +78,9 @@ type ExpenseSheet = {
   createdAt: string;
   updatedAt: string;
   location?: { name: string; city: string };
+  routeId?: string | null;
   route?: { routeNo: string; name: string };
+  vehicleId?: string | null;
   vehicle?: { vehicleNo: string; type: string | null; model: string | null };
   attachments: ExpenseAttachment[];
   accountTitle?: string;
@@ -84,6 +88,8 @@ type ExpenseSheet = {
   bankName?: string;
   chequeDate?: string;
   disbursedAmount?: number;
+  category: string;
+  items?: { name: string; amount: number }[] | null;
 };
 
 export function ExpenseModule({
@@ -111,6 +117,15 @@ export function ExpenseModule({
   const [selectedVehicle, setSelectedVehicle] = useState("");
   const [vehicleTransactions, setVehicleTransactions] = useState<ExpenseSheet[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
+  const [typeHistory, setTypeHistory] = useState<ExpenseSheet[]>([]);
+  const [loadingTypeHistory, setLoadingTypeHistory] = useState(false);
+  const [category, setCategory] = useState("Expense");
+  const [fixedAssets, setFixedAssets] = useState<{ name: string; amount: string }[]>([
+    { name: "", amount: "" }
+  ]);
+  const [tollsTaxesItems, setTollsTaxesItems] = useState<{ vehicleNo: string, routeNo: string, amount: string }[]>([
+    { vehicleNo: "", routeNo: "", amount: "" }
+  ]);
 
   // Dialog states
   const [selectedExpense, setSelectedExpense] = useState<ExpenseSheet | null>(null);
@@ -272,6 +287,49 @@ export function ExpenseModule({
     }
   }, [selectedVehicle]);
 
+  const loadTypeHistory = async (type: string) => {
+    if (!type) {
+      setTypeHistory([]);
+      return;
+    }
+
+    setLoadingTypeHistory(true);
+    try {
+      const params = new URLSearchParams({
+        expenseType: type,
+        limit: "3",
+      });
+      if (locationId) params.append("locationId", locationId);
+
+      const response = await fetch(`/api/expenses?${params}`);
+      if (response.ok) {
+        const data = await response.json();
+        setTypeHistory(data.expenses || []);
+      }
+    } catch (err) {
+      console.error("Failed to load type history:", err);
+    } finally {
+      setLoadingTypeHistory(false);
+    }
+  };
+
+  useEffect(() => {
+    if (expenseType) {
+      loadTypeHistory(expenseType);
+    } else {
+      setTypeHistory([]);
+    }
+  }, [expenseType, locationId]);
+
+  useEffect(() => {
+    if (selectedExpense) {
+      loadTypeHistory(selectedExpense.expenseType);
+      if (selectedExpense.vehicleId) {
+        loadVehicleTransactions(selectedExpense.vehicleId);
+      }
+    }
+  }, [selectedExpense]);
+
   useEffect(() => {
     // Fetch routes and vehicles for both form and filters
     if(routes.length === 0 || vehicles.length === 0){
@@ -347,8 +405,8 @@ export function ExpenseModule({
     
     // Validate all required fields
     const needsRouteAndVehicle = requiresRouteAndVehicle(expenseType);
-    
-    if (!expenseType || !amount || !details) {
+    console.log(expenseType, amount, details);
+    if (!expenseType || !details) {
       setError("All fields are required.");
       setSaving(false);
       return;
@@ -378,16 +436,41 @@ export function ExpenseModule({
       return;
     }
 
+    const finalAmount = category === "Fixed Asset" 
+      ? fixedAssets.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0)
+      : expenseType === "TOLLS_TAXES"
+      ? tollsTaxesItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0)
+      : parseFloat(amount);
+
+    if (finalAmount <= 0) {
+      setError("Total amount must be greater than zero.");
+      setSaving(false);
+      return;
+    }
+
     setSaving(true);
     setError(null);
+
+    const items = category === "Fixed Asset" 
+      ? fixedAssets.map(a => ({ name: a.name, amount: parseFloat(a.amount) || 0 }))
+      : expenseType === "TOLLS_TAXES"
+      ? tollsTaxesItems.map(i => ({ 
+          name: `${i.vehicleNo} | ${i.routeNo}`, 
+          amount: parseFloat(i.amount) || 0,
+          vehicleNo: i.vehicleNo,
+          routeNo: i.routeNo 
+        }))
+      : undefined;
 
     try {
       const res = await fetch("/api/expenses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          expenseType,
-          amount: parseFloat(amount),
+          category,
+          expenseType: category === "Fixed Asset" ? "FIXED_ASSET" : expenseType,
+          items,
+          amount: finalAmount,
           details,
           disburseType,
           attachments,
@@ -405,6 +488,9 @@ export function ExpenseModule({
         setAttachments([]);
         setSelectedRoute("");
         setSelectedVehicle("");
+        setCategory("Expense");
+        setFixedAssets([{ name: "", amount: "" }]);
+        setTollsTaxesItems([{ vehicleNo: "", routeNo: "", amount: "" }]);
         setSuccess("Expense created successfully!");
         setError(null);
         fetchExpenses();
@@ -859,7 +945,7 @@ export function ExpenseModule({
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
+                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300 rounded-lg">
                             Type
                           </TableHead>
                           <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
@@ -874,7 +960,7 @@ export function ExpenseModule({
                           <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
                             Date
                           </TableHead>
-                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
+                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300 rounded-lg">
                             Actions
                           </TableHead>
                         </TableRow>
@@ -1050,54 +1136,275 @@ export function ExpenseModule({
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                    <Label className="text-slate-700 dark:text-slate-300">Disburse Type <span className="text-rose-500">*</span></Label>
-                    <Select value={disburseType} onValueChange={setDisburseType} required>
-                      <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
-                        <SelectValue placeholder="Select disburse type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Cash">Cash</SelectItem>
-                        <SelectItem value="Cheque / Online Transfer">Cheque / Online Transfer</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-slate-700 dark:text-slate-300">
-                        Expense Type <span className="text-rose-500">*</span>
-                      </Label>
-                      <Select value={expenseType} onValueChange={setExpenseType} required>
+                      <Label className="text-slate-700 dark:text-slate-300">Category <span className="text-rose-500">*</span></Label>
+                      <Select value={category} onValueChange={(val) => {
+                        setCategory(val);
+                        if (val === "Fixed Asset") setExpenseType("FIXED_ASSET");
+                        else setExpenseType("");
+                      }}>
                         <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
-                          <SelectValue placeholder="Select expense type" />
+                          <SelectValue placeholder="Select category" />
                         </SelectTrigger>
                         <SelectContent>
-                          {expenseTypes.map((type) => (
-                            <SelectItem key={type.value} value={type.value}>
-                              {type.label}
-                            </SelectItem>
-                          ))}
+                          <SelectItem value="Expense">Expense</SelectItem>
+                          <SelectItem value="Fixed Asset">Fixed Asset</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-slate-700 dark:text-slate-300">
-                        Amount (PKR) <span className="text-rose-500">*</span>
-                      </Label>
-                      <div className="relative">
-                        <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={amount}
-                          onChange={(e) => setAmount(e.target.value)}
-                          placeholder="0.00"
-                          className="pl-10 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
-                          required
-                        />
-                      </div>
+                      <Label className="text-slate-700 dark:text-slate-300">Disburse Type <span className="text-rose-500">*</span></Label>
+                      <Select value={disburseType} onValueChange={setDisburseType} required>
+                        <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                          <SelectValue placeholder="Select disburse type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Cash">Cash</SelectItem>
+                          <SelectItem value="Cheque / Online Transfer">Cheque / Online Transfer</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
+
+                    {category === "Expense" ? (
+                      <>
+                        <div className="space-y-2">
+                          <Label className="text-slate-700 dark:text-slate-300">
+                            Expense Type <span className="text-rose-500">*</span>
+                          </Label>
+                          <Select value={expenseType} onValueChange={setExpenseType} required>
+                            <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                              <SelectValue placeholder="Select expense type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {expenseTypes.filter((type) => type.value !== "FIXED_ASSET").map((type) => (
+                                <SelectItem key={type.value} value={type.value}>
+                                  {type.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                           <Label className="text-slate-700 dark:text-slate-300">
+                             Amount (PKR) <span className="text-rose-500">*</span>
+                           </Label>
+                           <div className="relative">
+                             <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                             <Input
+                               type="number"
+                               step="1"
+                               value={expenseType === "TOLLS_TAXES" 
+                                 ? tollsTaxesItems.reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0).toString() 
+                                 : amount
+                               }
+                               onChange={(e) => setAmount(e.target.value)}
+                               placeholder="0.00"
+                               className="pl-10 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
+                               disabled={expenseType === "TOLLS_TAXES"}
+                               required
+                             />
+                           </div>
+                        </div>
+
+                        {expenseType === "TOLLS_TAXES" && (
+                          <div className="md:col-span-2 space-y-4 p-4 border rounded-xl bg-blue-50/30 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/30">
+                            <div className="flex items-center justify-between">
+                              <Label className="text-sm font-semibold flex items-center gap-2 text-blue-800 dark:text-blue-300">
+                                <PlusCircle className="h-4 w-4" />
+                                Tolls & Taxes Breakdown
+                              </Label>
+                              <Button 
+                                type="button" 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => setTollsTaxesItems([...tollsTaxesItems, { vehicleNo: "", routeNo: "", amount: "" }])}
+                                className="h-8 border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/30"
+                              >
+                                <Plus className="h-3 w-3 mr-1" /> Add Row
+                              </Button>
+                            </div>
+                            
+                            <div className="space-y-4">
+                              {tollsTaxesItems.map((item, index) => (
+                                <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end p-3 rounded-lg bg-white dark:bg-slate-800 border border-blue-50 dark:border-blue-900/20 shadow-sm">
+                                  <div className="space-y-1">
+                                    <Label className="text-[10px] uppercase tracking-wider text-slate-500">Vehicle No.</Label>
+                                    <Input 
+                                      value={item.vehicleNo}
+                                      onChange={(e) => {
+                                        const newItems = [...tollsTaxesItems];
+                                        newItems[index].vehicleNo = e.target.value;
+                                        setTollsTaxesItems(newItems);
+                                      }}
+                                      placeholder="ABC-123"
+                                      className="h-9"
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-[10px] uppercase tracking-wider text-slate-500">Route No.</Label>
+                                    <Input 
+                                      value={item.routeNo}
+                                      onChange={(e) => {
+                                        const newItems = [...tollsTaxesItems];
+                                        newItems[index].routeNo = e.target.value;
+                                        setTollsTaxesItems(newItems);
+                                      }}
+                                      placeholder="R-01"
+                                      className="h-9"
+                                    />
+                                  </div>
+                                  <div className="flex gap-2 items-end">
+                                    <div className="flex-1 space-y-1">
+                                      <Label className="text-[10px] uppercase tracking-wider text-slate-500">Amount</Label>
+                                      <Input 
+                                        type="number"
+                                        value={item.amount}
+                                        onChange={(e) => {
+                                          const newItems = [...tollsTaxesItems];
+                                          newItems[index].amount = e.target.value;
+                                          setTollsTaxesItems(newItems);
+                                        }}
+                                        placeholder="0.00"
+                                        className="h-9"
+                                      />
+                                    </div>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        if (tollsTaxesItems.length > 1) {
+                                          setTollsTaxesItems(tollsTaxesItems.filter((_, i) => i !== index));
+                                        }
+                                      }}
+                                      className="h-9 w-9 p-0 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="md:col-span-2 space-y-4 p-4 border rounded-xl bg-slate-50 dark:bg-slate-900/50">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-semibold flex items-center gap-2">
+                            <PlusCircle className="h-4 w-4 text-blue-600" />
+                            Fixed Assets List
+                          </Label>
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => setFixedAssets([...fixedAssets, { name: "", amount: "" }])}
+                            className="h-8"
+                          >
+                            <Plus className="h-3 w-3 mr-1" /> Add Asset
+                          </Button>
+                        </div>
+                        
+                        <div className="space-y-3">
+                          {fixedAssets.map((asset, index) => (
+                            <div key={index} className="flex gap-3 items-end">
+                              <div className="flex-1 space-y-1">
+                                <Label className="text-xs text-slate-500">Asset Name</Label>
+                                <Input 
+                                  value={asset.name}
+                                  onChange={(e) => {
+                                    const newAssets = [...fixedAssets];
+                                    newAssets[index].name = e.target.value;
+                                    setFixedAssets(newAssets);
+                                  }}
+                                  placeholder="e.g. Laptop, Desk"
+                                  className="h-9"
+                                />
+                              </div>
+                              <div className="w-32 space-y-1">
+                                <Label className="text-xs text-slate-500">Amount</Label>
+                                <Input 
+                                  type="number"
+                                  value={asset.amount}
+                                  onChange={(e) => {
+                                    const newAssets = [...fixedAssets];
+                                    newAssets[index].amount = e.target.value;
+                                    setFixedAssets(newAssets);
+                                  }}
+                                  placeholder="0.00"
+                                  className="h-9"
+                                />
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  if (fixedAssets.length > 1) {
+                                    setFixedAssets(fixedAssets.filter((_, i) => i !== index));
+                                  }
+                                }}
+                                className="h-9 w-9 p-0 text-rose-500"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="pt-3 border-t flex justify-between items-center text-sm font-bold">
+                          <span>Total Fixed Asset Amount:</span>
+                          <span className="text-blue-600">
+                            Rs. {fixedAssets.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
+
+                  {/* Expense Type History */}
+                  {expenseType && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Recent History for {expenseTypes.find(t => t.value === expenseType)?.label}</Label>
+                      {loadingTypeHistory ? (
+                        <div className="text-sm text-muted-foreground p-3 border rounded-md">
+                          Loading history...
+                        </div>
+                      ) : typeHistory.length === 0 ? (
+                        <div className="text-sm text-muted-foreground p-3 border rounded-md">
+                          No previous history found for this expense type.
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          {typeHistory.map((history) => (
+                            <div
+                              key={history.id}
+                              className="p-3 border rounded-md bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800"
+                            >
+                              <div className="flex justify-between items-start mb-1">
+                                <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                                  Rs. {history.amount.toLocaleString()}
+                                </p>
+                                <Badge variant="outline" className="text-[10px] h-4">
+                                  {history.status}
+                                </Badge>
+                              </div>
+                              <p className="text-[10px] text-slate-500 line-clamp-1">
+                                {new Date(history.createdAt).toLocaleDateString()}
+                              </p>
+                              {history.details && (
+                                <p className="text-[10px] text-slate-600 dark:text-slate-400 mt-1 line-clamp-1 italic">
+                                  "{history.details}"
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {requiresRouteAndVehicle(expenseType) && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
@@ -1294,7 +1601,13 @@ export function ExpenseModule({
                     </Button>
                     <Button
                       type="submit"
-                      disabled={saving || !expenseType || !amount || attachments.length === 0}
+                      disabled={
+                        saving || 
+                        attachments.length === 0 || 
+                        (category === "Expense" && expenseType !== "TOLLS_TAXES" && (!amount || parseFloat(amount) <= 0)) ||
+                        (category === "Expense" && expenseType === "TOLLS_TAXES" && tollsTaxesItems.reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0) <= 0) ||
+                        (category === "Fixed Asset" && fixedAssets.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0) <= 0)
+                      }
                       className="bg-blue-600 hover:bg-blue-700 text-white"
                     >
                       {saving ? (
@@ -1366,9 +1679,15 @@ export function ExpenseModule({
               {/* Main Details */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
+                  <Label className="text-xs text-slate-500 dark:text-slate-400">Category</Label>
+                  <p className="text-sm font-medium text-slate-900 dark:text-white mt-1 capitalize">
+                    {selectedExpense.category || "Expense"}
+                  </p>
+                </div>
+                <div>
                   <Label className="text-xs text-slate-500 dark:text-slate-400">Expense Type</Label>
                   <p className="text-sm font-medium text-slate-900 dark:text-white mt-1">
-                    {expenseTypes.find((t) => t.value === selectedExpense.expenseType)?.label}
+                    {expenseTypes.find((t) => t.value === selectedExpense.expenseType)?.label || selectedExpense.expenseType}
                   </p>
                 </div>
                 <div>
@@ -1398,6 +1717,98 @@ export function ExpenseModule({
                     {new Date(selectedExpense.updatedAt).toLocaleString()}
                   </p>
                 </div>
+              </div>
+
+              {/* Fixed Asset Items */}
+              {selectedExpense.category === "Fixed Asset" && selectedExpense.items && Array.isArray(selectedExpense.items) && (
+                <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                  <Label className="text-xs text-blue-700 dark:text-blue-400 mb-2 font-bold uppercase tracking-wider">Fixed Asset Breakdown</Label>
+                  <div className="space-y-2 mt-2">
+                    {(selectedExpense.items as any[]).map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center text-sm border-b border-blue-100 dark:border-blue-900/40 last:border-0 pb-1.5 pt-1">
+                        <span className="text-slate-700 dark:text-slate-300 font-medium">{item.name}</span>
+                        <span className="font-bold text-slate-900 dark:text-slate-100">Rs. {Number(item.amount).toLocaleString()}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between items-center text-sm font-black pt-2 border-t border-blue-200 dark:border-blue-700">
+                      <span className="text-blue-800 dark:text-blue-300">Total Assets Value</span>
+                      <span className="text-blue-800 dark:text-blue-300">Rs. {selectedExpense.amount.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {/* Tolls & Taxes Breakdown */}
+              {selectedExpense.expenseType === "TOLLS_TAXES" && selectedExpense.items && Array.isArray(selectedExpense.items) && (
+                <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                  <Label className="text-xs text-blue-700 dark:text-blue-400 mb-2 font-bold uppercase tracking-wider">Tolls & Taxes Breakdown</Label>
+                  <div className="space-y-2 mt-2">
+                    <div className="grid grid-cols-3 gap-2 text-[10px] font-bold text-slate-500 border-b pb-1">
+                      <span>Vehicle</span>
+                      <span>Route</span>
+                      <span className="text-right">Amount</span>
+                    </div>
+                    {(selectedExpense.items as any[]).map((item, idx) => {
+                      let vehicle = item.vehicleNo;
+                      let route = item.routeNo;
+                      if (!vehicle && item.name && item.name.includes("|")) {
+                        [vehicle, route] = item.name.split("|").map((s: string) => s.trim());
+                      }
+                      return (
+                        <div key={idx} className="grid grid-cols-3 gap-2 text-sm border-b border-blue-100 dark:border-blue-900/40 last:border-0 pb-1.5 pt-1">
+                          <span className="text-slate-700 dark:text-slate-300 font-medium truncate">{vehicle || "N/A"}</span>
+                          <span className="text-slate-600 dark:text-slate-400 truncate">{route || "N/A"}</span>
+                          <span className="font-bold text-slate-900 dark:text-slate-100 text-right">Rs. {Number(item.amount).toLocaleString()}</span>
+                        </div>
+                      );
+                    })}
+                    <div className="flex justify-between items-center text-sm font-black pt-2 border-t border-blue-200 dark:border-blue-700">
+                      <span className="text-blue-800 dark:text-blue-300">Total Amount</span>
+                      <span className="text-blue-800 dark:text-blue-300 font-bold">Rs. {selectedExpense.amount.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Expense Type History in View Dialog */}
+              <div className="space-y-2">
+                <Label className="text-xs text-slate-500 dark:text-slate-400">Recent History for {expenseTypes.find(t => t.value === selectedExpense.expenseType)?.label}</Label>
+                {loadingTypeHistory ? (
+                  <div className="text-sm text-muted-foreground py-2 italic font-light">
+                    Loading history...
+                  </div>
+                ) : typeHistory.filter(h => h.id !== selectedExpense.id).length === 0 ? (
+                  <div className="text-xs text-muted-foreground py-2 italic font-light">
+                    No other previous history found for this expense type.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-1">
+                    {typeHistory.filter(h => h.id !== selectedExpense.id).map((history) => (
+                      <div
+                        key={history.id}
+                        className="p-2 border rounded-md bg-slate-50/50 dark:bg-slate-800/30 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                      >
+                        <div className="flex justify-between items-center mb-0.5">
+                          <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                            Rs. {history.amount.toLocaleString()}
+                          </p>
+                          <Badge variant="secondary" className="text-[9px] h-3.5 px-1 font-medium">
+                            {history.status}
+                          </Badge>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <p className="text-[9px] text-slate-500 font-medium">
+                            {new Date(history.createdAt).toLocaleDateString()}
+                          </p>
+                          {history.details && (
+                            <p className="text-[9px] text-slate-600 dark:text-slate-400 truncate max-w-[120px] italic">
+                              {history.details}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Additional Context */}
@@ -1465,6 +1876,45 @@ export function ExpenseModule({
                     </div>
                   </div>
                 </div>
+              )}
+              
+              {/* Vehicle Transaction History */}
+              {requiresRouteAndVehicle(selectedExpense.expenseType) && selectedExpense.vehicleId && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Last 3 Transactions for Selected Vehicle</Label>
+                      {loadingTransactions ? (
+                        <div className="text-sm text-muted-foreground p-3 border rounded-md">
+                          Loading transactions...
+                        </div>
+                      ) : vehicleTransactions.filter(t => t.id !== selectedExpense.id).length === 0 ? (
+                        <div className="text-sm text-muted-foreground p-3 border rounded-md">
+                          No previous transactions found for this vehicle.
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {vehicleTransactions.filter(t => t.id !== selectedExpense.id).map((transaction) => (
+                            <div
+                              key={transaction.id}
+                              className="p-3 border rounded-md bg-slate-50 dark:bg-slate-900"
+                            >
+                              <div className="flex justify-between items-start">
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium">
+                                    {expenseTypes.find((t) => t.value === transaction.expenseType)?.label ?? transaction.expenseType}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {new Date(transaction.createdAt).toLocaleDateString()} - {transaction?.route?.name} - {transaction.status}
+                                  </p>
+                                </div>
+                                <p className="text-sm font-semibold">
+                                  Rs. {transaction.amount.toFixed(2)}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
               )}
 
               {/* Details */}

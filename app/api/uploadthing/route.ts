@@ -1,15 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createRouteHandler } from "uploadthing/next";
 import { uploadRouter } from "./core";
+import { isLocalHost } from "@/lib/utils";
 
+const uploadThingToken = isLocalHost() ? process.env.UPLOADTHING_TOKEN_STAGING : process.env.UPLOADTHING_TOKEN
 const handler = createRouteHandler({
   router: uploadRouter,
   config: {
-    token: process.env.UPLOADTHING_TOKEN,
+    token: uploadThingToken,
   },
 });
 
-const isUploadthingConfigured = () => Boolean(process.env.UPLOADTHING_TOKEN);
+const isUploadthingConfigured = () => Boolean(uploadThingToken);
 
 export async function GET(request: NextRequest) {
   if (!isUploadthingConfigured()) {

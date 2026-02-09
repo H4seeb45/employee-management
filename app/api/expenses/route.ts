@@ -156,6 +156,8 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => null);
+  const category = body?.category?.toString() ?? "Expense";
+  const items = body?.items ?? null;
   const expenseType = body?.expenseType?.toString();
   const amount = Number.parseFloat(body?.amount);
   const details = body?.details?.toString() ?? null;
@@ -164,9 +166,29 @@ export async function POST(request: NextRequest) {
   const routeId = body?.routeId?.toString() ?? null;
   const vehicleId = body?.vehicleId?.toString() ?? null;
 
-  if (!expenseType || Number.isNaN(amount)) {
+  // If Fixed Asset, the type is implicitly FIXED_ASSET
+  const effectiveExpenseType = category === "Fixed Asset" ? "FIXED_ASSET" : expenseType;
+
+  if (!effectiveExpenseType || Number.isNaN(amount)) {
     return NextResponse.json(
       { message: "Expense type and amount are required." },
+      { status: 400 }
+    );
+  }
+
+  // Validate items if provided (e.g. for Fixed Asset or Tolls & Taxes breakdown)
+  if (items && Array.isArray(items) && items.length > 0) {
+    const calculatedTotal = items.reduce((sum: number, item: any) => sum + (parseFloat(item.amount) || 0), 0);
+    // Use a small epsilon for float comparison
+    if (Math.abs(calculatedTotal - amount) > 0.1) {
+      return NextResponse.json(
+        { message: `Total amount (${amount}) does not match sum of items (${calculatedTotal}).` },
+        { status: 400 }
+      );
+    }
+  } else if (category === "Fixed Asset" || (category === "Expense" && expenseType === "TOLLS_TAXES")) {
+    return NextResponse.json(
+      { message: "At least one fixed asset item is required." },
       { status: 400 }
     );
   }
@@ -187,13 +209,13 @@ export async function POST(request: NextRequest) {
   
   // 1. Check Category-Specific Limit
   const categories = budget.categories as Record<string, number> | null;
-  const categoryLimit = categories ? categories[expenseType] : null;
+  const categoryLimit = categories ? categories[effectiveExpenseType] : null;
 
   if (categoryLimit !== null && categoryLimit !== undefined) {
     const categorySpent = await prisma.expenseSheet.aggregate({
       where: {
         locationId: user.locationId,
-        expenseType: expenseType as any,
+        expenseType: effectiveExpenseType as any,
         createdAt: { gte: start, lt: end },
         status: { not: "REJECTED" },
       },
@@ -205,14 +227,14 @@ export async function POST(request: NextRequest) {
       const remainingInCategory = categoryLimit - usedInCategory;
       return NextResponse.json(
         { 
-          message: `Category limit exceeded for ${expenseType}. Remaining category budget: ${remainingInCategory.toLocaleString("en-PK", { style: "currency", currency: "PKR" })} (Limit: ${categoryLimit.toLocaleString("en-PK", { style: "currency", currency: "PKR" })})` 
+          message: `Category limit exceeded for ${effectiveExpenseType}. Remaining category budget: ${remainingInCategory.toLocaleString("en-PK", { style: "currency", currency: "PKR" })} (Limit: ${categoryLimit.toLocaleString("en-PK", { style: "currency", currency: "PKR" })})` 
         },
         { status: 400 }
       );
     }
   } else{
     return NextResponse.json(
-      { message: `Expense limit for ${expenseType} not found in budget categories. Please set a budget for this expense type first.` },
+      { message: `Expense limit for ${effectiveExpenseType} not found in budget categories. Please set a budget for this expense type first.` },
       { status: 400 }
     );
   }
@@ -238,7 +260,9 @@ export async function POST(request: NextRequest) {
 
   const created = await prisma.expenseSheet.create({
     data: {
-      expenseType,
+      category,
+      expenseType: effectiveExpenseType as any,
+      items: items || undefined,
       amount,
       details,
       disburseType,
