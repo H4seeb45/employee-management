@@ -120,12 +120,19 @@ export function ExpenseModule({
   const [typeHistory, setTypeHistory] = useState<ExpenseSheet[]>([]);
   const [loadingTypeHistory, setLoadingTypeHistory] = useState(false);
   const [category, setCategory] = useState("Expense");
-  const [fixedAssets, setFixedAssets] = useState<{ name: string; amount: string }[]>([
-    { name: "", amount: "" }
+  const [fixedAssets, setFixedAssets] = useState<{ name: string; amount: string; vehicleNo?: string; routeNo?: string }[]>([
+    { name: "", amount: "", vehicleNo: "", routeNo: "" }
   ]);
   const [tollsTaxesItems, setTollsTaxesItems] = useState<{ vehicleNo: string, routeNo: string, amount: string }[]>([
     { vehicleNo: "", routeNo: "", amount: "" }
   ]);
+  const [entryMode, setEntryMode] = useState<"single" | "bulk">("single");
+  const [bulkItems, setBulkItems] = useState<{ 
+    vehicleNo?: string; 
+    routeNo?: string; 
+    description?: string; 
+    amount: string 
+  }[]>([{ amount: "", vehicleNo: "", routeNo: "" }]);
 
   // Dialog states
   const [selectedExpense, setSelectedExpense] = useState<ExpenseSheet | null>(null);
@@ -175,12 +182,14 @@ export function ExpenseModule({
     spentThisMonth: number;
     remainingBudget: number;
     hasApprovedBudget: boolean;
+    categories?: Record<string, number>;
   } | null>(null);
   const [loadingBudget, setLoadingBudget] = useState(false);
   const [stats, setStats] = useState<{
     statusCounts: Record<string, number>;
     typeTotals: Record<string, number>;
-  }>({ statusCounts: {}, typeTotals: {} });
+    monthlyTypeTotals: Record<string, number>;
+  }>({ statusCounts: {}, typeTotals: {}, monthlyTypeTotals: {} });
   const [loadingStats, setLoadingStats] = useState(false);
 
   const printRef = useRef<HTMLDivElement>(null);
@@ -259,7 +268,7 @@ export function ExpenseModule({
     }
   };
 
-  const loadVehicleTransactions = async (vehicleId: string) => {
+  const loadVehicleTransactions = async (vehicleId: string, type?: string) => {
     if (!vehicleId) {
       setVehicleTransactions([]);
       return;
@@ -267,7 +276,11 @@ export function ExpenseModule({
 
     setLoadingTransactions(true);
     try {
-      const response = await fetch(`/api/expenses?vehicleId=${vehicleId}&limit=3`);
+      let url = `/api/expenses?vehicleId=${vehicleId}&limit=3`;
+      if (type && type !== "all" && type !== "") {
+        url += `&expenseType=${type}`;
+      }
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         setVehicleTransactions(data.expenses || []);
@@ -281,11 +294,11 @@ export function ExpenseModule({
 
   useEffect(() => {
     if (selectedVehicle) {
-      loadVehicleTransactions(selectedVehicle);
+      loadVehicleTransactions(selectedVehicle, expenseType);
     } else {
       setVehicleTransactions([]);
     }
-  }, [selectedVehicle]);
+  }, [selectedVehicle, expenseType]);
 
   const loadTypeHistory = async (type: string) => {
     if (!type) {
@@ -361,6 +374,7 @@ export function ExpenseModule({
         setStats({
           statusCounts: data.statusCounts || {},
           typeTotals: data.typeTotals || {},
+          monthlyTypeTotals: data.monthlyTypeTotals || {},
         });
       }
     } catch (err) {
@@ -417,8 +431,7 @@ export function ExpenseModule({
     
     // Validate all required fields
     const needsRouteAndVehicle = requiresRouteAndVehicle(expenseType);
-    console.log(expenseType, amount, details);
-    if (!expenseType || !details) {
+    if (!expenseType || (entryMode === "single" && category === "Expense" && expenseType !== "TOLLS_TAXES" && !details)) {
       setError("All fields are required.");
       setSaving(false);
       return;
@@ -442,16 +455,46 @@ export function ExpenseModule({
       return;
     }
     
-    if (needsRouteAndVehicle && (!selectedRoute || !selectedVehicle)) {
+    if (needsRouteAndVehicle && entryMode === "single" && (!selectedRoute || !selectedVehicle)) {
       setError("Route and Vehicle are required for this expense type.");
       setSaving(false);
       return;
     }
 
+    // New validation for item lists of fixed asset
+    if (category === "Fixed Asset") {
+      if (fixedAssets.some(a => !a.name || !a.amount)) {
+        setError("Please specify Asset Name and Amount for all asset items.");
+        setSaving(false);
+        return;
+      }
+    }
+
+    const isBulk = entryMode === "bulk" && category === "Expense" && expenseType !== "TOLLS_TAXES";
+
+    if (isBulk) {
+      if (bulkItems.some(i => (needsRouteAndVehicle && (!i.vehicleNo || !i.routeNo)) || !i.amount)) {
+        setError(`Please specify ${needsRouteAndVehicle ? "Vehicle, Route, and Amount" : "Amount"} for all bulk entries.`);
+        setSaving(false);
+        return;
+      }
+    }
+
+    if (expenseType === "TOLLS_TAXES") {
+      if (tollsTaxesItems.some(i => !i.vehicleNo || !i.routeNo || !i.amount)) {
+        setError("Please specify Vehicle, Route, and Amount for all Tolls & Taxes items.");
+        setSaving(false);
+        return;
+      }
+    }
+
+    
     const finalAmount = category === "Fixed Asset" 
       ? fixedAssets.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0)
       : expenseType === "TOLLS_TAXES"
       ? tollsTaxesItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0)
+      : isBulk
+      ? bulkItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0)
       : parseFloat(amount);
 
     if (finalAmount <= 0) {
@@ -464,13 +507,26 @@ export function ExpenseModule({
     setError(null);
 
     const items = category === "Fixed Asset" 
-      ? fixedAssets.map(a => ({ name: a.name, amount: parseFloat(a.amount) || 0 }))
+      ? fixedAssets.map(a => ({ 
+          name: a.name, 
+          amount: parseFloat(a.amount) || 0,
+          vehicleNo: a.vehicleNo,
+          routeNo: a.routeNo
+        }))
       : expenseType === "TOLLS_TAXES"
       ? tollsTaxesItems.map(i => ({ 
           name: `${i.vehicleNo} | ${i.routeNo}`, 
           amount: parseFloat(i.amount) || 0,
           vehicleNo: i.vehicleNo,
           routeNo: i.routeNo 
+        }))
+      : isBulk
+      ? bulkItems.map(i => ({
+          name: `${i.vehicleNo} | ${i.routeNo}` + (i.description ? ` - ${i.description}` : ""),
+          amount: parseFloat(i.amount) || 0,
+          vehicleNo: i.vehicleNo,
+          routeNo: i.routeNo,
+          details: i.description
         }))
       : undefined;
 
@@ -607,6 +663,14 @@ export function ExpenseModule({
     disbursed: stats.statusCounts["DISBURSED"] || 0,
     totalAmount: Object.values(stats.typeTotals).reduce((sum, amount) => sum + amount, 0),
   };
+
+  const categoryRemaining = (() => {
+    if (!budgetInfo || !budgetInfo.categories || !expenseType) return null;
+    const categoryBudget = budgetInfo.categories[expenseType] || 0;
+    if (categoryBudget === 0) return null;
+    const spentThisMonth = stats.monthlyTypeTotals[expenseType] || 0;
+    return categoryBudget - spentThisMonth;
+  })();
 
   return (
     <div className="space-y-6 h-full">
@@ -1199,11 +1263,21 @@ export function ExpenseModule({
                   <CardDescription>Submit a new expense for approval</CardDescription>
                 </div>
                 {budgetInfo && (
-                  <div className="text-right">
-                    <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Remaining Budget</p>
-                    <p className={`text-lg font-bold ${budgetInfo.remainingBudget > 0 ? 'text-blue-600' : 'text-rose-600'}`}>
-                      {new Intl.NumberFormat("en-PK", { style: "currency", currency: "PKR" }).format(budgetInfo.remainingBudget)}
-                    </p>
+                  <div className="flex gap-6 items-center">
+                    {categoryRemaining !== null && (
+                      <div className="text-right border-r border-blue-200 dark:border-blue-800 pr-6">
+                        <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Category Budget</p>
+                        <p className={`text-base font-bold ${categoryRemaining > 0 ? 'text-indigo-600 dark:text-indigo-400' : 'text-rose-600'}`}>
+                          {new Intl.NumberFormat("en-PK", { style: "currency", currency: "PKR", minimumFractionDigits: 0 }).format(categoryRemaining)}
+                        </p>
+                      </div>
+                    )}
+                    <div className="text-right">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Total Remaining</p>
+                      <p className={`text-lg font-black ${budgetInfo.remainingBudget > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600'}`}>
+                        {new Intl.NumberFormat("en-PK", { style: "currency", currency: "PKR", minimumFractionDigits: 0 }).format(budgetInfo.remainingBudget)}
+                      </p>
+                    </div>
                   </div>
                 )}
               </CardHeader>
@@ -1276,10 +1350,30 @@ export function ExpenseModule({
                           </Select>
                         </div>
 
-                        <div className="space-y-2">
-                           <Label className="text-slate-700 dark:text-slate-300">
-                             Amount (PKR) <span className="text-rose-500">*</span>
-                           </Label>
+                        <div className="space-y-4">
+                           <div className="flex items-center justify-between">
+                             <Label className="text-slate-700 dark:text-slate-300">
+                               Amount (PKR) <span className="text-rose-500">*</span>
+                             </Label>
+                             {expenseType && expenseType !== "TOLLS_TAXES" && (
+                               <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700">
+                                 <button
+                                   type="button"
+                                   onClick={() => setEntryMode("single")}
+                                   className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all ${entryMode === "single" ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400' : 'text-slate-500'}`}
+                                 >
+                                   Single
+                                 </button>
+                                 <button
+                                   type="button"
+                                   onClick={() => setEntryMode("bulk")}
+                                   className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all ${entryMode === "bulk" ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400' : 'text-slate-500'}`}
+                                 >
+                                   Bulk
+                                 </button>
+                               </div>
+                             )}
+                           </div>
                            <div className="relative">
                              <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                              <Input
@@ -1287,17 +1381,129 @@ export function ExpenseModule({
                                step="1"
                                value={expenseType === "TOLLS_TAXES" 
                                  ? tollsTaxesItems.reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0).toString() 
+                                 : entryMode === "bulk"
+                                 ? bulkItems.reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0).toString()
                                  : amount
                                }
                                onChange={(e) => setAmount(e.target.value)}
                                placeholder="0.00"
                                className="pl-10 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
-                               disabled={expenseType === "TOLLS_TAXES"}
+                               disabled={expenseType === "TOLLS_TAXES" || entryMode === "bulk"}
                                required
                              />
                            </div>
                         </div>
 
+                        {entryMode === "bulk" && expenseType && expenseType !== "TOLLS_TAXES" && (
+                          <div className="md:col-span-2 space-y-4 p-4 border rounded-xl bg-slate-50/50 dark:bg-slate-900/20 border-slate-200 dark:border-slate-800">
+                             <div className="flex items-center justify-between">
+                              <Label className="text-sm font-semibold flex items-center gap-2">
+                                <PlusCircle className="h-4 w-4 text-blue-600" />
+                                Bulk Entries Breakdown
+                              </Label>
+                              <Button 
+                                type="button" 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => setBulkItems([...bulkItems, { amount: "" }])}
+                                className="h-8"
+                              >
+                                <Plus className="h-3 w-3 mr-1" /> Add Row
+                              </Button>
+                            </div>
+
+                            <div className="space-y-3">
+                              {bulkItems.map((item, index) => (
+                                <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end p-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm">
+                                  <div className="md:col-span-3 space-y-1">
+                                    <Label className="text-[10px] uppercase tracking-wider text-slate-500">Vehicle</Label>
+                                    <Select
+                                      value={item.vehicleNo}
+                                      onValueChange={(val) => {
+                                        const newItems = [...bulkItems];
+                                        newItems[index].vehicleNo = val;
+                                        setBulkItems(newItems);
+                                      }}
+                                    >
+                                      <SelectTrigger className="h-9">
+                                        <SelectValue placeholder="Select" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {vehicles.map((v) => (
+                                          <SelectItem key={v.id} value={v.vehicleNo}>{v.vehicleNo}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="md:col-span-3 space-y-1">
+                                    <Label className="text-[10px] uppercase tracking-wider text-slate-500">Route</Label>
+                                    <Select
+                                      value={item.routeNo}
+                                      onValueChange={(val) => {
+                                        const newItems = [...bulkItems];
+                                        newItems[index].routeNo = val;
+                                        setBulkItems(newItems);
+                                      }}
+                                    >
+                                      <SelectTrigger className="h-9">
+                                        <SelectValue placeholder="Select" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {routes.map((r) => (
+                                          <SelectItem key={r.id} value={r.routeNo}>{r.routeNo}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="md:col-span-3 space-y-1">
+                                    <Label className="text-[10px] uppercase tracking-wider text-slate-500">Detail / Description</Label>
+                                    <Input 
+                                      value={item.description}
+                                      onChange={(e) => {
+                                        const newItems = [...bulkItems];
+                                        newItems[index].description = e.target.value;
+                                        setBulkItems(newItems);
+                                      }}
+                                      placeholder="Enter detail"
+                                      className="h-9"
+                                    />
+                                  </div>
+                                  <div className="md:col-span-2 space-y-1">
+                                    <Label className="text-[10px] uppercase tracking-wider text-slate-500">Amount</Label>
+                                    <Input 
+                                      type="number"
+                                      value={item.amount}
+                                      onChange={(e) => {
+                                        const newItems = [...bulkItems];
+                                        newItems[index].amount = e.target.value;
+                                        setBulkItems(newItems);
+                                      }}
+                                      placeholder="0.00"
+                                      className="h-9"
+                                    />
+                                  </div>
+                                  <div className="md:col-span-1">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        if (bulkItems.length > 1) {
+                                          setBulkItems(bulkItems.filter((_, i) => i !== index));
+                                        }
+                                      }}
+                                      className="h-9 w-9 p-0 text-rose-500"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Tolls & Taxes Section (this can be removed and only bulk items for that is above should be there) */}
                         {expenseType === "TOLLS_TAXES" && (
                           <div className="md:col-span-2 space-y-4 p-4 border rounded-xl bg-blue-50/30 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/30">
                             <div className="flex items-center justify-between">
@@ -1320,7 +1526,7 @@ export function ExpenseModule({
                               {tollsTaxesItems.map((item, index) => (
                                 <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end p-3 rounded-lg bg-white dark:bg-slate-800 border border-blue-50 dark:border-blue-900/20 shadow-sm">
                                   <div className="space-y-1">
-                                    <Label className="text-[10px] uppercase tracking-wider text-slate-500">Vehicle No.</Label>
+                                    <Label className="text-[10px] uppercase tracking-wider text-slate-500">Vehicle No. <span className="text-rose-500">*</span></Label>
                                     <Select
                                       value={item.vehicleNo}
                                       onValueChange={(val) => {
@@ -1342,7 +1548,7 @@ export function ExpenseModule({
                                     </Select>
                                   </div>
                                   <div className="space-y-1">
-                                    <Label className="text-[10px] uppercase tracking-wider text-slate-500">Route No.</Label>
+                                    <Label className="text-[10px] uppercase tracking-wider text-slate-500">Route No. <span className="text-rose-500">*</span></Label>
                                     <Select
                                       value={item.routeNo}
                                       onValueChange={(val) => {
@@ -1409,7 +1615,7 @@ export function ExpenseModule({
                             type="button" 
                             variant="outline" 
                             size="sm"
-                            onClick={() => setFixedAssets([...fixedAssets, { name: "", amount: "" }])}
+                            onClick={() => setFixedAssets([...fixedAssets, { name: "", amount: "", vehicleNo: "", routeNo: "" }])}
                             className="h-8"
                           >
                             <Plus className="h-3 w-3 mr-1" /> Add Asset
@@ -1419,9 +1625,9 @@ export function ExpenseModule({
                         
                         <div className="space-y-3">
                           {fixedAssets.map((asset, index) => (
-                            <div key={index} className="flex gap-3 items-end">
-                              <div className="flex-1 max-w-40 space-y-1">
-                                <Label className="text-xs text-slate-500">Asset Name</Label>
+                            <div key={index} className="flex gap-3 items-end p-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm">
+                              <div className="flex-1 min-w-[150px] space-y-1">
+                                <Label className="text-xs text-slate-500">Asset Name <span className="text-rose-500">*</span></Label>
                                 <Select
                                   value={asset.name}
                                   onValueChange={(val) => {
@@ -1435,28 +1641,16 @@ export function ExpenseModule({
                                   </SelectTrigger>
                                   <SelectContent>
                                     {[
-                                      "Office Chairs",
-                                      "Laptops",
-                                      "Computer",
-                                      "Office Tables",
-                                      "Mobile Phones",
-                                      "Printer",
-                                      "Car",
-                                      "Vehicles",
-                                      "Bike",
-                                      "Warehouse",
-                                      "Fans",
-                                      "Lights"
+                                      "Office Chairs", "Laptops", "Computer", "Office Tables", "Mobile Phones", 
+                                      "Printer", "Car", "Vehicles", "Bike", "Warehouse", "Fans", "Lights"
                                     ].map((option) => (
-                                      <SelectItem key={option} value={option}>
-                                        {option}
-                                      </SelectItem>
+                                      <SelectItem key={option} value={option}>{option}</SelectItem>
                                     ))}
                                   </SelectContent>
                                 </Select>
                               </div>
                               <div className="w-32 space-y-1">
-                                <Label className="text-xs text-slate-500">Amount</Label>
+                                <Label className="text-xs text-slate-500">Amount <span className="text-rose-500">*</span></Label>
                                 <Input 
                                   type="number"
                                   value={asset.amount}
@@ -1538,7 +1732,7 @@ export function ExpenseModule({
                     </div>
                   )}
 
-                  {requiresRouteAndVehicle(expenseType) && (
+                  {requiresRouteAndVehicle(expenseType) && entryMode !== "bulk" && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
                       <div className="space-y-2">
                         <Label className="text-slate-700 dark:text-slate-300">Route <span className="text-rose-500">*</span></Label>
@@ -1577,7 +1771,9 @@ export function ExpenseModule({
                   {/* Vehicle Transaction History */}
                   {requiresRouteAndVehicle(expenseType) && selectedVehicle && (
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">Last 3 Transactions for Selected Vehicle</Label>
+                      <Label className="text-sm font-medium">
+                        Last 3 {expenseTypes.find(t => t.value === expenseType)?.label || "Related"} Transactions for Selected Vehicle
+                      </Label>
                       {loadingTransactions ? (
                         <div className="text-sm text-muted-foreground p-3 border rounded-md">
                           Loading transactions...
@@ -1613,11 +1809,14 @@ export function ExpenseModule({
                     </div>
                   )}
                   <div className="space-y-2">
-                    <Label className="text-slate-700 dark:text-slate-300">Details <span className="text-rose-500">*</span></Label>
+                    <Label className="text-slate-700 dark:text-slate-300">
+                      Details & Notes {entryMode === "single" && category === "Expense" && expenseType !== "TOLLS_TAXES" && <span className="text-rose-500">*</span>}
+                    </Label>
                     <Textarea
                       value={details}
                       onChange={(e) => setDetails(e.target.value)}
-                      placeholder="Add any additional details or notes..."
+                      required={entryMode === "single" && category === "Expense" && expenseType !== "TOLLS_TAXES"}
+                      placeholder={entryMode === "bulk" ? "Add any additional internal notes (optional)..." : "Add description, purpose, or any other notes... *"}
                       className="min-h-[100px] bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
                     />
                   </div>
@@ -1738,7 +1937,8 @@ export function ExpenseModule({
                         attachments.length === 0 || 
                         (category === "Expense" && expenseType !== "TOLLS_TAXES" && (!amount || parseFloat(amount) <= 0)) ||
                         (category === "Expense" && expenseType === "TOLLS_TAXES" && tollsTaxesItems.reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0) <= 0) ||
-                        (category === "Fixed Asset" && fixedAssets.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0) <= 0)
+                        (category === "Fixed Asset" && fixedAssets.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0) <= 0) ||
+                        (entryMode === "single" && category === "Expense" && expenseType !== "TOLLS_TAXES" && !details)
                       }
                       className="bg-blue-600 hover:bg-blue-700 text-white"
                     >

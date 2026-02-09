@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-  const [statusRows, typeRows, monthlySpent, budget] = await Promise.all([
+  const [statusRows, typeRows, monthlySpent, monthlyTypeRows, budget] = await Promise.all([
     prisma.expenseSheet.groupBy({
       by: ["status"],
       where,
@@ -91,6 +91,15 @@ export async function GET(request: NextRequest) {
       _sum: { amount: true },
     }),
     prisma.expenseSheet.aggregate({
+      where: {
+        ...(isSuperAdmin && locationId ? { locationId } : !isSuperAdmin ? { locationId: user.locationId } : {}),
+        createdAt: { gte: startOfMonth, lt: endOfMonth },
+        status: { not: "REJECTED" },
+      },
+      _sum: { amount: true },
+    }),
+    prisma.expenseSheet.groupBy({
+      by: ["expenseType"],
       where: {
         ...(isSuperAdmin && locationId ? { locationId } : !isSuperAdmin ? { locationId: user.locationId } : {}),
         createdAt: { gte: startOfMonth, lt: endOfMonth },
@@ -116,12 +125,18 @@ export async function GET(request: NextRequest) {
     return acc;
   }, {});
 
+  const monthlyTypeTotals = monthlyTypeRows.reduce<Record<string, number>>((acc: Record<string, number>, row: any) => {
+    acc[row.expenseType] = row._sum.amount ?? 0;
+    return acc;
+  }, {});
+
   const budgetInfo = {
     totalBudget: budget?.status === "APPROVED" ? budget.amount : 0,
     spentThisMonth: monthlySpent._sum.amount ?? 0,
     remainingBudget: (budget?.status === "APPROVED" ? budget.amount : 0) - (monthlySpent._sum.amount ?? 0),
-    hasApprovedBudget: budget?.status === "APPROVED"
+    hasApprovedBudget: budget?.status === "APPROVED",
+    categories: budget?.status === "APPROVED" ? budget.categories : {}
   };
 
-  return NextResponse.json({ statusCounts, typeTotals, budgetInfo });
+  return NextResponse.json({ statusCounts, typeTotals, monthlyTypeTotals, budgetInfo });
 }

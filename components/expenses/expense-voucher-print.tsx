@@ -298,7 +298,7 @@ export const ExpenseVoucherPrint = React.forwardRef<
           </div>
         )}
 
-        {/* Breakdown Section for Fixed Assets or Tolls & Taxes */}
+        {/* Breakdown Section for Fixed Assets, Tolls & Taxes, or Bulk Entries */}
         {expense.items && Array.isArray(expense.items) && expense.items.length > 0 && (
           <div className="mb-4">
             <h3 className="text-xs font-bold uppercase border-black mb-2 pb-1">
@@ -308,13 +308,14 @@ export const ExpenseVoucherPrint = React.forwardRef<
               <thead>
                 <tr className="bg-gray-100">
                   <th className="border border-black p-1 text-left w-6">#</th>
-                  {expense.expenseType === "TOLLS_TAXES" ? (
+                  {/* Determine columns based on first item's data */}
+                  {expense.items.some((i: any) => i.vehicleNo || i.routeNo) ? (
                     <>
                       <th className="border border-black p-1 text-left">Vehicle No.</th>
                       <th className="border border-black p-1 text-left">Route No.</th>
                     </>
                   ) : (
-                    <th className="border border-black p-1 text-left">Item / Asset Name</th>
+                    <th className="border border-black p-1 text-left">Item / Detail</th>
                   )}
                   <th className="border border-black p-1 text-right w-28">Amount (PKR)</th>
                 </tr>
@@ -325,28 +326,30 @@ export const ExpenseVoucherPrint = React.forwardRef<
                   let route = item.routeNo;
                   // Handle legacy or combined format
                   if (!vehicle && item.name && item.name.includes("|")) {
-                    [vehicle, route] = item.name.split("|").map((s: string) => s.trim());
+                    const parts = item.name.split("|").map((s: string) => s.trim());
+                    vehicle = parts[0];
+                    route = parts[1];
                   }
                   
                   return (
                     <tr key={idx}>
                       <td className="border border-black p-1 text-center">{idx + 1}</td>
-                      {expense.expenseType === "TOLLS_TAXES" ? (
+                      {expense.items.some((i: any) => i.vehicleNo || i.routeNo) ? (
                         <>
                           <td className="border border-black p-1">{vehicle || "N/A"}</td>
                           <td className="border border-black p-1">{route || "N/A"}</td>
                         </>
                       ) : (
-                        <td className="border border-black p-1">{item.name || "N/A"}</td>
+                        <td className="border border-black p-1">{item.name || item.details || "N/A"}</td>
                       )}
                       <td className="border border-black p-1 text-right font-medium">
-                        {item.amount?.toLocaleString()}
+                        {Number(item.amount || 0).toLocaleString()}
                       </td>
                     </tr>
                   );
                 })}
                 <tr className="bg-gray-50 font-bold">
-                  <td colSpan={expense.expenseType === "TOLLS_TAXES" ? 3 : 2} className="border border-black p-1 text-right">
+                  <td colSpan={expense.items.some((i: any) => i.vehicleNo || i.routeNo) ? 3 : 2} className="border border-black p-1 text-right">
                     Total
                   </td>
                   <td className="border border-black p-1 text-right">
