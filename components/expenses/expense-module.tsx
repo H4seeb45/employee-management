@@ -542,8 +542,8 @@ export function ExpenseModule({
           details,
           disburseType,
           attachments,
-          routeId: selectedRoute || undefined,
-          vehicleId: selectedVehicle || undefined,
+          routeId: !isBulk && selectedRoute || undefined,
+          vehicleId: !isBulk && selectedVehicle || undefined,
         }),
       });
 
