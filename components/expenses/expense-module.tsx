@@ -90,7 +90,27 @@ type ExpenseSheet = {
   disbursedAmount?: number;
   category: string;
   items?: { name: string; amount: number }[] | null;
+  bulkItems?: { vehicleNo?: string; 
+    routeNo?: string; 
+    description: string; 
+    amount: string }[] | null;
 };
+
+// Required route/vehicle check
+  export const requiresRouteAndVehicle = (type: string) => {
+    const vehicleTypes = [
+      "LOADING_CHARGES",
+      "REPAIR_MAINT_VEHICLE",
+      "RIKSHAW_RENTAL",
+      "VEHICLE_CHALLAN",
+      "VEHICLE_FUEL",
+      "VEHICLE_RENTAL",
+      "VEHICLES_RENT",
+      "VEHICLE_PARKING",
+      "VEHICLE_PASSING",
+    ];
+    return vehicleTypes.includes(type);
+  };
 
 export function ExpenseModule({
   roles,
@@ -210,22 +230,6 @@ export function ExpenseModule({
     }
     return false;
   }
-
-  // Required route/vehicle check
-  const requiresRouteAndVehicle = (type: string) => {
-    const vehicleTypes = [
-      "LOADING_CHARGES",
-      "REPAIR_MAINT_VEHICLE",
-      "RIKSHAW_RENTAL",
-      "VEHICLE_CHALLAN",
-      "VEHICLE_FUEL",
-      "VEHICLE_RENTAL",
-      "VEHICLES_RENT",
-      "VEHICLE_PARKING",
-      "VEHICLE_PASSING",
-    ];
-    return vehicleTypes.includes(type);
-  };
 
   // Fetch expenses - only when applied filters or page changes
   useEffect(() => {
@@ -1450,7 +1454,7 @@ export function ExpenseModule({
                                       </SelectTrigger>
                                       <SelectContent>
                                         {routes.map((r) => (
-                                          <SelectItem key={r.id} value={r.routeNo}>{r.routeNo}</SelectItem>
+                                          <SelectItem key={r.id} value={r.routeNo}>{r.routeNo} - {r.name}</SelectItem>
                                         ))}
                                       </SelectContent>
                                     </Select>
@@ -1797,6 +1801,9 @@ export function ExpenseModule({
                                   <p className="text-xs text-muted-foreground">
                                     {new Date(transaction.createdAt).toLocaleDateString()} - {transaction?.route?.name} - {transaction.status}
                                   </p>
+                                   <p className="text-xs text-muted-foreground">
+                                    {transaction.details}
+                                  </p>
                                 </div>
                                 <p className="text-sm font-semibold">
                                   Rs. {transaction.amount.toFixed(2)}
@@ -1935,7 +1942,7 @@ export function ExpenseModule({
                       disabled={
                         saving || 
                         attachments.length === 0 || 
-                        (category === "Expense" && expenseType !== "TOLLS_TAXES" && (!amount || parseFloat(amount) <= 0)) ||
+                        (category === "Expense" && expenseType !== "TOLLS_TAXES" && (!amount || parseFloat(amount) <= 0) && bulkItems.reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0) <= 0) ||
                         (category === "Expense" && expenseType === "TOLLS_TAXES" && tollsTaxesItems.reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0) <= 0) ||
                         (category === "Fixed Asset" && fixedAssets.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0) <= 0) ||
                         (entryMode === "single" && category === "Expense" && expenseType !== "TOLLS_TAXES" && !details)
@@ -2071,26 +2078,27 @@ export function ExpenseModule({
                 </div>
               )}
               {/* Tolls & Taxes Breakdown */}
-              {selectedExpense.expenseType === "TOLLS_TAXES" && selectedExpense.items && Array.isArray(selectedExpense.items) && (
+              {selectedExpense.category !== "Fixed Asset" && selectedExpense.items && Array.isArray(selectedExpense.items) && (
                 <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                  <Label className="text-xs text-blue-700 dark:text-blue-400 mb-2 font-bold uppercase tracking-wider">Tolls & Taxes Breakdown</Label>
+                  <Label className="text-xs text-blue-700 dark:text-blue-400 mb-2 font-bold uppercase tracking-wider">{selectedExpense.expenseType === "TOLLS_TAXES" ? "Tolls & Taxes" : "Items"} Breakdown</Label>
                   <div className="space-y-2 mt-2">
                     <div className="grid grid-cols-3 gap-2 text-[10px] font-bold text-slate-500 border-b pb-1">
-                      <span>Vehicle</span>
-                      <span>Route</span>
+                      {requiresRouteAndVehicle(selectedExpense.expenseType) ?<> <span>Vehicle</span>
+                      <span>Route</span></>:<span>Details</span>}
                       <span className="text-right">Amount</span>
                     </div>
                     {(selectedExpense.items as any[]).map((item, idx) => {
                       let vehicle = item.vehicleNo;
                       let route = item.routeNo;
-                      if (!vehicle && item.name && item.name.includes("|")) {
-                        [vehicle, route] = item.name.split("|").map((s: string) => s.trim());
-                      }
+                      // if (!vehicle && item.name && item.name.includes("|")) {
+                      //   [vehicle, route] = item.name.split("|").map((s: string) => s.trim());
+                      // }
                       return (
                         // border-b
                         <div key={idx} className="grid grid-cols-3 gap-2 text-sm border-blue-100 dark:border-blue-900/40 last:border-0 pb-1.5 pt-1">
+                          {requiresRouteAndVehicle(selectedExpense.expenseType) ? <>
                           <span className="text-slate-700 dark:text-slate-300 font-medium truncate">{vehicle || "N/A"}</span>
-                          <span className="text-slate-600 dark:text-slate-400 truncate">{route || "N/A"}</span>
+                          <span className="text-slate-600 dark:text-slate-400 truncate">{route || "N/A"}</span></>:<span className="text-slate-700 dark:text-slate-300 font-medium truncate">{item.details || "N/A"}</span>}
                           <span className="font-bold text-slate-900 dark:text-slate-100 text-right">Rs. {Number(item.amount).toLocaleString()}</span>
                         </div>
                       );

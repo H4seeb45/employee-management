@@ -1,6 +1,8 @@
 "use client";
 
 import React from "react";
+import { requiresRouteAndVehicle } from "./expense-module";
+import { expenseTypes } from "./expense-types";
 
 type ExpenseVoucherPrintProps = {
   expense: {
@@ -50,20 +52,7 @@ export const ExpenseVoucherPrint = React.forwardRef<
   if (!expense) {
     return <div ref={ref} />;
   }
-  const expenseTypeLabels: Record<string, string> = {
-    VEHICLES_FUEL: "Vehicles Fuel",
-    VEHICLES_RENTAL: "Vehicles Rental",
-    WAREHOUSE_RENTAL: "Warehouse Rental",
-    SALARIES: "Salaries",
-    ADVANCES_TO_EMP: "Advances To Employees",
-    ENTERTAINMENT: "Entertainment",
-    UTILITIES: "Utilities",
-    REPAIR_MAINTENANCE: "Repair & Maintenance",
-    STATIONERY: "Stationery",
-    KITCHEN_EXPENSE: "Kitchen Expense",
-    FIXED_ASSET: "Fixed Asset",
-    TOLLS_TAXES: "Tolls & Taxes",
-  };
+  
 
   const numberToWords = (num: number): string => {
     const ones = [
@@ -193,7 +182,7 @@ export const ExpenseVoucherPrint = React.forwardRef<
           </div>
           <div className="flex">
             <span className="font-bold w-28">Expense Type:</span>
-            <span>{expenseTypeLabels[expense.expenseType] || expense.expenseType}</span>
+            <span>{expenseTypes.find((type) => type.value === expense.expenseType)?.label || expense.expenseType}</span>
           </div>
           {expense.location && (
             <div className="flex">
@@ -201,18 +190,18 @@ export const ExpenseVoucherPrint = React.forwardRef<
               <span>{expense.location.city} - {expense.location.name}</span>
             </div>
           )}
-          {expense.vehicle && (
+          {expense.vehicle && requiresRouteAndVehicle(expense.expenseType) ? (
             <div className="flex">
               <span className="font-bold w-28">Vehicle:</span>
-              <span>{expense.vehicle.vehicleNo}</span>
+              <span>{expense.vehicle?.vehicleNo}</span>
             </div>
-          )}
-          {expense.route && (
+          ) : null}
+          {expense.route && requiresRouteAndVehicle(expense.expenseType) ? (
             <div className="flex">
               <span className="font-bold w-24">Route:</span>
-              <span>{expense.route.routeNo} - {expense.route.name}</span>
+              <span>{expense.route?.routeNo} - {expense.route?.name}</span>
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Payment / Disbursement Details Section */}
@@ -309,7 +298,7 @@ export const ExpenseVoucherPrint = React.forwardRef<
                 <tr className="bg-gray-100">
                   <th className="border border-black p-1 text-left w-6">#</th>
                   {/* Determine columns based on first item's data */}
-                  {expense.items.some((i: any) => i.vehicleNo || i.routeNo) ? (
+                  {requiresRouteAndVehicle(expense.expenseType) || expense.expenseType === "TOLLS_TAXES" ? (
                     <>
                       <th className="border border-black p-1 text-left">Vehicle No.</th>
                       <th className="border border-black p-1 text-left">Route No.</th>
@@ -334,13 +323,13 @@ export const ExpenseVoucherPrint = React.forwardRef<
                   return (
                     <tr key={idx}>
                       <td className="border border-black p-1 text-center">{idx + 1}</td>
-                      {expense.items.some((i: any) => i.vehicleNo || i.routeNo) ? (
+                      {(requiresRouteAndVehicle(expense.expenseType) || expense.expenseType === "TOLLS_TAXES") ? (
                         <>
                           <td className="border border-black p-1">{vehicle || "N/A"}</td>
                           <td className="border border-black p-1">{route || "N/A"}</td>
                         </>
                       ) : (
-                        <td className="border border-black p-1">{item.name || item.details || "N/A"}</td>
+                        <td className="border border-black p-1">{item.details || item.name || "N/A"}</td>
                       )}
                       <td className="border border-black p-1 text-right font-medium">
                         {Number(item.amount || 0).toLocaleString()}
@@ -349,7 +338,7 @@ export const ExpenseVoucherPrint = React.forwardRef<
                   );
                 })}
                 <tr className="bg-gray-50 font-bold">
-                  <td colSpan={expense.items.some((i: any) => i.vehicleNo || i.routeNo) ? 3 : 2} className="border border-black p-1 text-right">
+                  <td colSpan={requiresRouteAndVehicle(expense.expenseType) || expense.expenseType === "TOLLS_TAXES" ? 3 : 2} className="border border-black p-1 text-right">
                     Total
                   </td>
                   <td className="border border-black p-1 text-right">
