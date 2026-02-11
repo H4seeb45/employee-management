@@ -46,4 +46,5 @@ export const expenseTypes = [
   { value: "GUARD_TEA_EXP", label: "Guard Tea Exp." },
   { value: "GARBAGE_COLLECTION", label: "Garbage Collection" },
   { value: "FIXED_ASSET", label: "Fixed Asset" },
+  { value: "INCENTIVE_PAYMENT", label: "Incentive Payment" },
 ];

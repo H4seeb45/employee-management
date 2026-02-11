@@ -143,6 +143,7 @@ enum ExpenseType {
   GUARD_TEA_EXP
   GARBAGE_COLLECTION
   FIXED_ASSET
+  INCENTIVE_PAYMENT
 }
 
 model ExpenseSheet {
