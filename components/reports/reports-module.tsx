@@ -51,6 +51,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { expenseTypes } from "@/components/expenses/expense-types";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 // --- Types ---
 
@@ -527,41 +528,44 @@ export function ReportsModule({ roles }: { roles: string[] }) {
 
                     <div className="space-y-2">
                        <Label>Expense Type</Label>
-                       <Select value={filterType} onValueChange={setFilterType}>
-                         <SelectTrigger className="bg-white dark:bg-slate-800">
-                           <SelectValue />
-                         </SelectTrigger>
-                         <SelectContent>
-                           <SelectItem value="all">All Types</SelectItem>
-                           {expenseTypes.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                         </SelectContent>
-                       </Select>
+                       <SearchableSelect
+                         value={filterType}
+                         onValueChange={setFilterType}
+                         options={[
+                           { value: "all", label: "All Types" },
+                           ...expenseTypes.map(t => ({ value: t.value, label: t.label }))
+                         ]}
+                         placeholder="All Types"
+                         searchPlaceholder="Search type..."
+                       />
                     </div>
 
                     <div className="space-y-2">
                        <Label>Route</Label>
-                       <Select value={filterRoute} onValueChange={setFilterRoute}>
-                         <SelectTrigger className="bg-white dark:bg-slate-800">
-                           <SelectValue />
-                         </SelectTrigger>
-                         <SelectContent>
-                           <SelectItem value="all">All Routes</SelectItem>
-                           {routes.map(r => <SelectItem key={r.id} value={r.id}>{r.routeNo} - {r.name}</SelectItem>)}
-                         </SelectContent>
-                       </Select>
+                       <SearchableSelect
+                         value={filterRoute}
+                         onValueChange={setFilterRoute}
+                         options={[
+                           { value: "all", label: "All Routes" },
+                           ...routes.map(r => ({ value: r.id, label: `${r.routeNo} - ${r.name}` }))
+                         ]}
+                         placeholder="All Routes"
+                         searchPlaceholder="Search route..."
+                       />
                     </div>
 
                     <div className="space-y-2">
                        <Label>Vehicle</Label>
-                       <Select value={filterVehicle} onValueChange={setFilterVehicle}>
-                         <SelectTrigger className="bg-white dark:bg-slate-800">
-                           <SelectValue />
-                         </SelectTrigger>
-                         <SelectContent>
-                           <SelectItem value="all">All Vehicles</SelectItem>
-                           {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.vehicleNo}</SelectItem>)}
-                         </SelectContent>
-                       </Select>
+                       <SearchableSelect
+                         value={filterVehicle}
+                         onValueChange={setFilterVehicle}
+                         options={[
+                           { value: "all", label: "All Vehicles" },
+                           ...vehicles.map(v => ({ value: v.id, label: v.vehicleNo }))
+                         ]}
+                         placeholder="All Vehicles"
+                         searchPlaceholder="Search vehicle..."
+                       />
                     </div>
 
                     <div className="space-y-2">

@@ -54,10 +54,27 @@ import {
   Printer,
   Trash2,
   PlusCircle,
+  Check,
+  ChevronsUpDown,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { motion, AnimatePresence } from "framer-motion";
 import { UploadButton } from "@/lib/uploadthing";
 import { ExpenseVoucherPrint } from "./expense-voucher-print";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { expenseTypes } from "./expense-types";
 
 type ExpenseAttachment = {
@@ -966,55 +983,46 @@ export function ExpenseModule({
                       {/* Expense Type Filter */}
                       <div>
                         <Label className="text-slate-700 dark:text-slate-300">Expense Type</Label>
-                        <Select value={tempFilterType} onValueChange={setTempFilterType}>
-                          <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
-                            <SelectValue placeholder="All types" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Types</SelectItem>
-                            {expenseTypes.map((type) => (
-                              <SelectItem key={type.value} value={type.value}>
-                                {type.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <SearchableSelect
+                          value={tempFilterType}
+                          onValueChange={setTempFilterType}
+                          options={[
+                            { value: "all", label: "All Types" },
+                            ...expenseTypes.map((type) => ({ value: type.value, label: type.label })),
+                          ]}
+                          placeholder="All types"
+                          searchPlaceholder="Search type..."
+                        />
                       </div>
 
                       {/* Route Filter */}
                       <div>
                         <Label className="text-slate-700 dark:text-slate-300">Route</Label>
-                        <Select value={tempFilterRoute} onValueChange={setTempFilterRoute}>
-                          <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
-                            <SelectValue placeholder="All Routes" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Routes</SelectItem>
-                            {routes.map((route) => (
-                              <SelectItem key={route.id} value={route.id}>
-                                {route.routeNo} - {route.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <SearchableSelect
+                          value={tempFilterRoute}
+                          onValueChange={setTempFilterRoute}
+                          options={[
+                            { value: "all", label: "All Routes" },
+                            ...routes.map((route) => ({ value: route.id, label: `${route.routeNo} - ${route.name}` })),
+                          ]}
+                          placeholder="All Routes"
+                          searchPlaceholder="Search route..."
+                        />
                       </div>
 
                       {/* Vehicle Filter */}
                       <div>
                         <Label className="text-slate-700 dark:text-slate-300">Vehicle</Label>
-                        <Select value={tempFilterVehicle} onValueChange={setTempFilterVehicle}>
-                          <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
-                            <SelectValue placeholder="All Vehicles" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Vehicles</SelectItem>
-                            {vehicles.map((vehicle) => (
-                              <SelectItem key={vehicle.id} value={vehicle.id}>
-                                {vehicle.vehicleNo}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <SearchableSelect
+                          value={tempFilterVehicle}
+                          onValueChange={setTempFilterVehicle}
+                          options={[
+                            { value: "all", label: "All Vehicles" },
+                            ...vehicles.map((vehicle) => ({ value: vehicle.id, label: vehicle.vehicleNo })),
+                          ]}
+                          placeholder="All Vehicles"
+                          searchPlaceholder="Search vehicle..."
+                        />
                       </div>
 
                       {/* From Date */}
@@ -1380,18 +1388,15 @@ export function ExpenseModule({
                           <Label className="text-slate-700 dark:text-slate-300">
                             Expense Type <span className="text-rose-500">*</span>
                           </Label>
-                          <Select value={expenseType} onValueChange={setExpenseType} required>
-                            <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
-                              <SelectValue placeholder="Select expense type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {expenseTypes.filter((type) => type.value !== "FIXED_ASSET").map((type) => (
-                                <SelectItem key={type.value} value={type.value}>
-                                  {type.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <SearchableSelect
+                            value={expenseType}
+                            onValueChange={setExpenseType}
+                            options={expenseTypes
+                              .filter((type) => type.value !== "FIXED_ASSET")
+                              .map((type) => ({ value: type.value, label: type.label }))}
+                            placeholder="Select expense type"
+                            searchPlaceholder="Search type..."
+                          />
                         </div>
 
                         <div className="space-y-4">
@@ -1461,43 +1466,31 @@ export function ExpenseModule({
                                 <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end p-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm">
                                  {requiresRouteAndVehicle(expenseType) && <><div className="md:col-span-3 space-y-1">
                                     <Label className="text-[10px] uppercase tracking-wider text-slate-500">Vehicle <span className="text-red-500">*</span></Label>
-                                    <Select
-                                      value={item.vehicleNo}
+                                    <SearchableSelect
+                                      value={item.vehicleNo!}
                                       onValueChange={(val) => {
                                         const newItems = [...bulkItems];
                                         newItems[index].vehicleNo = val;
                                         setBulkItems(newItems);
                                       }}
-                                    >
-                                      <SelectTrigger className="h-9">
-                                        <SelectValue placeholder="Select" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {vehicles.map((v) => (
-                                          <SelectItem key={v.id} value={v.vehicleNo}>{v.vehicleNo}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
+                                      options={vehicles.map((v) => ({ value: v.vehicleNo, label: v.vehicleNo }))}
+                                      placeholder="Select"
+                                      searchPlaceholder="Search..."
+                                    />
                                   </div>
                                   <div className="md:col-span-3 space-y-1">
                                     <Label className="text-[10px] uppercase tracking-wider text-slate-500">Route <span className="text-red-500">*</span></Label>
-                                    <Select
-                                      value={item.routeNo}
+                                    <SearchableSelect
+                                      value={item.routeNo!}
                                       onValueChange={(val) => {
                                         const newItems = [...bulkItems];
                                         newItems[index].routeNo = val;
                                         setBulkItems(newItems);
                                       }}
-                                    >
-                                      <SelectTrigger className="h-9">
-                                        <SelectValue placeholder="Select" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {routes.map((r) => (
-                                          <SelectItem key={r.id} value={r.routeNo}>{r.routeNo} - {r.name}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
+                                      options={routes.map((r) => ({ value: r.routeNo, label: `${r.routeNo} - ${r.name}` }))}
+                                      placeholder="Select"
+                                      searchPlaceholder="Search..."
+                                    />
                                   </div></>}
                                   <div className="md:col-span-3 space-y-1">
                                     <Label className="text-[10px] uppercase tracking-wider text-slate-500">Detail <span className="text-red-500">*</span></Label>
@@ -1571,47 +1564,31 @@ export function ExpenseModule({
                                 <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end p-3 rounded-lg bg-white dark:bg-slate-800 border border-blue-50 dark:border-blue-900/20 shadow-sm">
                                   <div className="space-y-1">
                                     <Label className="text-[10px] uppercase tracking-wider text-slate-500">Vehicle No. <span className="text-rose-500">*</span></Label>
-                                    <Select
+                                    <SearchableSelect
                                       value={item.vehicleNo}
                                       onValueChange={(val) => {
                                         const newItems = [...tollsTaxesItems];
                                         newItems[index].vehicleNo = val;
                                         setTollsTaxesItems(newItems);
                                       }}
-                                    >
-                                      <SelectTrigger className="h-9">
-                                        <SelectValue placeholder="Select Vehicle" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {vehicles.map((v) => (
-                                          <SelectItem key={v.id} value={v.vehicleNo}>
-                                            {v.vehicleNo}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
+                                      options={vehicles.map((v) => ({ value: v.vehicleNo, label: v.vehicleNo }))}
+                                      placeholder="Select Vehicle"
+                                      searchPlaceholder="Search vehicle..."
+                                    />
                                   </div>
                                   <div className="space-y-1">
                                     <Label className="text-[10px] uppercase tracking-wider text-slate-500">Route No. <span className="text-rose-500">*</span></Label>
-                                    <Select
+                                    <SearchableSelect
                                       value={item.routeNo}
                                       onValueChange={(val) => {
                                         const newItems = [...tollsTaxesItems];
                                         newItems[index].routeNo = val;
                                         setTollsTaxesItems(newItems);
                                       }}
-                                    >
-                                      <SelectTrigger className="h-9">
-                                        <SelectValue placeholder="Select Route" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {routes.map((r) => (
-                                          <SelectItem key={r.id} value={r.routeNo}>
-                                            {r.routeNo} - {r.name}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
+                                      options={routes.map((r) => ({ value: r.routeNo, label: `${r.routeNo} - ${r.name}` }))}
+                                      placeholder="Select Route"
+                                      searchPlaceholder="Search route..."
+                                    />
                                   </div>
                                   <div className="flex gap-2 items-end">
                                     <div className="flex-1 space-y-1">
@@ -1780,34 +1757,24 @@ export function ExpenseModule({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
                       <div className="space-y-2">
                         <Label className="text-slate-700 dark:text-slate-300">Route <span className="text-rose-500">*</span></Label>
-                        <Select value={selectedRoute} onValueChange={setSelectedRoute}>
-                          <SelectTrigger className="bg-white dark:bg-slate-800">
-                            <SelectValue placeholder="Select route" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {routes.map((route) => (
-                              <SelectItem key={route.id} value={route.id}>
-                                {route.routeNo} - {route.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <SearchableSelect
+                          value={selectedRoute}
+                          onValueChange={setSelectedRoute}
+                          options={routes.map((route) => ({ value: route.id, label: `${route.routeNo} - ${route.name}` }))}
+                          placeholder="Select route"
+                          searchPlaceholder="Search route..."
+                        />
                       </div>
 
                       <div className="space-y-2">
                         <Label className="text-slate-700 dark:text-slate-300">Vehicle <span className="text-rose-500">*</span></Label>
-                        <Select value={selectedVehicle} onValueChange={(value) => {setSelectedVehicle(value); setSelectedVehicle(value);}}>
-                          <SelectTrigger className="bg-white dark:bg-slate-800">
-                            <SelectValue placeholder="Select vehicle" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {vehicles.map((vehicle) => (
-                              <SelectItem key={vehicle.id} value={vehicle.id}>
-                                {vehicle.vehicleNo}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <SearchableSelect
+                          value={selectedVehicle}
+                          onValueChange={setSelectedVehicle}
+                          options={vehicles.map((vehicle) => ({ value: vehicle.id, label: vehicle.vehicleNo }))}
+                          placeholder="Select vehicle"
+                          searchPlaceholder="Search vehicle..."
+                        />
                       </div>
                     </div>
                   )}
