@@ -73,13 +73,43 @@ export async function GET(request: NextRequest) {
   // Route filter
   const routeId = searchParams.get("routeId");
   if (routeId && routeId !== "all") {
-    where.routeId = routeId;
+    const route = await prisma.route.findUnique({
+      where: { id: routeId },
+      select: { routeNo: true },
+    });
+
+    if (route) {
+      if (!where.AND) where.AND = [];
+      where.AND.push({
+        OR: [
+          { routeId: routeId },
+          { items: { array_contains: [{ routeNo: route.routeNo }] } },
+        ],
+      });
+    } else {
+      where.routeId = routeId;
+    }
   }
 
   // Vehicle filter
   const vehicleId = searchParams.get("vehicleId");
   if (vehicleId && vehicleId !== "all") {
-    where.vehicleId = vehicleId;
+    const vehicle = await prisma.vehicle.findUnique({
+      where: { id: vehicleId },
+      select: { vehicleNo: true },
+    });
+
+    if (vehicle) {
+      if (!where.AND) where.AND = [];
+      where.AND.push({
+        OR: [
+          { vehicleId: vehicleId },
+          { items: { array_contains: [{ vehicleNo: vehicle.vehicleNo }] } },
+        ],
+      });
+    } else {
+      where.vehicleId = vehicleId;
+    }
   }
 
   const expenses = await prisma.expenseSheet.findMany({

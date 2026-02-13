@@ -18,7 +18,7 @@ export const expenseTypes = [
   { value: "FUEL_FOR_BIKE", label: "Fuel For Bike" },
   { value: "GAS_BILL", label: "Gas Bill" },
   { value: "INTERNET_BILL", label: "Internet Bill" },
-  { value: "LEGAL_CHARGES", label: "Legal Charges" },
+  { value: "LEGAL_CHARGES", label: "Legal and Government Charges" },
   { value: "LOADERS_ACCOUMODATION_EXP", label: "Loaders Accoumodation Exp." },
   { value: "LOADING_CHARGES", label: "Loading Charges" },
   { value: "MEETING_EXP", label: "Meeting Exp." },

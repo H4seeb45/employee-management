@@ -578,7 +578,6 @@ export function EditProjectForm({
   onSubmit,
   onCancel,
 }: EditProjectFormProps) {
-  console.log("EditProjectForm project:", project);
   const { employees } = useLayout();
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [deadlineDateOpen, setDeadlineDateOpen] = useState(false);

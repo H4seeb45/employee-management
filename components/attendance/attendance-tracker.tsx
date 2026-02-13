@@ -217,7 +217,6 @@ export function AttendanceTracker() {
       })
     );
 
-    console.log("employeId", employeeById);
 
     const newRecords = selectedEmployees.map((empId: string, index: number) => {
       // Resolve employee from the proper list (NOT from moksData)

@@ -42,12 +42,13 @@ type ExpenseVoucherPrintProps = {
     category?: string;
     items?: any;
   } | null;
+  routes?: { id: string; routeNo: string; name: string }[];
 };
 
 export const ExpenseVoucherPrint = React.forwardRef<
   HTMLDivElement,
   ExpenseVoucherPrintProps
->(({ expense }, ref) => {
+>(({ expense, routes }, ref) => {
   // Return null if no expense is provided
   if (!expense) {
     return <div ref={ref} />;
@@ -205,7 +206,7 @@ export const ExpenseVoucherPrint = React.forwardRef<
         </div>
 
         {/* Payment / Disbursement Details Section */}
-        {(expense.disburseType || "Cash") === "Cash" ? (
+        {(expense.disburseType || "Cash") === "Cash" && expense.expenseType !== "TOLLS_TAXES" && (
           /* Standard Table for Cash Payments */
           <div className="mb-4">
             <table className="w-full border-2 border-black text-sm">
@@ -243,7 +244,9 @@ export const ExpenseVoucherPrint = React.forwardRef<
               </tbody>
             </table>
           </div>
-        ) : (
+        )}
+        
+        {expense.disburseType !== "Cash" && (
           /* Disbursement Details Box for Cheque/Online Transfer */
           <div className="mb-4 p-3 border-2 border-black bg-gray-50 text-sm">
             <h3 className="font-bold border-b border-black mb-3 pb-1 uppercase tracking-wider">Disbursement Details</h3>
@@ -302,6 +305,7 @@ export const ExpenseVoucherPrint = React.forwardRef<
                     <>
                       <th className="border border-black p-1 text-left">Vehicle No.</th>
                       <th className="border border-black p-1 text-left">Route No.</th>
+                      {requiresRouteAndVehicle(expense.expenseType) &&<th className="border border-black p-1 text-left">Detail</th>}
                     </>
                   ) : (
                     <th className="border border-black p-1 text-left">Item / Detail</th>
@@ -312,21 +316,22 @@ export const ExpenseVoucherPrint = React.forwardRef<
               <tbody>
                 {expense.items.map((item: any, idx: number) => {
                   let vehicle = item.vehicleNo;
-                  let route = item.routeNo;
+                  let routeNo = item.routeNo;
                   // Handle legacy or combined format
                   if (!vehicle && item.name && item.name.includes("|")) {
                     const parts = item.name.split("|").map((s: string) => s.trim());
                     vehicle = parts[0];
-                    route = parts[1];
+                    routeNo = parts[1];
                   }
-                  
+                  const routeName = routes?.find((route: any) => route.routeNo === routeNo)?.name;
                   return (
                     <tr key={idx}>
                       <td className="border border-black p-1 text-center">{idx + 1}</td>
                       {(requiresRouteAndVehicle(expense.expenseType) || expense.expenseType === "TOLLS_TAXES") ? (
                         <>
                           <td className="border border-black p-1">{vehicle || "N/A"}</td>
-                          <td className="border border-black p-1">{route || "N/A"}</td>
+                          <td className="border border-black p-1">{routeNo + " - " + routeName || "N/A"}</td>
+                          {requiresRouteAndVehicle(expense.expenseType) && <td className="border border-black p-1">{item.details || "N/A"}</td>}
                         </>
                       ) : (
                         <td className="border border-black p-1">{item.details || item.name || "N/A"}</td>

@@ -80,6 +80,7 @@ type ExpenseDetailed = {
   route?: { routeNo: string; name: string };
   vehicle?: { vehicleNo: string };
   createdBy?: { email: string };
+  items?: any[];
 };
 
 type RouteVehicleReport = {
@@ -237,6 +238,30 @@ export function ReportsModule({ roles }: { roles: string[] }) {
     if (activeTab === "routes-vehicles") fetchRouteVehicleReport();
   }, [activeTab]);
 
+  const getRouteDisplay = (e: ExpenseDetailed) => {
+    if (e.items && Array.isArray(e.items) && e.items.length > 0) {
+      const distinctRoutes = Array.from(new Set(e.items.map((i: any) => i.routeNo).filter(Boolean))) as string[];
+      if (distinctRoutes.length === 0) return "-";
+      return distinctRoutes.map(rNo => {
+        const r = routes.find(rt => rt.routeNo === rNo);
+        return r ? r.name : rNo;
+      }).join(", ");
+    }
+    if (e.route) return e.route.name;
+    
+    return "-";
+  };
+
+  const getVehicleDisplay = (e: ExpenseDetailed) => {
+    if (e.items && Array.isArray(e.items) && e.items.length > 0) {
+      const distinctVehicles = Array.from(new Set(e.items.map((i: any) => i.vehicleNo).filter(Boolean))) as string[];
+      if (distinctVehicles.length === 0) return "-";
+      return distinctVehicles.join(", ");
+    }
+    if (e.vehicle) return e.vehicle.vehicleNo;
+    return "-";
+  };
+
   // --- Export Logic ---
 
   const exportToExcel = (data: any[], fileName: string) => {
@@ -270,8 +295,8 @@ export function ReportsModule({ roles }: { roles: string[] }) {
       Amount: e.amount,
       Status: e.status,
       Location: e.location?.name,
-      Route: e.route?.routeNo,
-      Vehicle: e.vehicle?.vehicleNo,
+      Route: getRouteDisplay(e),
+      Vehicle: getVehicleDisplay(e),
       User: e.createdBy?.email
     }));
     exportToExcel(data, "Expense_Report");
@@ -355,8 +380,9 @@ export function ReportsModule({ roles }: { roles: string[] }) {
                 </div>
               )}
 
-              {!loading && budgetData.map((budget) => (
-                <Card key={budget.id} className="overflow-hidden border-slate-200 dark:border-slate-800">
+              {!loading && budgetData.map((budget) => {
+                const budgetUsagePercent = budget.totalBudget > 0 ? (budget.totalSpent / budget.totalBudget) * 100 : 0;
+               return <Card key={budget.id} className="overflow-hidden border-slate-200 dark:border-slate-800">
                   <CardHeader className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                       <div>
@@ -380,6 +406,15 @@ export function ReportsModule({ roles }: { roles: string[] }) {
                         </div>
                       </div>
                     </div>
+                     <div className="grid grid-cols-[95%_5%] gap-2 mt-2">
+                        <div className="w-full h-4 bg-slate-100 dark:bg-slate-600 rounded-full overflow-hidden">
+                            <div                                
+                                className={`h-full ${budgetUsagePercent > 90 ? 'bg-rose-500' : budgetUsagePercent > 70 ? 'bg-amber-500' : 'bg-blue-500'}`} 
+                                style={{ width: `${Math.min(100, budgetUsagePercent)}%` }}
+                            />
+                        </div>
+                        <span className="text-[11px] font-bold w-10">{budgetUsagePercent.toFixed(0)}%</span>
+                      </div>
                   </CardHeader>
                   <CardContent className="p-0">
                     <Table>
@@ -411,7 +446,7 @@ export function ReportsModule({ roles }: { roles: string[] }) {
                               </TableCell>
                               <TableCell className="text-right">
                                 <div className="flex items-center justify-end gap-2">
-                                  <div className="w-24 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                  <div className="w-24 h-2 bg-slate-100 dark:bg-slate-600 rounded-full overflow-hidden">
                                     <div 
                                       className={`h-full ${usagePercent > 90 ? 'bg-rose-500' : usagePercent > 70 ? 'bg-amber-500' : 'bg-blue-500'}`} 
                                       style={{ width: `${Math.min(100, usagePercent)}%` }}
@@ -427,7 +462,7 @@ export function ReportsModule({ roles }: { roles: string[] }) {
                     </Table>
                   </CardContent>
                 </Card>
-              ))}
+})}
             </div>
 
             <div className="hidden print:block mt-12 pt-4 border-t border-slate-200 text-center">
@@ -591,7 +626,8 @@ export function ReportsModule({ roles }: { roles: string[] }) {
                          <TableHead>Type</TableHead>
                          <TableHead>Details</TableHead>
                          <TableHead>Location</TableHead>
-                         <TableHead>Route/Vehicle</TableHead>
+                         <TableHead>Route</TableHead>
+                         <TableHead>Vehicle</TableHead>
                          <TableHead className="text-right">Amount</TableHead>
                          <TableHead>Status</TableHead>
                        </TableRow>
@@ -599,7 +635,7 @@ export function ReportsModule({ roles }: { roles: string[] }) {
                      <TableBody>
                         {loading && (
                           <TableRow>
-                            <TableCell colSpan={7} className="h-32 text-center text-slate-500">
+                            <TableCell colSpan={8} className="h-32 text-center text-slate-500">
                               <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
                               Loading report data...
                             </TableCell>
@@ -607,7 +643,7 @@ export function ReportsModule({ roles }: { roles: string[] }) {
                         )}
                         {!loading && expenseData.length === 0 && (
                           <TableRow>
-                            <TableCell colSpan={7} className="h-32 text-center text-slate-500">
+                            <TableCell colSpan={8} className="h-32 text-center text-slate-500">
                               No expenses found for the selected filters.
                             </TableCell>
                           </TableRow>
@@ -627,7 +663,10 @@ export function ReportsModule({ roles }: { roles: string[] }) {
                               {e.location?.name}
                             </TableCell>
                             <TableCell className="text-xs">
-                              {e.route?.routeNo || "-"} / {e.vehicle?.vehicleNo || "-"}
+                              {getRouteDisplay(e)}
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              {getVehicleDisplay(e)}
                             </TableCell>
                             <TableCell className="text-right font-bold text-xs">
                               {new Intl.NumberFormat("en-PK").format(e.amount)}
@@ -648,7 +687,7 @@ export function ReportsModule({ roles }: { roles: string[] }) {
                      {expenseData.length > 0 && (
                        <tfoot className="bg-slate-50 dark:bg-slate-900 border-t-2 border-slate-200 dark:border-slate-800">
                          <TableRow>
-                            <TableCell colSpan={5} className="font-bold text-right py-4">REPORT TOTAL</TableCell>
+                            <TableCell colSpan={6} className="font-bold text-right py-4">REPORT TOTAL</TableCell>
                             <TableCell className="text-right font-bold text-lg text-blue-600">
                               {new Intl.NumberFormat("en-PK", { style: "currency", currency: "PKR" }).format(
                                 expenseData.reduce((sum, e) => sum + e.amount, 0)

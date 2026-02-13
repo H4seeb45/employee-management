@@ -44,7 +44,6 @@ export function BulkAttendanceForm({
 
   const employeeData = employees.length > 0 ? employees : mockEmployees;
 
-  console.log("employeData", employeeData);
 
   const [formData, setFormData] = useState({
     selectedEmployees: [] as string[],

@@ -676,6 +676,30 @@ export function ExpenseModule({
     return categoryBudget - spentThisMonth;
   })();
 
+  const getRouteDisplay = (e: ExpenseSheet) => {
+    if (e.items && Array.isArray(e.items) && e.items.length > 0) {
+      const distinctRoutes = Array.from(new Set(e.items.map((i: any) => i.routeNo).filter(Boolean))) as string[];
+      if (distinctRoutes.length === 0) return "-";
+      return distinctRoutes.map(rNo => {
+        const r = routes.find(rt => rt.routeNo === rNo);
+        return r ? r.name : rNo;
+      }).join(", ");
+    }
+    if (e.route) return e.route.name;
+    
+    return "-";
+  };
+
+  const getVehicleDisplay = (e: ExpenseSheet) => {
+    if (e.items && Array.isArray(e.items) && e.items.length > 0) {
+      const distinctVehicles = Array.from(new Set(e.items.map((i: any) => i.vehicleNo).filter(Boolean))) as string[];
+      if (distinctVehicles.length === 0) return "-";
+      return distinctVehicles.join(", ");
+    }
+    if (e.vehicle) return e.vehicle.vehicleNo;
+    return "-";
+  };
+
   return (
     <div className="space-y-6 h-full">
       {/* Page Header */}
@@ -1052,14 +1076,15 @@ export function ExpenseModule({
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          setTempFilterStatus("all");
-                          setTempFilterType("all");
-                          setTempFilterRoute("all");
-                          setTempFilterVehicle("all");
-                          setTempFilterFromDate("");
-                          setTempFilterToDate("");
-                          setTempFilterMinAmount("");
-                          setTempFilterMaxAmount("");
+                          setSearchQuery(""); setTempSearchQuery("");
+                          setFilterStatus("all"); setTempFilterStatus("all");
+                          setFilterType("all"); setTempFilterType("all");
+                          setFilterFromDate(""); setTempFilterFromDate("");
+                          setFilterToDate(""); setTempFilterToDate("");
+                          setFilterRoute("all"); setTempFilterRoute("all");
+                          setFilterVehicle("all"); setTempFilterVehicle("all");
+                          setFilterMinAmount(""); setTempFilterMinAmount("");
+                          setFilterMaxAmount(""); setTempFilterMaxAmount("");
                         }}
                         className="border-slate-300 dark:border-slate-600"
                       >
@@ -1108,6 +1133,15 @@ export function ExpenseModule({
                             Type
                           </TableHead>
                           <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
+                            Details
+                          </TableHead>
+                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
+                            Route
+                          </TableHead>
+                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
+                            Vehicle
+                          </TableHead>
+                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
                             Amount
                           </TableHead>
                           <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
@@ -1137,12 +1171,18 @@ export function ExpenseModule({
                                   {expenseTypes.find((t) => t.value === expense.expenseType)
                                     ?.label || expense.expenseType}
                                 </span>
-                                {expense.details && (
-                                  <span className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-xs">
-                                    {expense.details}
-                                  </span>
-                                )}
                               </div>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-slate-5=900 dark:text-white0 truncate max-w-xs">
+                                {expense?.details}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              {getRouteDisplay(expense)}
+                            </TableCell>
+                            <TableCell>
+                              {getVehicleDisplay(expense)}
                             </TableCell>
                             <TableCell>
                               <span className="font-semibold text-slate-900 dark:text-white">
@@ -1575,7 +1615,7 @@ export function ExpenseModule({
                                   </div>
                                   <div className="flex gap-2 items-end">
                                     <div className="flex-1 space-y-1">
-                                      <Label className="text-[10px] uppercase tracking-wider text-slate-500">Amount</Label>
+                                      <Label className="text-[10px] uppercase tracking-wider text-slate-500">Amount <span className="text-rose-500">*</span></Label>
                                       <Input 
                                         type="number"
                                         value={item.amount}
@@ -1823,7 +1863,7 @@ export function ExpenseModule({
                       value={details}
                       onChange={(e) => setDetails(e.target.value)}
                       required={entryMode === "single" && category === "Expense" && expenseType !== "TOLLS_TAXES"}
-                      placeholder={entryMode === "bulk" ? "Add any additional internal notes (optional)..." : "Add description, purpose, or any other notes... *"}
+                      placeholder={entryMode === "bulk" ? "Add any additional internal notes (optional)..." : "Add description, purpose, or any other notes..."}
                       className="min-h-[100px] bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
                     />
                   </div>
@@ -2083,7 +2123,7 @@ export function ExpenseModule({
                   <Label className="text-xs text-blue-700 dark:text-blue-400 mb-2 font-bold uppercase tracking-wider">{selectedExpense.expenseType === "TOLLS_TAXES" ? "Tolls & Taxes" : "Items"} Breakdown</Label>
                   <div className="space-y-2 mt-2">
                     <div className="grid grid-cols-3 gap-2 text-[10px] font-bold text-slate-500 border-b pb-1">
-                      {requiresRouteAndVehicle(selectedExpense.expenseType) ?<> <span>Vehicle</span>
+                      {requiresRouteAndVehicle(selectedExpense.expenseType) || selectedExpense.expenseType === "TOLLS_TAXES" ?<> <span>Vehicle</span>
                       <span>Route</span></>:<span>Details</span>}
                       <span className="text-right">Amount</span>
                     </div>
@@ -2096,7 +2136,7 @@ export function ExpenseModule({
                       return (
                         // border-b
                         <div key={idx} className="grid grid-cols-3 gap-2 text-sm border-blue-100 dark:border-blue-900/40 last:border-0 pb-1.5 pt-1">
-                          {requiresRouteAndVehicle(selectedExpense.expenseType) ? <>
+                          {requiresRouteAndVehicle(selectedExpense.expenseType) || selectedExpense.expenseType === "TOLLS_TAXES" ? <>
                           <span className="text-slate-700 dark:text-slate-300 font-medium truncate">{vehicle || "N/A"}</span>
                           <span className="text-slate-600 dark:text-slate-400 truncate">{route || "N/A"}</span></>:<span className="text-slate-700 dark:text-slate-300 font-medium truncate">{item.details || "N/A"}</span>}
                           <span className="font-bold text-slate-900 dark:text-slate-100 text-right">Rs. {Number(item.amount).toLocaleString()}</span>
@@ -2505,7 +2545,7 @@ export function ExpenseModule({
 
       {/* Hidden Print Component */}
       <div style={{ display: "none" }}>
-        <ExpenseVoucherPrint ref={printRef} expense={expenseToPrint} />
+        <ExpenseVoucherPrint ref={printRef} expense={expenseToPrint} routes={routes}  />
       </div>
     </div>
   );

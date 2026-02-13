@@ -106,14 +106,44 @@ export async function GET(request: NextRequest) {
 
   // Search by route
   const routeId = searchParams.get("routeId");
-  if (routeId) {
-    where.routeId = routeId;
+  if (routeId && routeId !== "all") {
+    const route = await prisma.route.findUnique({
+      where: { id: routeId },
+      select: { routeNo: true },
+    });
+
+    if (route) {
+      if (!where.AND) where.AND = [];
+      where.AND.push({
+        OR: [
+          { routeId: routeId },
+          { items: { array_contains: [{ routeNo: route.routeNo }] } },
+        ],
+      });
+    } else {
+      where.routeId = routeId;
+    }
   }
 
   // Search by vehicle
   const vehicleId = searchParams.get("vehicleId");
-  if (vehicleId) {
-    where.vehicleId = vehicleId;
+  if (vehicleId && vehicleId !== "all") {
+    const vehicle = await prisma.vehicle.findUnique({
+      where: { id: vehicleId },
+      select: { vehicleNo: true },
+    });
+
+    if (vehicle) {
+      if (!where.AND) where.AND = [];
+      where.AND.push({
+        OR: [
+          { vehicleId: vehicleId },
+          { items: { array_contains: [{ vehicleNo: vehicle.vehicleNo }] } },
+        ],
+      });
+    } else {
+      where.vehicleId = vehicleId;
+    }
   }
 
   const totalCount = await prisma.expenseSheet.count({ where });
