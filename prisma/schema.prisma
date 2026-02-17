@@ -144,6 +144,8 @@ enum ExpenseType {
   GARBAGE_COLLECTION
   FIXED_ASSET
   INCENTIVE_PAYMENT
+  RAMZAN_IFTAR
+  WATER_BILL
 }
 
 model ExpenseSheet {

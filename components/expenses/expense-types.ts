@@ -47,4 +47,6 @@ export const expenseTypes = [
   { value: "GARBAGE_COLLECTION", label: "Garbage Collection" },
   { value: "FIXED_ASSET", label: "Fixed Asset" },
   { value: "INCENTIVE_PAYMENT", label: "Incentive Payment" },
+  { value: "RAMZAN_IFTAR", label: "Ramzan Iftar" },
+  { value: "WATER_BILL", label: "Water Bill" },
 ];
