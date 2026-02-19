@@ -54,6 +54,11 @@ export async function GET(request: NextRequest) {
     where.disburseType = "Cash";
   }
 
+  // Accountants can only see Cheque / Online Transfer disburse type expenses
+  if (isAccountant && !isAdminUser(user)) {
+    where.disburseType = "Cheque / Online Transfer";
+  }
+
   // Search by ID
   const searchId = searchParams.get("searchId");
   if (searchId) {
@@ -224,8 +229,18 @@ export async function POST(request: NextRequest) {
   }
 
   // Budget Check
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+  const currentYear = now.getFullYear();
+
   const budget = await prisma.budget.findUnique({
-    where: { locationId: user.locationId },
+    where: { 
+      locationId_month_year: {
+        locationId: user.locationId,
+        month: currentMonth,
+        year: currentYear
+      }
+    },
   });
 
   if (!budget || budget.status !== "APPROVED") {

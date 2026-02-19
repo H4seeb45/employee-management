@@ -36,6 +36,9 @@ export async function GET(request: NextRequest) {
     where.disburseType = "Cash";
   }
 
+  if (isAccountant && !isAdminUser(user)) {
+    where.disburseType = "Cheque / Online Transfer";
+  }
   // Search by ID
   const searchId = searchParams.get("searchId");
   if (searchId) {
@@ -141,8 +144,12 @@ export async function GET(request: NextRequest) {
       },
       _sum: { amount: true },
     }),
-    prisma.budget.findUnique({
-      where: { locationId: isSuperAdmin && locationId ? locationId : user.locationId },
+    prisma.budget.findFirst({
+      where: { 
+        locationId: isSuperAdmin && locationId ? locationId : user.locationId,
+        month: now.getMonth() + 1,
+        year: now.getFullYear()
+      },
     })
   ]);
 

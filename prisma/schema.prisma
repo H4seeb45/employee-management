@@ -83,7 +83,7 @@ model Location {
   expenseSheets         ExpenseSheet[]
   routes                Route[]        @relation("RouteLocation")
   vehicles              Vehicle[]      @relation("VehicleLocation")
-  budget                Budget?
+  budgets               Budget[]
 
   @@unique([name, city])
 }
@@ -347,7 +347,9 @@ model Budget {
   amount        Float
   categories    Json?
   status        BudgetStatus @default(PENDING)
-  locationId    String       @unique
+  month         Int          @default(2)
+  year          Int          @default(2026)
+  locationId    String
   location      Location     @relation(fields: [locationId], references: [id])
   createdById   String
   createdBy     User         @relation("BudgetCreatedBy", fields: [createdById], references: [id])
@@ -355,4 +357,6 @@ model Budget {
   approvedBy    User?        @relation("BudgetApprovedBy", fields: [approvedById], references: [id])
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
+
+  @@unique([locationId, month, year])
 }

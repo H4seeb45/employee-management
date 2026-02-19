@@ -17,12 +17,14 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url);
-  // Super Admin can see budgets for any location, Admin/BM see their own location's budget
   const locationId = isSuperAdmin ? searchParams.get("locationId") : user.locationId;
+  const month = searchParams.get("month") ? parseInt(searchParams.get("month")!) : undefined;
+  const year = searchParams.get("year") ? parseInt(searchParams.get("year")!) : undefined;
 
   const where: any = locationId ? { locationId } : {};
+  if (month) where.month = month;
+  if (year) where.year = year;
 
-  // If Super Admin doesn't provide locationId, show all budgets
   const budgets = await prisma.budget.findMany({
     where,
     include: {
@@ -40,7 +42,11 @@ export async function GET(request: NextRequest) {
         },
       },
     },
-    orderBy: { updatedAt: "desc" },
+    orderBy: [
+      { year: "desc" },
+      { month: "desc" },
+      { updatedAt: "desc" }
+    ],
   });
 
   return NextResponse.json({ budgets });
@@ -52,13 +58,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: "Unauthorized." }, { status: 401 });
   }
 
+  const isAdmin = isAdminUser(user);
   const isBM = hasRole(user, "Business Manager");
-  if (!isBM) {
-    return NextResponse.json({ message: "Only Business Managers can set budget." }, { status: 403 });
+  if (!isBM && !isAdmin) {
+    return NextResponse.json({ message: "Only Business Managers or Admins can set budget." }, { status: 403 });
   }
 
   const body = await request.json().catch(() => null);
   const rawCategories = body?.categories || {};
+  const month = body?.month ? parseInt(body.month) : new Date().getMonth() + 1;
+  const year = body?.year ? parseInt(body.year) : new Date().getFullYear();
   
   // Clean and convert categories to numbers, filtering out zero/invalid values
   const categories: Record<string, number> = {};
@@ -76,13 +85,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: "A valid positive budget is required across categories." }, { status: 400 });
   }
 
-  // Check if budget already exists for this location
-  const existingBudget = await prisma.budget.findUnique({
-    where: { locationId: user.locationId },
+  // Check if budget already exists for this location and month
+  const existingBudget = await prisma.budget.findFirst({
+    where: { 
+      locationId: user.locationId,
+      month,
+      year
+    },
   });
 
   if (existingBudget) {
-    if (existingBudget.status === "APPROVED") {
+    if (existingBudget.status === "APPROVED" && !isAdmin) {
       return NextResponse.json({ message: "Approved budget cannot be modified." }, { status: 400 });
     }
 
@@ -91,8 +104,9 @@ export async function POST(request: NextRequest) {
       data: {
         amount,
         categories,
-        status: "PENDING",
+        status: isAdmin ? "APPROVED" : "PENDING",
         createdById: user.id,
+        ...(isAdmin ? { approvedById: user.id } : {}),
       },
     });
     return NextResponse.json({ budget: updated });
@@ -102,10 +116,15 @@ export async function POST(request: NextRequest) {
     data: {
       amount,
       categories,
+      month,
+      year,
       locationId: user.locationId,
       createdById: user.id,
+      status: isAdmin ? "APPROVED" : "PENDING",
+      ...(isAdmin ? { approvedById: user.id } : {}),
     },
   });
 
   return NextResponse.json({ budget });
 }
+

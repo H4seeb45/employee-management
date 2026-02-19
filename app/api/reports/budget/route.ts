@@ -20,11 +20,18 @@ export async function GET(request: NextRequest) {
 
   // For budget report, we want the current month's budget and expenses
   const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const selectedMonth = searchParams.get("month") ? parseInt(searchParams.get("month")!) : now.getMonth() + 1;
+  const selectedYear = searchParams.get("year") ? parseInt(searchParams.get("year")!) : now.getFullYear();
+  
+  const startOfMonth = new Date(selectedYear, selectedMonth - 1, 1);
+  const endOfMonth = new Date(selectedYear, selectedMonth, 1);
 
   const budgets = await prisma.budget.findMany({
-    where,
+    where: {
+      ...where,
+      month: selectedMonth,
+      year: selectedYear,
+    },
     include: { location: true },
   });
 

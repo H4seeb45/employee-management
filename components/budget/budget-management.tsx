@@ -18,12 +18,21 @@ import {
 import { motion } from "framer-motion";
 import { expenseTypes } from "@/components/expenses/expense-types";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type Budget = {
   id: string;
   amount: number;
   categories: Record<string, number>;
   status: "PENDING" | "APPROVED" | "REJECTED";
+  month: number;
+  year: number;
   locationId: string;
   location: { name: string; city: string };
   createdBy: { email: string };
@@ -32,6 +41,11 @@ type Budget = {
   updatedAt: string;
 };
 
+const months = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+
 export function BudgetManagement({ roles }: { roles: string[] }) {
   const [loading, setLoading] = useState(true);
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -39,6 +53,17 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const now = new Date();
+  const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const defaultMonth = nextMonthDate.getMonth() + 1;
+  const defaultYear = nextMonthDate.getFullYear();
+
+  const [selectedMonth, setSelectedMonth] = useState(defaultMonth);
+  const [selectedYear, setSelectedYear] = useState(defaultYear);
+
+  const currentMonth = now.getMonth() + 1;
+  const currentYear = now.getFullYear();
+  const hasCurrentMonthBudget = budgets.some(b => b.month === currentMonth && b.year === currentYear);
 
   const isAdmin = roles.includes("Admin") || roles.includes("Super Admin");
   const isBM = roles.includes("Business Manager");
@@ -72,13 +97,20 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
       const res = await fetch("/api/budgets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ categories: categoryBudgets }),
+        body: JSON.stringify({ 
+          categories: categoryBudgets,
+          month: selectedMonth,
+          year: selectedYear
+        }),
       });
 
       const data = await res.json();
       if (res.ok) {
         setSuccess("Budget submitted for approval!");
         setCategoryBudgets({});
+        // Reset to next month after saving
+        setSelectedMonth(defaultMonth);
+        setSelectedYear(defaultYear);
         fetchBudgets();
       } else {
         setError(data.message || "Failed to set budget");
@@ -155,14 +187,52 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
         </motion.div>
       )}
 
-      {isBM && (
-        <Card className="border-blue-100 dark:border-blue-900/30 overflow-hidden">
+
+      {(isBM || isAdmin) && (
+        <Card className="border-blue-100 dark:border-blue-900/30 overflow-hidden" id="budget-form">
           <CardHeader className="bg-blue-50/50 dark:bg-blue-900/10">
             <CardTitle className="text-lg">Set Petty Cash Budget</CardTitle>
-            <CardDescription>Enter the requested amount for this month's petty cash.</CardDescription>
+            <CardDescription>Enter the requested amount for the selected month's petty cash.</CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
             <form onSubmit={handleSetBudget} className="space-y-6">
+              <div className="flex gap-4 p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/30">
+                <div className="flex-1 space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Select Month</Label>
+                  <Select
+                    value={selectedMonth.toString()}
+                    onValueChange={(value) => {
+                      const m = parseInt(value);
+                      setSelectedMonth(m);
+                      if (m === defaultMonth) {
+                        setSelectedYear(defaultYear);
+                      } else if (m === currentMonth) {
+                        setSelectedYear(currentYear);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full h-9 bg-background">
+                      <SelectValue placeholder="Select Month" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {!hasCurrentMonthBudget && (
+                        <SelectItem value={currentMonth.toString()}>
+                          {months[currentMonth - 1]} {currentYear} (Current Month)
+                        </SelectItem>
+                      )}
+                      <SelectItem value={defaultMonth.toString()}>
+                        {months[defaultMonth - 1]} {defaultYear} (Next Month)
+                      </SelectItem>
+                      {selectedMonth !== defaultMonth && selectedMonth !== currentMonth && (
+                        <SelectItem value={selectedMonth.toString()}>
+                          {months[selectedMonth - 1]} {selectedYear}
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {expenseTypes.map((type) => (
                   <div key={type.value} className="space-y-2">
@@ -174,8 +244,8 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
                       <Input
                         id={type.value}
                         type="number"
-                        step="0.01"
-                        placeholder="0.00"
+                        step="1"
+                        placeholder="0"
                         className="pl-9 h-9"
                         value={categoryBudgets[type.value] || ""}
                         onChange={(e) => setCategoryBudgets({
@@ -199,25 +269,29 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
                 </div>
                 <Button 
                   type="submit" 
-                  disabled={saving || budgets.some(b => b.status === "APPROVED")}
+                  disabled={saving || (budgets.some(b => b.status === "APPROVED" && b.month === selectedMonth && b.year === selectedYear) && !isAdmin)}
                   className="bg-blue-600 hover:bg-blue-700 h-11 px-10 font-semibold shadow-lg shadow-blue-500/20"
                 >
-                  {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : "Submit Budget for Approval"}
+                  {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : (budgets.some(b => b.status === "APPROVED" && b.month === selectedMonth && b.year === selectedYear) ? "Update Approved Budget" : isAdmin ? "Approve Budget" : "Submit Budget for Approval")}
                 </Button>
               </div>
             </form>
-            {budgets.some(b => b.status === "APPROVED") && (
+            {budgets.some(b => b.status === "APPROVED" && b.month === selectedMonth && b.year === selectedYear) && !isAdmin && (
               <p className="text-xs text-amber-600 dark:text-amber-400 mt-4 flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" />
-                An approved budget already exists. You cannot set a new one.
+                An approved budget already exists for {months[selectedMonth-1]} {selectedYear}. You cannot set a new one.
+              </p>
+            )}
+            {budgets.some(b => b.status === "APPROVED" && b.month === selectedMonth && b.year === selectedYear) && isAdmin && (
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-4 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                You are editing an approved budget for {months[selectedMonth-1]} {selectedYear}. Changes will be applied immediately.
               </p>
             )}
           </CardContent>
         </Card>
       )}
-
-      <div className="grid gap-4">
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Active Budgets</h2>
+       <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Active Budgets</h2>
         {budgets.length === 0 ? (
           <div className="text-center py-12 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 text-slate-500">
             No budgets found for your location.
@@ -248,9 +322,14 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
                           {budget.status}
                         </Badge>
                       </div>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        {budget.location.name} ({budget.location.city})
-                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline" className="text-[10px] py-2 h-6 border-blue-200 text-blue-700">
+                          {months[budget.month - 1]} {budget.year}
+                        </Badge>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                          {budget.location.name} ({budget.location.city})
+                        </p>
+                      </div>
                     </div>
                   </div>
 
@@ -260,35 +339,58 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
                         <Clock className="h-3 w-3" />
                         Uploaded: {new Date(budget.createdAt).toLocaleDateString()}
                       </p>
-                      <p className="text-xs text-slate-500 mt-0.5 font-medium">By: {budget.createdBy.email.split('@')[0]}</p>
+                      <p className="text-xs text-slate-500 mt-0.5 font-medium">By: {budget.createdBy.email.split('@')[0].charAt(0).toUpperCase() + budget.createdBy.email.split('@')[0].slice(1)}</p>
                       {budget.approvedBy && (
-                        <p className="text-xs text-emerald-500 font-medium">Approved by: {budget.approvedBy.email.split('@')[0]}</p>
+                        <p className="text-xs text-emerald-500 font-medium">Approved by: {budget.approvedBy.email.split('@')[0].charAt(0).toUpperCase() + budget.approvedBy.email.split('@')[0].slice(1)}</p>
                       )}
                     </div>
 
-                    {isAdmin && budget.status === "PENDING" && (
-                      <div className="flex gap-2">
+                    <div className="flex gap-2">
+                      {isAdmin && (
                         <Button 
                           size="sm" 
-                          variant="ghost" 
-                          className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 h-8 px-3"
-                          onClick={() => handleAction(budget.id, "reject")}
+                          variant="outline" 
+                          className="text-blue-600 hover:text-blue-700 h-8 px-3"
+                          onClick={() => {
+                            const cats: Record<string, string> = {};
+                            Object.entries(budget.categories || {}).forEach(([k, v]) => {
+                              cats[k] = String(v);
+                            });
+                            setCategoryBudgets(cats);
+                            setSelectedMonth(budget.month);
+                            setSelectedYear(budget.year);
+                            document.getElementById('budget-form')?.scrollIntoView({ behavior: 'smooth' });
+                          }}
                           disabled={saving}
                         >
-                          <XCircle className="h-4 w-4 mr-2" />
-                          Reject
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Edit
                         </Button>
-                        <Button 
-                          size="sm" 
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 px-3"
-                          onClick={() => handleAction(budget.id, "approve")}
-                          disabled={saving}
-                        >
-                          <CheckCircle2 className="h-4 w-4 mr-2" />
-                          Approve
-                        </Button>
-                      </div>
-                    )}
+                      )}
+                      {isAdmin && budget.status === "PENDING" && (
+                        <>
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 h-8 px-3"
+                            onClick={() => handleAction(budget.id, "reject")}
+                            disabled={saving}
+                          >
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Reject
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 px-3"
+                            onClick={() => handleAction(budget.id, "approve")}
+                            disabled={saving}
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                            Approve
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -327,7 +429,6 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
             </Card>
           ))
         )}
-      </div>
     </div>
   );
 }
