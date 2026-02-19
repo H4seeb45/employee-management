@@ -74,8 +74,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Budget check upon approval
+    const now = new Date();
     const budget = await prisma.budget.findUnique({
-      where: { locationId: expense.locationId },
+      where: {
+        locationId_month_year: {
+          locationId: expense.locationId,
+          month: now.getMonth() + 1,
+          year: now.getFullYear(),
+        },
+      },
     });
 
     if (!budget || budget.status !== "APPROVED") {
