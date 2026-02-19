@@ -1913,11 +1913,22 @@ export function ExpenseModule({
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                onClick={() =>
-                                  setAttachments((prev) =>
-                                    prev.filter((_, i) => i !== idx)
-                                  )
-                                }
+                                onClick={async () => {
+                                  try {
+                                    // Remove from UI first
+                                    const removedFile = file;
+                                    setAttachments((prev) => prev.filter((_, i) => i !== idx));
+
+                                    // Delete from server
+                                    await fetch("/api/uploadthing/delete", {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ url: removedFile.url }),
+                                    });
+                                  } catch (err) {
+                                    console.error("Failed to delete attachment:", err);
+                                  }
+                                }}
                               >
                                 <X className="h-4 w-4" />
                               </Button>

@@ -14,348 +14,149 @@ import {
   Briefcase,
   Building,
   User,
+  ExternalLink,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface ViewEmployeeDetailsProps {
   employee: any;
 }
 
 export function ViewEmployeeDetails({ employee }: ViewEmployeeDetailsProps) {
-  const locationLabel = employee.location
-    ? `${employee.location.city} - ${employee.location.name}`
-    : null;
   const getDepartmentColor = (department: string) => {
-    switch (department) {
-      case "Engineering":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400";
-      case "Marketing":
-        return "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400";
-      case "Human Resources":
-        return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400";
-      case "Finance":
-        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
-      case "Sales":
-        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
-      case "Operations":
-        return "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400";
-      default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400";
+    const dept = department?.toUpperCase();
+    switch (dept) {
+      case "FINANCE": return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
+      case "HR": return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400";
+      case "SALES": return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400";
+      default: return "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400";
     }
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Active":
-        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
-      case "On Leave":
-        return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400";
-      case "Remote":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400";
-      default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400";
-    }
+    if (status?.startsWith("Active")) return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
+    if (status?.startsWith("Inactive")) return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+    return "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400";
   };
+
+  const InfoRow = ({ label, value }: { label: string; value: any }) => (
+    <div className="flex flex-col space-y-1">
+      <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">{label}</span>
+      <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{value || "---"}</span>
+    </div>
+  );
+
+  const DocRow = ({ label, url }: { label: string; url: string }) => (
+    <div className="flex items-center justify-between p-3 border rounded-lg bg-slate-50 dark:bg-slate-900/50">
+      <div className="flex items-center gap-3">
+        <FileText className="h-5 w-5 text-blue-600" />
+        <span className="text-sm font-medium">{label}</span>
+      </div>
+      {url ? (
+        <a href={url} target="_blank" rel="noopener noreferrer" className="text-sky-600 hover:text-sky-700 font-medium text-sm flex items-center gap-1">
+          View <ExternalLink className="h-3 w-3" />
+        </a>
+      ) : (
+        <span className="text-xs text-slate-400 italic">Not available</span>
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row gap-6 items-start">
         <div className="flex-shrink-0">
-          <Avatar className="h-24 w-24">
+          <Avatar className="h-24 w-24 border-2 border-slate-100 dark:border-slate-800 shadow-sm">
             <AvatarImage
               src={employee.avatar || "/placeholder.svg"}
               alt={employee.employeeName}
             />
-            <AvatarFallback className="text-2xl">
-              {employee.employeeName.charAt(0)}
+            <AvatarFallback className="text-2xl font-bold bg-sky-100 text-sky-700">
+              {employee.employeeName?.charAt(0)}
             </AvatarFallback>
           </Avatar>
         </div>
 
         <div className="flex-grow">
-          <h2 className="text-2xl font-bold">{employee.employeeName}</h2>
-          <p className="text-muted-foreground">{employee.position}</p>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{employee.employeeName}</h2>
+          <p className="text-slate-500 font-medium">{employee.position} • {employee.employeeId}</p>
 
           <div className="flex flex-wrap gap-2 mt-2">
-            <Badge
-              variant="outline"
-              className={getDepartmentColor(employee.department)}
-            >
+            <Badge variant="outline" className={cn("px-3 py-1", getDepartmentColor(employee.department))}>
               {employee.department}
             </Badge>
-            <Badge
-              variant="outline"
-              className={getStatusColor(employee.status)}
-            >
+            <Badge variant="outline" className={cn("px-3 py-1", getStatusColor(employee.status))}>
               {employee.status}
             </Badge>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            <div className="flex items-center gap-2 text-sm">
-              <Mail className="h-4 w-4 text-muted-foreground" />
-              <span>{employee.email}</span>
-            </div>
-
-            {employee.phone && (
-              <div className="flex items-center gap-2 text-sm">
-                <Phone className="h-4 w-4 text-muted-foreground" />
-                <span>{employee.phone}</span>
-              </div>
-            )}
-
-            <div className="flex items-center gap-2 text-sm">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span>Joined: {employee.joinDate}</span>
-            </div>
-
-            {employee.employeeId && (
-              <div className="flex items-center gap-2 text-sm">
-                <User className="h-4 w-4 text-muted-foreground" />
-                <span>ID: {employee.employeeId}</span>
-              </div>
-            )}
           </div>
         </div>
       </div>
 
       <Tabs defaultValue="personal" className="w-full">
-        <TabsList className="grid grid-cols-3 w-full">
-          <TabsTrigger value="personal">Personal Info</TabsTrigger>
-          <TabsTrigger value="employment">Employment</TabsTrigger>
-          <TabsTrigger value="documents">Documents & Skills</TabsTrigger>
+        <TabsList className="grid grid-cols-3 w-full h-12">
+          <TabsTrigger value="personal" className="font-semibold">Personal Info</TabsTrigger>
+          <TabsTrigger value="employment" className="font-semibold">Employment Info</TabsTrigger>
+          <TabsTrigger value="documents" className="font-semibold">Documents Info</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="personal" className="space-y-4 mt-4">
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">
-                Personal Information
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {employee.birthDate && (
-                  <div className="flex items-start gap-2">
-                    <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-                    <div>
-                      <p className="font-medium">Date of Birth</p>
-                      <p className="text-sm text-muted-foreground">
-                        {employee.birthDate}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {employee.address && (
-                  <div className="flex items-start gap-2">
-                    <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
-                    <div>
-                      <p className="font-medium">Address</p>
-                      <p className="text-sm text-muted-foreground">
-                        {employee.address}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {employee.emergencyContact && (
-                  <div className="flex items-start gap-2">
-                    <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
-                    <div>
-                      <p className="font-medium">Emergency Contact</p>
-                      <p className="text-sm text-muted-foreground">
-                        {employee.emergencyContact}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {employee.bloodGroup && (
-                  <div className="flex items-start gap-2">
-                    <div className="h-5 w-5 flex items-center justify-center text-muted-foreground mt-0.5">
-                      <span className="text-xs font-bold">B+</span>
-                    </div>
-                    <div>
-                      <p className="font-medium">Blood Group</p>
-                      <p className="text-sm text-muted-foreground">
-                        {employee.bloodGroup}
-                      </p>
-                    </div>
-                  </div>
-                )}
+        <TabsContent value="personal" className="space-y-4 mt-6">
+          <Card className="border-slate-200 dark:border-slate-800">
+            <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <InfoRow label="CNIC Number" value={employee.cnicNumber} />
+              <InfoRow label="CNIC Issue Date" value={employee.cnicIssueDate ? new Date(employee.cnicIssueDate).toLocaleDateString() : null} />
+              <InfoRow label="CNIC Expiry Date" value={employee.cnicExpiryDate ? new Date(employee.cnicExpiryDate).toLocaleDateString() : null} />
+              <InfoRow label="Mobile Number" value={employee.phone} />
+              <InfoRow label="Father's Name" value={employee.fatherName} />
+              <InfoRow label="Emergency Contact" value={employee.emergencyContactName} />
+              <InfoRow label="Emergency Number" value={employee.emergencyContactNumber} />
+              <InfoRow label="Date of Birth" value={employee.birthDate ? new Date(employee.birthDate).toLocaleDateString() : null} />
+              <InfoRow label="Blood Group" value={employee.bloodGroup} />
+              <InfoRow label="Marital Status" value={employee.maritalStatus} />
+              <InfoRow label="Gender" value={employee.gender} />
+              <InfoRow label="Email Address" value={employee.email} />
+              <InfoRow label="Reference Name" value={employee.referenceName} />
+              <InfoRow label="Reference Contact" value={employee.referenceNumber} />
+              <InfoRow label="Reference Email" value={employee.referenceEmail} />
+              <div className="md:col-span-2 lg:col-span-3">
+                <InfoRow label="Home Address" value={employee.address} />
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="employment" className="space-y-4 mt-4">
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Employment Details</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-start gap-2">
-                  <Briefcase className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="font-medium">Position</p>
-                    <p className="text-sm text-muted-foreground">
-                      {employee.position}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-2">
-                  <Building className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="font-medium">Department</p>
-                    <p className="text-sm text-muted-foreground">
-                      {employee.department}
-                    </p>
-                  </div>
-                </div>
-
-                {employee.employeeType && (
-                  <div className="flex items-start gap-2">
-                    <User className="h-5 w-5 text-muted-foreground mt-0.5" />
-                    <div>
-                      <p className="font-medium">Employee Type</p>
-                      <p className="text-sm text-muted-foreground">
-                        {employee.employeeType}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {employee.manager && (
-                  <div className="flex items-start gap-2">
-                    <User className="h-5 w-5 text-muted-foreground mt-0.5" />
-                    <div>
-                      <p className="font-medium">Manager</p>
-                      <p className="text-sm text-muted-foreground">
-                        {employee.manager}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {locationLabel && (
-                  <div className="flex items-start gap-2">
-                    <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
-                    <div>
-                      <p className="font-medium">Work Location</p>
-                      <p className="text-sm text-muted-foreground">
-                        {locationLabel}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {employee.salary && (
-                  <div className="flex items-start gap-2">
-                    <div className="h-5 w-5 flex items-center justify-center text-muted-foreground mt-0.5">
-                      <span className="text-xs font-bold">$</span>
-                    </div>
-                    <div>
-                      <p className="font-medium">Salary</p>
-                      <p className="text-sm text-muted-foreground">
-                        {employee.salary}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
+        <TabsContent value="employment" className="space-y-4 mt-6">
+          <Card className="border-slate-200 dark:border-slate-800">
+            <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <InfoRow label="Setup Name" value={employee.setupName} />
+              <InfoRow label="Employee ID" value={employee.employeeId} />
+              <InfoRow label="Department" value={employee.department} />
+              <InfoRow label="Designation" value={employee.position} />
+              <InfoRow label="Status" value={employee.status} />
+              <InfoRow label="Joining Date" value={employee.joinDate ? new Date(employee.joinDate).toLocaleDateString() : null} />
+              <InfoRow label="Leaving Date" value={employee.leaveDate ? new Date(employee.leaveDate).toLocaleDateString() : null} />
+              <InfoRow label="Location" value={employee.location?.name} />
+              <InfoRow label="Probation Confirmation" value={employee.probationConfirmationDate ? new Date(employee.probationConfirmationDate).toLocaleDateString() : null} />
+              <InfoRow label="Salary" value={employee.salary} />
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="documents" className="space-y-4 mt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {employee.skills && employee.skills.length > 0 && (
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold mb-4">Skills</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {employee.skills.map((skill: string, index: number) => (
-                      <Badge
-                        key={index}
-                        variant="outline"
-                        className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
-                      >
-                        {skill}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {employee.documents && employee.documents.length > 0 && (
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold mb-4">Documents</h3>
-                  <div className="space-y-3">
-                    {employee.documents.map((doc: any, index: number) => (
-                      <div
-                        key={index}
-                        className="flex items-center gap-3 p-2 rounded-md border"
-                      >
-                        <FileText className="h-5 w-5 text-blue-600" />
-                        <div className="flex-grow">
-                          <p className="font-medium">{doc.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Uploaded: {doc.uploadDate}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {employee.education && employee.education.length > 0 && (
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold mb-4">Education</h3>
-                  <div className="space-y-4">
-                    {employee.education.map((edu: any, index: number) => (
-                      <div
-                        key={index}
-                        className="border-l-2 border-blue-500 pl-4"
-                      >
-                        <p className="font-medium">{edu.degree}</p>
-                        <p className="text-sm">{edu.institution}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {edu.year}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {employee.achievements && employee.achievements.length > 0 && (
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold mb-4">Achievements</h3>
-                  <div className="space-y-4">
-                    {employee.achievements.map(
-                      (achievement: any, index: number) => (
-                        <div key={index} className="flex items-start gap-3">
-                          <Award className="h-5 w-5 text-amber-500 mt-0.5" />
-                          <div>
-                            <p className="font-medium">{achievement.title}</p>
-                            <p className="text-sm">{achievement.description}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {achievement.date}
-                            </p>
-                          </div>
-                        </div>
-                      )
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+        <TabsContent value="documents" className="space-y-4 mt-6">
+          <Card className="border-slate-200 dark:border-slate-800">
+            <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <DocRow label="CNIC Copy" url={employee.cnicCopyUrl} />
+              <DocRow label="Educational Documents" url={employee.eduDocsUrl} />
+              <DocRow label="CV / Resume" url={employee.cvUrl} />
+              <DocRow label="Guarantee Cheque" url={employee.guaranteeChequeUrl} />
+              <DocRow label="Guarantor Cheque" url={employee.guarantorChequeUrl} />
+              <DocRow label="Guarantor CNIC" url={employee.guarantorCnicUrl} />
+              <DocRow label="Stamp Paper" url={employee.stampPaperUrl} />
+              <DocRow label="Utility Bill" url={employee.utilityBillUrl} />
+              <DocRow label="Driving License" url={employee.drivingLicenseUrl} />
+              <DocRow label="Police Certificate" url={employee.policeCertUrl} />
+              <DocRow label="Clearance Letter" url={employee.clearanceLetterUrl} />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

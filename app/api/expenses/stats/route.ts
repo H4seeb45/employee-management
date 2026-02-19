@@ -149,7 +149,7 @@ export async function GET(request: NextRequest) {
         locationId: isSuperAdmin && locationId ? locationId : user.locationId,
         month: now.getMonth() + 1,
         year: now.getFullYear()
-      },
+      } as any,
     })
   ]);
 

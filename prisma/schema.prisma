@@ -10,25 +10,55 @@ model Employee {
   id               String          @id @default(cuid())
   employeeId       String          @unique
   employeeName     String
-  position         String?
-  department       String?
-  email            String?
-  phone            String?
-  joinDate         DateTime?
-  status           String?
-  avatar           String?
-  birthDate        DateTime?
-  address          String?
-  emergencyContact String?
-  bloodGroup       String?
-  employeeType     String?
-  manager          String?
-  locationId       String?
-  location         Location?       @relation(fields: [locationId], references: [id])
-  salary           String?
+  
+  // Personal Info
+  cnicNumber          String?
+  cnicIssueDate       DateTime?
+  cnicExpiryDate      DateTime?
+  phone               String?         // Mobile Number
+  fatherName          String?
+  emergencyContactName   String?
+  emergencyContactNumber String?
+  birthDate           DateTime?
+  bloodGroup          String?
+  maritalStatus       String?
+  address             String?
+  referenceName       String?
+  referenceNumber     String?
+  referenceEmail      String?
+  gender              String?
+  email               String?
+  avatar              String?         // Photograph URL
+
+  // Documents Info (URLs)
+  cnicCopyUrl         String?
+  eduDocsUrl          String?
+  cvUrl               String?
+  guaranteeChequeUrl  String?
+  guarantorChequeUrl  String?
+  guarantorCnicUrl    String?
+  stampPaperUrl       String?
+  utilityBillUrl      String?
+  drivingLicenseUrl   String?
+  policeCertUrl       String?
+  clearanceLetterUrl  String?
+
+  // Employment Info
+  setupName           String?
+  position            String?         // Designation
+  department          String?
+  status              String?         @default("Active:Working")
+  joinDate            DateTime?
+  leaveDate           DateTime?
+  locationId          String?
+  location            Location?       @relation(fields: [locationId], references: [id])
+  probationConfirmationDate DateTime?
+  salary              String?
+  
+  // Existing relations and JSON fields
   skills           Json?
   education        Json?
-  documents        Json?
+  documents        Json?              // Keep for backward compatibility or generic docs
   reviews          Json?
   achievements     Json?
   attendances      Attendance[]
@@ -36,6 +66,8 @@ model Employee {
   ProjectMembers   ProjectMember[]
   payrolls         Payroll[]
   loans            Loan[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 }
 
 model User {

@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
       locationId: user.locationId,
       month,
       year
-    },
+    } as any,
   });
 
   if (existingBudget) {

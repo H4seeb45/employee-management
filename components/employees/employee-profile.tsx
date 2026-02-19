@@ -119,9 +119,9 @@ export function EmployeeProfile({ employee }: { employee: any }) {
             <Descriptions.Item label="Work Location">
               {locationLabel}
             </Descriptions.Item>
-            <Descriptions.Item label="Salary">
+            {/* <Descriptions.Item label="Salary">
               {employee.salary}
-            </Descriptions.Item>
+            </Descriptions.Item> */}
             <Descriptions.Item label="Status">
               {employee.status}
             </Descriptions.Item>
