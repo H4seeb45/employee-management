@@ -268,11 +268,15 @@ export function ExpenseModule({
   };
 
   // Fetch routes and vehicles
-  const fetchRoutesAndVehicles = async () => {
+  const fetchRoutesAndVehicles = async (locId?: string | null) => {
     try {
+      const params = new URLSearchParams();
+      if (locId) params.append("locationId", locId);
+      
+      const queryString = params.toString() ? `?${params.toString()}` : "";
       const [routesRes, vehiclesRes] = await Promise.all([
-        fetch("/api/routes-vehicles/routes"),
-        fetch("/api/routes-vehicles/vehicles"),
+        fetch(`/api/routes-vehicles/routes${queryString}`),
+        fetch(`/api/routes-vehicles/vehicles${queryString}`),
       ]);
 
       if (routesRes.ok) {
@@ -366,9 +370,14 @@ export function ExpenseModule({
 
   useEffect(() => {
     // Fetch routes and vehicles for both form and filters
-    if(routes.length === 0 || vehicles.length === 0){
-    fetchRoutesAndVehicles();}
-  }, [routes.length,vehicles.length]);
+    fetchRoutesAndVehicles(locationId);
+    
+    // Reset filters when location changes
+    setFilterRoute("all");
+    setFilterVehicle("all");
+    setTempFilterRoute("all");
+    setTempFilterVehicle("all");
+  }, [locationId]);
 
   const fetchBudgetAndStats = async () => {
     setLoadingBudget(true);

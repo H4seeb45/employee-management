@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json().catch(() => null);
   const routes = Array.isArray(body?.routes) ? body.routes : [];
+  const locationId = body?.locationId || user.locationId;
 
   if (routes.length === 0) {
     return NextResponse.json(
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
         where: {
           routeNo_locationId: {
             routeNo,
-            locationId: user.locationId,
+            locationId,
           },
         },
       });
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
           routeNo,
           name,
           description,
-          locationId: user.locationId,
+          locationId,
         },
       });
 

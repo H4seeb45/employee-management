@@ -26,15 +26,16 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const sidebarItems = [
   { name: "Dashboard", href: "/dashboard", icon: BarChart3 },
-  { name: "Employees", href: "/dashboard/employees", icon: Users },
-  { name: "Attendance", href: "/dashboard/attendance", icon: Calendar },
+  { name: "Employees", href: "/dashboard/employees", icon: Users, adminOnly: true, },
+  { name: "Attendance", href: "/dashboard/attendance", icon: Calendar, adminOnly: true },
   {
     name: "Leave Management",
     href: "/dashboard/leave-management",
     icon: ClipboardList,
+    adminOnly: true,
   },
-  { name: "Payroll", href: "/dashboard/payroll", icon: Briefcase },
-  { name: "Loans", href: "/dashboard/loans", icon: Banknote },
+  { name: "Payroll", href: "/dashboard/payroll", icon: Briefcase, adminOnly: true, },
+  { name: "Loans", href: "/dashboard/loans", icon: Banknote, adminOnly: true, },
   {
     name: "Expenses",
     href: "/dashboard/expenses",
@@ -60,7 +61,7 @@ const sidebarItems = [
     icon: PieChart,
     requiredRoles: ["Admin", "Super Admin", "Business Manager", "Accountant"],
   },
-  { name: "Settings", href: "/dashboard/settings", icon: Settings },
+  { name: "Settings", href: "/dashboard/settings", icon: Settings, adminOnly: true },
 ];
 
 export function AppSidebar() {
@@ -122,7 +123,8 @@ export function AppSidebar() {
       >
         <div className="flex flex-col h-full">
           {/* Premium Header with Shield Logo */}
-          <div className="relative h-20 px-6 border-b border-slate-700/50 bg-gradient-to-r from-slate-800/30 to-transparent backdrop-blur-sm">
+          {/* border-b border-slate-700/50 */}
+          <div className="relative h-20 px-6 bg-gradient-to-r from-slate-800/30 to-transparent backdrop-blur-sm">
             <div className="flex items-center justify-between h-full">
               <div className="flex items-center gap-3 group cursor-pointer">
                 {/* Shield Logo with Gradient */}

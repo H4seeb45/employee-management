@@ -60,6 +60,11 @@ export type UserSession = {
     name: string;
     city: string;
   } | null;
+  authorizedLocations?: {
+    id: string;
+    name: string;
+    city: string;
+  }[] | null;
 };
 
 // Define the context type
@@ -143,6 +148,7 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
           roles: user.roles || [],
           locationId: user.locationId || null,
           location: user.location || null,
+          authorizedLocations: user.authorizedLocations || [],
         });
       } else {
         setUser(null);

@@ -22,7 +22,11 @@ export async function GET(request: NextRequest) {
   const locationId = isSuperAdmin ? searchParams.get("locationId") : null;
   const users = await prisma.user.findMany({
     where: locationId ? { locationId } : undefined,
-    include: { location: true, roles: { include: { role: true } } },
+    include: {
+      location: true,
+      authorizedLocations: true,
+      roles: { include: { role: true } },
+    },
     orderBy: { createdAt: "desc" },
   });
 
@@ -32,6 +36,7 @@ export async function GET(request: NextRequest) {
       email: item.email,
       isActive: item.isActive,
       location: item.location,
+      authorizedLocations: item.authorizedLocations,
       roles: item.roles.map((userRole) => userRole.role),
       createdAt: item.createdAt,
     })),
@@ -52,6 +57,11 @@ export async function POST(request: NextRequest) {
   const locationId = body?.locationId?.toString();
   const roleIds = Array.isArray(body?.roleIds)
     ? body.roleIds.map((roleId: unknown) => roleId?.toString()).filter(Boolean)
+    : [];
+  const authorizedLocationIds = Array.isArray(body?.authorizedLocationIds)
+    ? body.authorizedLocationIds
+        .map((locId: unknown) => locId?.toString())
+        .filter(Boolean)
     : [];
 
   if (!email || !locationId || roleIds.length === 0) {
@@ -90,8 +100,15 @@ export async function POST(request: NextRequest) {
       passwordHash,
       locationId: location.id,
       roles: { create: roleIds.map((roleId: string) => ({ roleId })) },
+      authorizedLocations: {
+        connect: authorizedLocationIds.map((id: string) => ({ id })),
+      },
     },
-    include: { location: true, roles: { include: { role: true } } },
+    include: {
+      location: true,
+      authorizedLocations: true,
+      roles: { include: { role: true } },
+    },
   });
 
   return NextResponse.json({
@@ -100,6 +117,7 @@ export async function POST(request: NextRequest) {
       email: created.email,
       isActive: created.isActive,
       location: created.location,
+      authorizedLocations: created.authorizedLocations,
       roles: created.roles.map((userRole) => userRole.role),
     },
     password: plainPassword,

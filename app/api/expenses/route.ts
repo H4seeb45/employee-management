@@ -39,15 +39,34 @@ export async function GET(request: NextRequest) {
   const skip = (page - 1) * limit;
 
   const isSuperAdmin = isSuperAdminUser(user);
-  const canViewAllLocations = isSuperAdmin || isAccountant;
-  const locationId = canViewAllLocations ? searchParams.get("locationId") : null;
-  
+  const isAdmin = isAdminUser(user);
+  const canViewAllLocations = isAdmin || isAccountant;
+  const queryLocationId = searchParams.get("locationId");
+  const authorizedIds = [
+    user.locationId,
+    ...(user.authorizedLocations?.map((l: any) => l.id) || []),
+  ].filter(Boolean);
+
   // Build where clause with search filters
-  const where: any = canViewAllLocations
-    ? locationId
-      ? { locationId }
-      : {}
-    : { locationId: user.locationId };
+  const where: any = {};
+  
+  if (canViewAllLocations) {
+    if (queryLocationId && queryLocationId !== "all") {
+      where.locationId = queryLocationId;
+    }
+  } else {
+    if (queryLocationId && queryLocationId !== "all") {
+      // Check if requested location is in authorized list
+      if (authorizedIds.includes(queryLocationId)) {
+        where.locationId = queryLocationId;
+      } else {
+        // Fallback or explicit check - for now, just restrict to authorized
+        where.locationId = { in: authorizedIds };
+      }
+    } else {
+      where.locationId = { in: authorizedIds };
+    }
+  }
 
   // Cashiers can only see Cash disburse type expenses
   if (isCashier && !isAdminUser(user)) {

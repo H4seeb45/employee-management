@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json().catch(() => null);
   const vehicles = Array.isArray(body?.vehicles) ? body.vehicles : [];
+  const locationId = body?.locationId || user.locationId;
 
   if (vehicles.length === 0) {
     return NextResponse.json(
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
         where: {
           vehicleNo_locationId: {
             vehicleNo,
-            locationId: user.locationId,
+            locationId,
           },
         },
       });
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
           vehicleNo,
           type,
           model,
-          locationId: user.locationId,
+          locationId,
         },
       });
 

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser, isAdminUser } from "@/lib/auth";
+import { getCurrentUser, hasRole, isAdminUser, isSuperAdminUser } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser(request);
@@ -8,8 +8,34 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ message: "Unauthorized." }, { status: 401 });
   }
 
+  const { searchParams } = new URL(request.url);
+  const requestedLocationId = searchParams.get("locationId");
+
+  const where: any = {};
+  const isAdmin = isAdminUser(user);
+  const isAccountant = hasRole(user, "Accountant");
+  const isSuperAdmin = isSuperAdminUser(user);
+  const isCashier = hasRole(user, "Cashier");
+
+  const authorizedIds = [
+        user.locationId,
+        ...(user.authorizedLocations?.map((l: any) => l.id) || []),
+      ].filter(Boolean);
+
+  if (requestedLocationId && (isAdmin || isAccountant || isSuperAdmin || isCashier)) {
+    if(isCashier && !authorizedIds.includes(requestedLocationId)){
+      where.locationId = { in: authorizedIds };
+    }else{
+      where.locationId = requestedLocationId;
+    }
+  } else if (!isAdmin && !isAccountant && !isSuperAdmin && !isCashier) {
+    where.locationId = user.locationId;
+  }
+  // If isAdmin and requestedLocationId is null, show all routes (where is {})
+
   const routes = await prisma.route.findMany({
-    where: { locationId: user.locationId },
+    where,
+    include: { location: true }, // Include location to show which location the route belongs to
     orderBy: { routeNo: "asc" },
   });
 
@@ -30,6 +56,7 @@ export async function POST(request: NextRequest) {
   const routeNo = body?.routeNo?.toString().trim();
   const name = body?.name?.toString().trim();
   const description = body?.description?.toString().trim() ?? null;
+  const locationId = body?.locationId || user.locationId;
 
   if (!routeNo || !name) {
     return NextResponse.json(
@@ -42,7 +69,7 @@ export async function POST(request: NextRequest) {
     where: { 
       routeNo_locationId: {
         routeNo,
-        locationId: user.locationId,
+        locationId,
       }
     },
   });
@@ -59,7 +86,7 @@ export async function POST(request: NextRequest) {
       routeNo,
       name,
       description,
-      locationId: user.locationId,
+      locationId,
     },
   });
 

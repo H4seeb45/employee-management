@@ -52,6 +52,7 @@ export const getCurrentUser = async (request: NextRequest) => {
     where: { id: payload.userId },
     include: {
       location: true,
+      authorizedLocations: true,
       roles: { include: { role: true } },
     },
   });

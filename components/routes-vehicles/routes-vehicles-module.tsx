@@ -24,8 +24,16 @@ import {
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Upload, Download, Plus } from "lucide-react";
+import { Edit, Trash2, Upload, Download, Plus, Loader2 } from "lucide-react";
 import * as XLSX from "xlsx";
+import { useLayout } from "@/components/layout/layout-provider";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type Route = {
   id: string;
@@ -33,6 +41,8 @@ type Route = {
   name: string;
   description: string | null;
   isActive: boolean;
+  locationId: string;
+  location?: { name: string; city: string };
   createdAt: string;
   updatedAt: string;
 };
@@ -43,6 +53,8 @@ type Vehicle = {
   type: string | null;
   model: string | null;
   isActive: boolean;
+  locationId: string;
+  location?: { name: string; city: string };
   createdAt: string;
   updatedAt: string;
 };
@@ -58,11 +70,16 @@ type ImportResult = {
 };
 
 export function RoutesVehiclesModule() {
+  const { user } = useLayout();
   const [routes, setRoutes] = useState<Route[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [locations, setLocations] = useState<{ id: string; name: string; city: string }[]>([]);
+  const [selectedLocationId, setSelectedLocationId] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const isAdmin = user?.roles.includes("Admin") || user?.roles.includes("Super Admin") || user?.roles.includes("Business Manager");
 
   // Route form state
   const [routeDialogOpen, setRouteDialogOpen] = useState(false);
@@ -88,15 +105,33 @@ export function RoutesVehiclesModule() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [selectedLocationId]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetch("/api/locations")
+        .then(res => res.json())
+        .then(data => {
+          if (data.locations) {
+            setLocations(data.locations);
+          }
+        })
+        .catch(err => console.error("Failed to load locations", err));
+    }
+  }, [isAdmin]);
 
   const loadData = async () => {
     setLoading(true);
     setError(null);
     try {
+      const params = new URLSearchParams();
+      if (selectedLocationId !== "all") {
+        params.append("locationId", selectedLocationId);
+      }
+
       const [routesRes, vehiclesRes] = await Promise.all([
-        fetch("/api/routes-vehicles/routes"),
-        fetch("/api/routes-vehicles/vehicles"),
+        fetch(`/api/routes-vehicles/routes?${params.toString()}`),
+        fetch(`/api/routes-vehicles/vehicles?${params.toString()}`),
       ]);
 
       if (!routesRes.ok || !vehiclesRes.ok) {
@@ -127,6 +162,7 @@ export function RoutesVehiclesModule() {
           routeNo,
           name: routeName,
           description: routeDescription || null,
+          locationId: selectedLocationId !== "all" ? selectedLocationId : user?.locationId,
         }),
       });
 
@@ -214,6 +250,7 @@ export function RoutesVehiclesModule() {
           vehicleNo,
           type: vehicleType || null,
           model: vehicleModel || null,
+          locationId: selectedLocationId !== "all" ? selectedLocationId : user?.locationId,
         }),
       });
 
@@ -368,6 +405,7 @@ export function RoutesVehiclesModule() {
       const payload =
         importType === "routes"
           ? {
+              locationId: selectedLocationId !== "all" ? selectedLocationId : user?.locationId,
               routes: data.map((row) => ({
                 routeNo: row.RouteNo || row.routeNo || row["Route No"],
                 name: row.Name || row.name,
@@ -375,6 +413,7 @@ export function RoutesVehiclesModule() {
               })),
             }
           : {
+              locationId: selectedLocationId !== "all" ? selectedLocationId : user?.locationId,
               vehicles: data.map((row) => ({
                 vehicleNo: row.VehicleNo || row.vehicleNo || row["Vehicle No"],
                 type: row.Type || row.type || null,
@@ -446,8 +485,29 @@ export function RoutesVehiclesModule() {
       )}
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
           <CardTitle>Routes & Vehicles Management</CardTitle>
+          {isAdmin && (
+            <div className="flex items-center gap-2">
+              <Label className="text-sm font-medium">Location:</Label>
+              <Select
+                value={selectedLocationId}
+                onValueChange={setSelectedLocationId}
+              >
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="All Locations" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Locations</SelectItem>
+                  {locations.map((loc) => (
+                    <SelectItem key={loc.id} value={loc.id}>
+                      {loc.city} - {loc.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="routes">
@@ -502,6 +562,7 @@ export function RoutesVehiclesModule() {
                     <TableRow>
                       <TableHead>Route No</TableHead>
                       <TableHead>Name</TableHead>
+                      {selectedLocationId === "all" && <TableHead>Location</TableHead>}
                       <TableHead>Description</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Actions</TableHead>
@@ -514,6 +575,11 @@ export function RoutesVehiclesModule() {
                           {route.routeNo}
                         </TableCell>
                         <TableCell>{route.name}</TableCell>
+                        {selectedLocationId === "all" && (
+                          <TableCell>
+                            {route.location ? `${route.location.city} - ${route.location.name}` : "-"}
+                          </TableCell>
+                        )}
                         <TableCell>{route.description || "-"}</TableCell>
                         <TableCell>
                           <Badge
@@ -596,6 +662,7 @@ export function RoutesVehiclesModule() {
                       <TableHead>Vehicle No</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Model</TableHead>
+                      {selectedLocationId === "all" && <TableHead>Location</TableHead>}
                       <TableHead>Status</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
@@ -608,6 +675,11 @@ export function RoutesVehiclesModule() {
                         </TableCell>
                         <TableCell>{vehicle.type || "-"}</TableCell>
                         <TableCell>{vehicle.model || "-"}</TableCell>
+                        {selectedLocationId === "all" && (
+                          <TableCell>
+                            {vehicle.location ? `${vehicle.location.city} - ${vehicle.location.name}` : "-"}
+                          </TableCell>
+                        )}
                         <TableCell>
                           <Badge
                             variant={vehicle.isActive ? "default" : "secondary"}

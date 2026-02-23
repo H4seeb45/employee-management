@@ -23,8 +23,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const roleIds = Array.isArray(body?.roleIds)
     ? body.roleIds.map((roleId: unknown) => roleId?.toString()).filter(Boolean)
     : undefined;
+  const authorizedLocationIds = Array.isArray(body?.authorizedLocationIds)
+    ? body.authorizedLocationIds.map((id: unknown) => id?.toString()).filter(Boolean)
+    : undefined;
 
-  if (!locationId && typeof isActive !== "boolean" && !roleIds) {
+  if (!locationId && typeof isActive !== "boolean" && !roleIds && !authorizedLocationIds) {
     return NextResponse.json({ message: "No updates provided." }, { status: 400 });
   }
 
@@ -55,8 +58,19 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             },
           }
         : {}),
+      ...(authorizedLocationIds
+        ? {
+            authorizedLocations: {
+              set: authorizedLocationIds.map((id: string) => ({ id })),
+            },
+          }
+        : {}),
     },
-    include: { location: true, roles: { include: { role: true } } },
+    include: {
+      location: true,
+      authorizedLocations: true,
+      roles: { include: { role: true } },
+    },
   });
 
   return NextResponse.json({

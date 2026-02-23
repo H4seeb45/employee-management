@@ -22,15 +22,34 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url);
+  const queryLocationId = searchParams.get("locationId");
+  const authorizedIds = [
+    user.locationId,
+    ...(user.authorizedLocations?.map((l: any) => l.id) || []),
+  ].filter(Boolean);
+
   const isSuperAdmin = isSuperAdminUser(user);
-  const canViewAllLocations = isSuperAdmin || isAccountant;
-  const locationId = canViewAllLocations ? searchParams.get("locationId") : null;
+  const isAdmin = isAdminUser(user);
+  const canViewAllLocations = isSuperAdmin || isAdmin || isAccountant;
+  const locationId = queryLocationId;
+
+  const where: any = {};
   
-  const where: any = canViewAllLocations
-    ? locationId
-      ? { locationId }
-      : {}
-    : { locationId: user.locationId };
+  if (canViewAllLocations) {
+    if (queryLocationId && queryLocationId !== "all") {
+      where.locationId = queryLocationId;
+    }
+  } else {
+    if (queryLocationId && queryLocationId !== "all") {
+      if (authorizedIds.includes(queryLocationId)) {
+        where.locationId = queryLocationId;
+      } else {
+        where.locationId = { in: authorizedIds };
+      }
+    } else {
+      where.locationId = { in: authorizedIds };
+    }
+  }
 
   if (isCashier && !isAdminUser(user)) {
     where.disburseType = "Cash";
@@ -116,6 +135,20 @@ export async function GET(request: NextRequest) {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
+  // For monthly spending and budget, we need to handle the locationId filter properly
+  let statsLocationFilter: any = {};
+  if (canViewAllLocations) {
+    if (locationId && locationId !== "all") {
+      statsLocationFilter = { locationId };
+    }
+  } else {
+    if (locationId && locationId !== "all" && authorizedIds.includes(locationId)) {
+      statsLocationFilter = { locationId };
+    } else {
+      statsLocationFilter = { locationId: { in: authorizedIds } };
+    }
+  }
+
   const [statusRows, typeRows, monthlySpent, monthlyTypeRows, budget] = await Promise.all([
     prisma.expenseSheet.groupBy({
       by: ["status"],
@@ -129,7 +162,7 @@ export async function GET(request: NextRequest) {
     }),
     prisma.expenseSheet.aggregate({
       where: {
-        ...(isSuperAdmin && locationId ? { locationId } : !isSuperAdmin ? { locationId: user.locationId } : {}),
+        ...statsLocationFilter,
         createdAt: { gte: startOfMonth, lt: endOfMonth },
         status: { not: "REJECTED" },
       },
@@ -138,7 +171,7 @@ export async function GET(request: NextRequest) {
     prisma.expenseSheet.groupBy({
       by: ["expenseType"],
       where: {
-        ...(isSuperAdmin && locationId ? { locationId } : !isSuperAdmin ? { locationId: user.locationId } : {}),
+        ...statsLocationFilter,
         createdAt: { gte: startOfMonth, lt: endOfMonth },
         status: { not: "REJECTED" },
       },
@@ -146,10 +179,10 @@ export async function GET(request: NextRequest) {
     }),
     prisma.budget.findFirst({
       where: { 
-        locationId: isSuperAdmin && locationId ? locationId : user.locationId,
+        ...(statsLocationFilter.locationId ? { locationId: statsLocationFilter.locationId } : {}),
         month: now.getMonth() + 1,
         year: now.getFullYear()
-      } as any,
+      },
     })
   ]);
 

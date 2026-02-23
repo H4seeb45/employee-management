@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url);
-  const locationId = isSuperAdmin ? searchParams.get("locationId") : user.locationId;
+  const locationId = (isSuperAdmin || isAdmin) ? searchParams.get("locationId") : user.locationId;
   const month = searchParams.get("month") ? parseInt(searchParams.get("month")!) : undefined;
   const year = searchParams.get("year") ? parseInt(searchParams.get("year")!) : undefined;
 

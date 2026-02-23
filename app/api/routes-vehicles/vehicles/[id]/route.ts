@@ -51,11 +51,13 @@ export async function PATCH(
     }
   }
 
+  const where: any = { id: params.id };
+  if (!isAdminUser(user)) {
+    where.locationId = user.locationId;
+  }
+
   const vehicle = await prisma.vehicle.update({
-    where: { 
-      id: params.id,
-      locationId: user.locationId,
-    },
+    where,
     data: updateData,
   });
 
@@ -75,11 +77,10 @@ export async function DELETE(
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 
+  const where: any = { id: params.id };
+  
   await prisma.vehicle.delete({
-    where: { 
-      id: params.id,
-      locationId: user.locationId,
-    },
+    where,
   });
 
   return NextResponse.json({ message: "Vehicle deleted successfully." });

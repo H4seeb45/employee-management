@@ -49,6 +49,8 @@ const months = [
 export function BudgetManagement({ roles }: { roles: string[] }) {
   const [loading, setLoading] = useState(true);
   const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [locations, setLocations] = useState<{ id: string; name: string; city: string }[]>([]);
+  const [selectedFilterLocation, setSelectedFilterLocation] = useState<string>("all");
   const [categoryBudgets, setCategoryBudgets] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +65,6 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
 
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
-  const hasCurrentMonthBudget = budgets.some(b => b.month === currentMonth && b.year === currentYear);
 
   const isAdmin = roles.includes("Admin") || roles.includes("Super Admin");
   const isBM = roles.includes("Business Manager");
@@ -83,9 +84,32 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
     }
   };
 
+  const fetchLocations = async () => {
+    try {
+      const res = await fetch("/api/locations");
+      const data = await res.json();
+      if (res.ok) {
+        setLocations(data.locations || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch locations", err);
+    }
+  };
+
   useEffect(() => {
     fetchBudgets();
-  }, []);
+    if (isAdmin) {
+      fetchLocations();
+    }
+  }, [isAdmin]);
+
+  const filteredBudgets = budgets.filter(b => 
+    selectedFilterLocation === "all" || b.locationId === selectedFilterLocation
+  );
+
+  const hasCurrentMonthBudget = budgets.some(b => 
+    b.month === currentMonth && b.year === currentYear && (!isAdmin || b.locationId === selectedFilterLocation)
+  );
 
   const handleSetBudget = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -192,7 +216,11 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
         <Card className="border-blue-100 dark:border-blue-900/30 overflow-hidden" id="budget-form">
           <CardHeader className="bg-blue-50/50 dark:bg-blue-900/10">
             <CardTitle className="text-lg">Set Petty Cash Budget</CardTitle>
-            <CardDescription>Enter the requested amount for the selected month's petty cash.</CardDescription>
+            <CardDescription>
+              {isAdmin 
+                ? "As an Admin, you are setting/editing a budget for your primary location. To manage others, use the 'Approve' or 'Edit' buttons below." 
+                : "Enter the requested amount for the selected month's petty cash."}
+            </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
             <form onSubmit={handleSetBudget} className="space-y-6">
@@ -269,7 +297,7 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
                 </div>
                 <Button 
                   type="submit" 
-                  disabled={saving || (budgets.some(b => b.status === "APPROVED" && b.month === selectedMonth && b.year === selectedYear) && !isAdmin)}
+                  disabled={saving || (budgets.some(b => b.status === "APPROVED" && b.month === selectedMonth && b.year === selectedYear && b.locationId === b.locationId) && !isAdmin)}
                   className="bg-blue-600 hover:bg-blue-700 h-11 px-10 font-semibold shadow-lg shadow-blue-500/20"
                 >
                   {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : (budgets.some(b => b.status === "APPROVED" && b.month === selectedMonth && b.year === selectedYear) ? "Update Approved Budget" : isAdmin ? "Approve Budget" : "Submit Budget for Approval")}
@@ -291,13 +319,33 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
           </CardContent>
         </Card>
       )}
-       <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Active Budgets</h2>
-        {budgets.length === 0 ? (
-          <div className="text-center py-12 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 text-slate-500">
-            No budgets found for your location.
+
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Active Budgets</h2>
+        {isAdmin && (
+          <div className="flex items-center gap-2">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap">Filter Location:</Label>
+            <Select value={selectedFilterLocation} onValueChange={setSelectedFilterLocation}>
+              <SelectTrigger className="w-[180px] h-9">
+                <SelectValue placeholder="All Locations" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Locations</SelectItem>
+                {locations.map(loc => (
+                  <SelectItem key={loc.id} value={loc.id}>{loc.city} - {loc.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        ) : (
-          budgets.map((budget) => (
+        )}
+      </div>
+
+      {filteredBudgets.length === 0 ? (
+        <div className="text-center py-12 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 text-slate-500">
+          {isAdmin ? "No budgets found matching the filters." : "No budgets found for your location."}
+        </div>
+      ) : (
+        filteredBudgets.map((budget) => (
             <Card key={budget.id} className="overflow-hidden">
               <CardContent className="p-0">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between p-6 gap-6">

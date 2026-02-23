@@ -30,6 +30,7 @@ type UserSummary = {
   email: string;
   isActive: boolean;
   location: Location;
+  authorizedLocations?: Location[];
   roles: Role[];
 };
 
@@ -40,6 +41,7 @@ export function UsersManagement() {
   const [email, setEmail] = useState("");
   const [locationId, setLocationId] = useState("");
   const [roleIds, setRoleIds] = useState<string[]>([]);
+  const [authorizedLocationIds, setAuthorizedLocationIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +76,12 @@ export function UsersManagement() {
     loadData();
   }, []);
 
+  const isCashier = useMemo(() => {
+    return roles.some(
+      (r) => roleIds.includes(r.id) && r.name === "Cashier"
+    );
+  }, [roles, roleIds]);
+
   const locationOptions = useMemo(
     () =>
       locations.map((location) => ({
@@ -91,6 +99,14 @@ export function UsersManagement() {
     );
   };
 
+  const toggleAuthorizedLocation = (locId: string) => {
+    setAuthorizedLocationIds((current) =>
+      current.includes(locId)
+        ? current.filter((id) => id !== locId)
+        : [...current, locId]
+    );
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
@@ -105,7 +121,12 @@ export function UsersManagement() {
       const response = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, locationId, roleIds }),
+        body: JSON.stringify({
+          email,
+          locationId,
+          roleIds,
+          authorizedLocationIds: isCashier ? authorizedLocationIds : [],
+        }),
       });
       const result = await response.json();
       if (!response.ok) {
@@ -115,6 +136,7 @@ export function UsersManagement() {
       setEmail("");
       setLocationId("");
       setRoleIds([]);
+      setAuthorizedLocationIds([]);
       await loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create user.");
@@ -179,7 +201,7 @@ export function UsersManagement() {
             <div className="space-y-2">
               <Label>Roles</Label>
               <div className="grid gap-2 md:grid-cols-2">
-                {roles?.filter(r=>!["Super Admin","Admin"].includes(r.name))?.map((role) => (
+                {roles?.filter(r=>!["Super Admin","Admin", "Accountant", "Employee"].includes(r.name))?.map((role) => (
                   <label
                     key={role.id}
                     className="flex items-center gap-2 text-sm"
@@ -193,6 +215,26 @@ export function UsersManagement() {
                 ))}
               </div>
             </div>
+
+            {isCashier && (
+              <div className="space-y-2 border-t pt-4">
+                <Label>Authorized Locations (for Cashier)</Label>
+                <div className="grid gap-2 md:grid-cols-3">
+                  {locations.map((loc) => (
+                    <label
+                      key={loc.id}
+                      className="flex items-center gap-2 text-sm"
+                    >
+                      <Checkbox
+                        checked={authorizedLocationIds.includes(loc.id)}
+                        onCheckedChange={() => toggleAuthorizedLocation(loc.id)}
+                      />
+                      {loc.city} - {loc.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="flex justify-end">
               <Button type="submit" disabled={saving}>
@@ -215,7 +257,8 @@ export function UsersManagement() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Email</TableHead>
-                  <TableHead>Location</TableHead>
+                  <TableHead>Primary Location</TableHead>
+                  <TableHead>Authorized Locations</TableHead>
                   <TableHead>Roles</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
@@ -226,6 +269,19 @@ export function UsersManagement() {
                     <TableCell>{user.email}</TableCell>
                     <TableCell>
                       {user.location?.city} - {user.location?.name}
+                    </TableCell>
+                    <TableCell>
+                      {user.roles.some((r) => r.name === "Cashier") ? (
+                        <div className="text-xs text-muted-foreground">
+                          {user.authorizedLocations && user.authorizedLocations.length > 0
+                            ? user.authorizedLocations
+                                .map((l) => `${l.city}-${l.name}`)
+                                .join(", ")
+                            : "No multiple locations"}
+                        </div>
+                      ) : (
+                        "-"
+                      )}
                     </TableCell>
                     <TableCell>
                       {user.roles.map((role) => role.name).join(", ")}

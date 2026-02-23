@@ -27,8 +27,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ message: "Budget not found." }, { status: 404 });
   }
 
-  // Check if admin belongs to the same location, unless they are super admin
-  if (!isSuperAdminUser(user) && budget.locationId !== user.locationId) {
+  // Check if admin belongs to the same location, unless they are super admin or admin
+  if (!isSuperAdminUser(user) && !isAdmin && budget.locationId !== user.locationId) {
     return NextResponse.json({ message: "Forbidden. You can only manage budgets for your location." }, { status: 403 });
   }
 

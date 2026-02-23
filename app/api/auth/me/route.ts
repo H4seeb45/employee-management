@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
       email: user.email,
       locationId: user.locationId,
       roles: user.roles.map((userRole) => userRole.role.name),
+      authorizedLocations: user.authorizedLocations,
     },
   });
 }

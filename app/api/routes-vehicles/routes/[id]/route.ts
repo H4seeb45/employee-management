@@ -51,11 +51,13 @@ export async function PATCH(
     }
   }
 
+  const where: any = { id: params.id };
+  if (!isAdminUser(user)) {
+    where.locationId = user.locationId;
+  }
+
   const route = await prisma.route.update({
-    where: { 
-      id: params.id,
-      locationId: user.locationId,
-    },
+    where,
     data: updateData,
   });
 
@@ -75,11 +77,11 @@ export async function DELETE(
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 
+  const where: any = { id: params.id };
+  // Optionally restrict non-superadmins if needed, but for now we follow the user request
+  
   await prisma.route.delete({
-    where: { 
-      id: params.id,
-      locationId: user.locationId,
-    },
+    where,
   });
 
   return NextResponse.json({ message: "Route deleted successfully." });

@@ -27,10 +27,18 @@ export default function ExpensesPage() {
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
 
   const roles = user?.roles ?? [];
-  const isSuperAdminOrAccountant = roles.includes("Super Admin") || roles.includes("Accountant");
+  const isAdminOrAccountant = roles.includes("Super Admin") || roles.includes("Accountant") || roles.includes("Admin");
+  const userAuthorizedLocations = user?.authorizedLocations ?? [];
+  const primaryLocation = user?.location;
+  
+  // A user can filter if they are an admin/accountant or if they have multiple authorized locations
+  const canFilterByLocation = isAdminOrAccountant || userAuthorizedLocations.length > 0;
 
   useEffect(() => {
-    if (isSuperAdminOrAccountant && !userLoading) {
+    if (userLoading || !user) return;
+
+    if (isAdminOrAccountant) {
+      // Admins and Accountants see all locations
       setIsLoadingLocations(true);
       fetch("/api/locations")
         .then(res => res.json())
@@ -41,8 +49,31 @@ export default function ExpensesPage() {
         })
         .catch(err => console.error("Failed to load locations", err))
         .finally(() => setIsLoadingLocations(false));
+    } else if (userAuthorizedLocations.length > 0) {
+      // Restricted users with multiple locations only see their authorized ones
+      const availableLocations: Location[] = [];
+      if (primaryLocation) {
+        availableLocations.push({
+          id: primaryLocation.id,
+          name: primaryLocation.name,
+          city: primaryLocation.city
+        });
+      }
+      
+      userAuthorizedLocations.forEach((loc: any) => {
+        // Prevent duplicates if primary is also in authorized
+        if (!availableLocations.find(l => l.id === loc.id)) {
+          availableLocations.push({
+            id: loc.id,
+            name: loc.name,
+            city: loc.city
+          });
+        }
+      });
+      
+      setLocations(availableLocations);
     }
-  }, [isSuperAdminOrAccountant, userLoading]);
+  }, [isAdminOrAccountant, userLoading, user, userAuthorizedLocations, primaryLocation]);
 
   if (userLoading) {
     return (
@@ -72,7 +103,7 @@ export default function ExpensesPage() {
 
   return (
     <div className="space-y-6">
-      {isSuperAdminOrAccountant ? (
+      {canFilterByLocation ? (
         <div className="flex items-center gap-3">
           <Label className="text-sm text-muted-foreground">Location</Label>
           <Select
