@@ -62,6 +62,7 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
 
   const [selectedMonth, setSelectedMonth] = useState(defaultMonth);
   const [selectedYear, setSelectedYear] = useState(defaultYear);
+  const [selectedFormLocationId, setSelectedFormLocationId] = useState<string>("");
 
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
@@ -108,7 +109,8 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
   );
 
   const hasCurrentMonthBudget = budgets.some(b => 
-    b.month === currentMonth && b.year === currentYear && (!isAdmin || b.locationId === selectedFilterLocation)
+    b.month === currentMonth && b.year === currentYear && 
+    (isAdmin ? (selectedFormLocationId ? b.locationId === selectedFormLocationId : false) : true)
   );
 
   const handleSetBudget = async (e: React.FormEvent) => {
@@ -124,17 +126,19 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
         body: JSON.stringify({ 
           categories: categoryBudgets,
           month: selectedMonth,
-          year: selectedYear
+          year: selectedYear,
+          locationId: isAdmin ? selectedFormLocationId : undefined
         }),
       });
 
       const data = await res.json();
       if (res.ok) {
-        setSuccess("Budget submitted for approval!");
+        setSuccess("Budget submitted successfully!");
         setCategoryBudgets({});
-        // Reset to next month after saving
+        // Reset after saving
         setSelectedMonth(defaultMonth);
         setSelectedYear(defaultYear);
+        setSelectedFormLocationId("");
         fetchBudgets();
       } else {
         setError(data.message || "Failed to set budget");
@@ -224,9 +228,16 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
           </CardHeader>
           <CardContent className="pt-6">
             <form onSubmit={handleSetBudget} className="space-y-6">
-              <div className="flex gap-4 p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/30">
-                <div className="flex-1 space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Select Month</Label>
+              <div className="flex gap-4 p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/30 font-semibold mb-4">
+                <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-blue-600" />
+                    <span>Configuring Budget for: {months[selectedMonth - 1]} {selectedYear}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/30">
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Target Month</Label>
                   <Select
                     value={selectedMonth.toString()}
                     onValueChange={(value) => {
@@ -259,6 +270,27 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {isAdmin && (
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Target Location</Label>
+                    <Select
+                      value={selectedFormLocationId}
+                      onValueChange={setSelectedFormLocationId}
+                    >
+                      <SelectTrigger className="w-full h-9 bg-background">
+                        <SelectValue placeholder="Select Location" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {locations.map(loc => (
+                          <SelectItem key={loc.id} value={loc.id}>
+                            {loc.city} - {loc.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -297,23 +329,32 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
                 </div>
                 <Button 
                   type="submit" 
-                  disabled={saving || (budgets.some(b => b.status === "APPROVED" && b.month === selectedMonth && b.year === selectedYear && b.locationId === b.locationId) && !isAdmin)}
+                  disabled={saving || (isAdmin && !selectedFormLocationId) || (budgets.some(b => b.status === "APPROVED" && b.month === selectedMonth && b.year === selectedYear && (isAdmin ? b.locationId === selectedFormLocationId : true)) && !isAdmin)}
                   className="bg-blue-600 hover:bg-blue-700 h-11 px-10 font-semibold shadow-lg shadow-blue-500/20"
                 >
-                  {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : (budgets.some(b => b.status === "APPROVED" && b.month === selectedMonth && b.year === selectedYear) ? "Update Approved Budget" : isAdmin ? "Approve Budget" : "Submit Budget for Approval")}
+                  {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : 
+                    (budgets.some(b => b.status === "APPROVED" && b.month === selectedMonth && b.year === selectedYear && (isAdmin ? b.locationId === selectedFormLocationId : true)) 
+                      ? "Update Approved Budget" 
+                      : isAdmin ? "Approve Budget" : "Submit Budget for Approval")}
                 </Button>
               </div>
             </form>
-            {budgets.some(b => b.status === "APPROVED" && b.month === selectedMonth && b.year === selectedYear) && !isAdmin && (
+             {budgets.some(b => b.status === "APPROVED" && b.month === selectedMonth && b.year === selectedYear && (isAdmin ? b.locationId === selectedFormLocationId : true)) && !isAdmin && (
               <p className="text-xs text-amber-600 dark:text-amber-400 mt-4 flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" />
                 An approved budget already exists for {months[selectedMonth-1]} {selectedYear}. You cannot set a new one.
               </p>
             )}
-            {budgets.some(b => b.status === "APPROVED" && b.month === selectedMonth && b.year === selectedYear) && isAdmin && (
+            {budgets.some(b => b.status === "APPROVED" && b.month === selectedMonth && b.year === selectedYear && (isAdmin ? (selectedFormLocationId && b.locationId === selectedFormLocationId) : false)) && isAdmin && (
               <p className="text-xs text-blue-600 dark:text-blue-400 mt-4 flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" />
                 You are editing an approved budget for {months[selectedMonth-1]} {selectedYear}. Changes will be applied immediately.
+              </p>
+            )}
+            {isAdmin && !selectedFormLocationId && (
+              <p className="text-xs text-rose-600 dark:text-rose-400 mt-4 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                Please select a target location to configure the budget.
               </p>
             )}
           </CardContent>
@@ -407,6 +448,7 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
                             setCategoryBudgets(cats);
                             setSelectedMonth(budget.month);
                             setSelectedYear(budget.year);
+                            setSelectedFormLocationId(budget.locationId);
                             document.getElementById('budget-form')?.scrollIntoView({ behavior: 'smooth' });
                           }}
                           disabled={saving}

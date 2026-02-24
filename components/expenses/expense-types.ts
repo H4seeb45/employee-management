@@ -30,7 +30,7 @@ export const expenseTypes = [
   { value: "REPAIR_MAINT_WAREHOUSE", label: "Repair & Maintenence ( Billa Denter)" },
   { value: "RIKSHAW_RENTAL", label: "Rikshaw Rental Expenses" },
   { value: "SECP_FEE", label: "SECP Fee" },
-  { value: "SECURITY_CAMERA_SERVICE", label: "Security Camera Servives" },
+  { value: "SECURITY_CAMERA_SERVICE", label: "Security Camera Services" },
   { value: "TAX_PAYMENT", label: "Tax Payment" },
   { value: "TOLLS_TAXES", label: "Toll Tax Expense" },
   { value: "TRAFFIC_POLICE", label: "Monthly Traffic Police Payment" },

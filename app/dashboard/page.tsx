@@ -116,11 +116,16 @@ export default function DashboardPage() {
   ];
 
   const quickActions = [
-    { label: "Add Employee", icon: UserPlus, href: "/dashboard/employees", color: "blue" },
-    { label: "Mark Attendance", icon: Clock, href: "/dashboard/attendance", color: "emerald" },
+    // { label: "Mark Attendance", icon: Clock, href: "/dashboard/attendance", color: "emerald" },
     { label: "Submit Expense", icon: Banknote, href: "/dashboard/expenses", color: "amber" },
-    { label: "Leave Request", icon: FileText, href: "/dashboard/leave-management", color: "purple" },
+    // { label: "Leave Request", icon: FileText, href: "/dashboard/leave-management", color: "purple" },
   ];
+
+  const isAdmin = user?.roles.includes("Super Admin") || user?.roles.includes("Admin")
+  
+  if(isAdmin) {
+    quickActions.unshift({ label: "Add Employee", icon: UserPlus, href: "/dashboard/employees", color: "blue" });
+  }
 
   const recentActivity = [
     { action: "New employee added", user: "Sarah Khan", time: "2 min ago", type: "success" },
@@ -132,7 +137,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Welcome Banner */}
-      <WelcomeBanner userName="Admin" />
+      <WelcomeBanner userName={user?.roles[0]} />
 
       {/* Location Filter for Super Admin */}
       {isSuperAdmin && (

@@ -68,6 +68,10 @@ export async function POST(request: NextRequest) {
   const rawCategories = body?.categories || {};
   const month = body?.month ? parseInt(body.month) : new Date().getMonth() + 1;
   const year = body?.year ? parseInt(body.year) : new Date().getFullYear();
+  const requestedLocationId = body?.locationId;
+
+  // If Admin, use requestedLocationId, otherwise use user's locationId
+  const locationId = (isAdmin && requestedLocationId) ? requestedLocationId : user.locationId;
   
   // Clean and convert categories to numbers, filtering out zero/invalid values
   const categories: Record<string, number> = {};
@@ -88,10 +92,10 @@ export async function POST(request: NextRequest) {
   // Check if budget already exists for this location and month
   const existingBudget = await prisma.budget.findFirst({
     where: { 
-      locationId: user.locationId,
+      locationId: locationId,
       month,
       year
-    } as any,
+    },
   });
 
   if (existingBudget) {
@@ -118,7 +122,7 @@ export async function POST(request: NextRequest) {
       categories,
       month,
       year,
-      locationId: user.locationId,
+      locationId: locationId,
       createdById: user.id,
       status: isAdmin ? "APPROVED" : "PENDING",
       ...(isAdmin ? { approvedById: user.id } : {}),

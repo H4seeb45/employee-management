@@ -8,6 +8,7 @@ import { motion } from "framer-motion";
 
 export function WelcomeBanner({ userName = "Admin" }: { userName?: string }) {
   const currentHour = new Date().getHours();
+  const isAdmin = userName === "Admin" || userName === "Super Admin";
   const greeting =
     currentHour < 12
       ? "Good morning"
@@ -45,7 +46,7 @@ export function WelcomeBanner({ userName = "Admin" }: { userName?: string }) {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
-              <Link href="/dashboard/employees">
+              {isAdmin && <Link href="/dashboard/employees">
                 <Button
                   variant="secondary"
                   className="bg-white hover:bg-blue-50 text-blue-600 border-0 group"
@@ -53,7 +54,7 @@ export function WelcomeBanner({ userName = "Admin" }: { userName?: string }) {
                   Add Employee
                   <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                 </Button>
-              </Link>
+              </Link>}
               <Link href="/dashboard/reports">
                 <Button
                   variant="ghost"
