@@ -1027,7 +1027,7 @@ export function ExpenseModule({
                           onValueChange={setTempFilterVehicle}
                           options={[
                             { value: "all", label: "All Vehicles" },
-                            ...vehicles.map((vehicle) => ({ value: vehicle.id, label: vehicle.vehicleNo })),
+                            ...[...new Map(vehicles.map(item => [item.vehicleNo, item])).values()].map((vehicle) => ({ value: vehicle.id, label: vehicle.vehicleNo })),
                           ]}
                           placeholder="All Vehicles"
                           searchPlaceholder="Search vehicle..."

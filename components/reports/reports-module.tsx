@@ -561,7 +561,7 @@ export function ReportsModule({ roles }: { roles: string[] }) {
                          onValueChange={setFilterVehicle}
                          options={[
                            { value: "all", label: "All Vehicles" },
-                           ...vehicles.map(v => ({ value: v.id, label: v.vehicleNo }))
+                           ...[...new Map(vehicles.map(item => [item.vehicleNo, item])).values()].map(v => ({ value: v.id, label: v.vehicleNo }))
                          ]}
                          placeholder="All Vehicles"
                          searchPlaceholder="Search vehicle..."
