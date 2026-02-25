@@ -90,6 +90,9 @@ export async function GET(request: NextRequest) {
     if (maxAmount) where.amount.lte = Number.parseFloat(maxAmount);
   }
 
+  let targetRouteNo: string | null = null;
+  let targetVehicleNo: string | null = null;
+
   const routeId = searchParams.get("routeId");
   if (routeId && routeId !== "all") {
     const route = await prisma.route.findUnique({
@@ -98,6 +101,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (route) {
+      targetRouteNo = route.routeNo;
       if (!where.AND) where.AND = [];
       where.AND.push({
         OR: [
@@ -118,6 +122,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (vehicle) {
+      targetVehicleNo = vehicle.vehicleNo;
       if (!where.AND) where.AND = [];
       where.AND.push({
         OR: [
@@ -149,33 +154,31 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const [statusRows, typeRows, monthlySpent, monthlyTypeRows, budget] = await Promise.all([
+  const statsWhere = {
+    ...statsLocationFilter,
+    // Apply filters to monthly stats as well
+    ...(targetRouteNo || targetVehicleNo ? {
+      AND: where.AND
+    } : {})
+  };
+
+  const [statusRows, typeRecords, monthlyRecords, budget] = await Promise.all([
     prisma.expenseSheet.groupBy({
       by: ["status"],
       where,
       _count: { _all: true },
     }),
-    prisma.expenseSheet.groupBy({
-      by: ["expenseType"],
+    prisma.expenseSheet.findMany({
       where,
-      _sum: { amount: true },
+      select: { expenseType: true, amount: true, items: true }
     }),
-    prisma.expenseSheet.aggregate({
+    prisma.expenseSheet.findMany({
       where: {
-        ...statsLocationFilter,
+        ...statsWhere,
         createdAt: { gte: startOfMonth, lt: endOfMonth },
         status: { not: "REJECTED" },
       },
-      _sum: { amount: true },
-    }),
-    prisma.expenseSheet.groupBy({
-      by: ["expenseType"],
-      where: {
-        ...statsLocationFilter,
-        createdAt: { gte: startOfMonth, lt: endOfMonth },
-        status: { not: "REJECTED" },
-      },
-      _sum: { amount: true },
+      select: { amount: true, expenseType: true, items: true }
     }),
     prisma.budget.findFirst({
       where: { 
@@ -186,6 +189,31 @@ export async function GET(request: NextRequest) {
     })
   ]);
 
+  const calculateTotalAmount = (records: any[]) => {
+    return records.reduce((total, rec) => {
+      let amount = rec.amount;
+      const items = (rec.items as any[]) || [];
+      
+      if ((targetRouteNo || targetVehicleNo) && items.length > 0) {
+        const filteredAmount = items.reduce((sum, item) => {
+          let matches = true;
+          // if (targetRouteNo && item.routeNo !== targetRouteNo) matches = false;
+          if (targetVehicleNo && item.vehicleNo !== targetVehicleNo) matches = false;
+          
+          if (matches) {
+            return sum + (Number(item.amount) || 0);
+          }
+          return sum;
+        }, 0);
+        
+        if (filteredAmount > 0) {
+          amount = filteredAmount;
+        }
+      }
+      return total + amount;
+    }, 0);
+  };
+
   const statusCounts = statusRows.reduce<Record<string, number>>(
     (acc: Record<string, number>, row: any) => {
       acc[row.status] = row._count._all;
@@ -194,20 +222,58 @@ export async function GET(request: NextRequest) {
     {}
   );
 
-  const typeTotals = typeRows.reduce<Record<string, number>>((acc: Record<string, number>, row: any) => {
-    acc[row.expenseType] = row._sum.amount ?? 0;
+  const typeTotals = typeRecords.reduce<Record<string, number>>((acc: Record<string, number>, rec: any) => {
+    let amount = rec.amount;
+    const items = (rec.items as any[]) || [];
+    
+    if ((targetRouteNo || targetVehicleNo) && items.length > 0) {
+      const filteredAmount = items.reduce((sum, item) => {
+        let matches = true;
+        // if (targetRouteNo && item.routeNo !== targetRouteNo) matches = false;
+        if (targetVehicleNo && item.vehicleNo !== targetVehicleNo) matches = false;
+        
+        if (matches) {
+          return sum + (Number(item.amount) || 0);
+        }
+        return sum;
+      }, 0);
+      
+      if (filteredAmount > 0) amount = filteredAmount;
+    }
+    
+    acc[rec.expenseType] = (acc[rec.expenseType] || 0) + amount;
     return acc;
   }, {});
 
-  const monthlyTypeTotals = monthlyTypeRows.reduce<Record<string, number>>((acc: Record<string, number>, row: any) => {
-    acc[row.expenseType] = row._sum.amount ?? 0;
+  const monthlyTypeTotals = monthlyRecords.reduce<Record<string, number>>((acc: Record<string, number>, rec: any) => {
+    let amount = rec.amount;
+    const items = (rec.items as any[]) || [];
+    
+    if ((targetRouteNo || targetVehicleNo) && items.length > 0) {
+      const filteredAmount = items.reduce((sum, item) => {
+        let matches = true;
+        // if (targetRouteNo && item.routeNo !== targetRouteNo) matches = false;
+        if (targetVehicleNo && item.vehicleNo !== targetVehicleNo) matches = false;
+        
+        if (matches) {
+          return sum + (Number(item.amount) || 0);
+        }
+        return sum;
+      }, 0);
+      
+      if (filteredAmount > 0) amount = filteredAmount;
+    }
+    
+    acc[rec.expenseType] = (acc[rec.expenseType] || 0) + amount;
     return acc;
   }, {});
+
+  const totalMonthlySpent = calculateTotalAmount(monthlyRecords);
 
   const budgetInfo = {
     totalBudget: budget?.status === "APPROVED" ? budget.amount : 0,
-    spentThisMonth: monthlySpent._sum.amount ?? 0,
-    remainingBudget: (budget?.status === "APPROVED" ? budget.amount : 0) - (monthlySpent._sum.amount ?? 0),
+    spentThisMonth: totalMonthlySpent,
+    remainingBudget: (budget?.status === "APPROVED" ? budget.amount : 0) - totalMonthlySpent,
     hasApprovedBudget: budget?.status === "APPROVED",
     categories: budget?.status === "APPROVED" ? budget.categories : {}
   };

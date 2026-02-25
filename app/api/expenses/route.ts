@@ -128,6 +128,9 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  let targetRouteNo: string | null = null;
+  let targetVehicleNo: string | null = null;
+
   // Search by route
   const routeId = searchParams.get("routeId");
   if (routeId && routeId !== "all") {
@@ -137,6 +140,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (route) {
+      targetRouteNo = route.routeNo;
       if (!where.AND) where.AND = [];
       where.AND.push({
         OR: [
@@ -158,6 +162,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (vehicle) {
+      targetVehicleNo = vehicle.vehicleNo;
       if (!where.AND) where.AND = [];
       where.AND.push({
         OR: [
@@ -189,8 +194,36 @@ export async function GET(request: NextRequest) {
     take: limit,
   });
 
+  let processedExpenses = expenses;
+
+  // If filtering by route or vehicle, we should only return the amount for that specific route/vehicle
+  // if the expense sheet contains multiple items.
+  if (targetRouteNo || targetVehicleNo) {
+    processedExpenses = expenses.map(expense => {
+      const items = (expense.items as any[]) || [];
+      if (items.length > 0) {
+        const filteredAmount = items.reduce((sum, item) => {
+          let matches = true;
+          // Follow user preference to skip route match validation in item sum if vehicle matches
+          // if (targetRouteNo && item.routeNo !== targetRouteNo) matches = false;
+          if (targetVehicleNo && item.vehicleNo !== targetVehicleNo) matches = false;
+          
+          if (matches) {
+            return sum + (Number(item.amount) || 0);
+          }
+          return sum;
+        }, 0);
+        
+        if (filteredAmount > 0) {
+          return { ...expense, amount: filteredAmount };
+        }
+      }
+      return expense;
+    });
+  }
+
   return NextResponse.json({
-    expenses,
+    expenses: processedExpenses,
     pagination: {
       page,
       limit,

@@ -122,9 +122,11 @@ export function ReportsModule({ roles }: { roles: string[] }) {
   const [filterMaxAmount, setFilterMaxAmount] = useState("");
   const [filterRoute, setFilterRoute] = useState("all");
   const [filterVehicle, setFilterVehicle] = useState("all");
+  const [filterLocation, setFilterLocation] = useState("all");
 
   const [routes, setRoutes] = useState<any[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
+  const [locations, setLocations] = useState<any[]>([]);
 
   // --- Printing Refs ---
   const budgetPrintRef = useRef<HTMLDivElement>(null);
@@ -146,6 +148,8 @@ export function ReportsModule({ roles }: { roles: string[] }) {
     contentRef: routeVehiclePrintRef,
     documentTitle: "Routes and Vehicles Report",
   });
+
+  const canSeeAllLocations = roles.some(role => ["Admin", "Super Admin", "Accountant"].includes(role));
 
   const onPrintBudget = () => {
     if (budgetPrintRef.current) {
@@ -169,12 +173,14 @@ export function ReportsModule({ roles }: { roles: string[] }) {
 
   const fetchRoutesAndVehicles = async () => {
     try {
-      const [rRes, vRes] = await Promise.all([
+      const [rRes, vRes, lRes] = await Promise.all([
         fetch("/api/routes-vehicles/routes"),
-        fetch("/api/routes-vehicles/vehicles")
+        fetch("/api/routes-vehicles/vehicles"),
+        fetch("/api/locations")
       ]);
       if (rRes.ok) setRoutes((await rRes.json()).routes || []);
       if (vRes.ok) setVehicles((await vRes.json()).vehicles || []);
+      if (lRes.ok) setLocations((await lRes.json()).locations || []);
     } catch (err) {
       console.error(err);
     }
@@ -183,7 +189,9 @@ export function ReportsModule({ roles }: { roles: string[] }) {
   const fetchBudgetReport = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/reports/budget");
+      const params = new URLSearchParams();
+      if (filterLocation !== "all") params.append("locationId", filterLocation);
+      const res = await fetch(`/api/reports/budget?${params}`);
       const data = await res.json();
       if (res.ok) setBudgetData(data.report);
     } catch (err) {
@@ -205,6 +213,7 @@ export function ReportsModule({ roles }: { roles: string[] }) {
       if (filterMaxAmount) params.append("maxAmount", filterMaxAmount);
       if (filterRoute !== "all") params.append("routeId", filterRoute);
       if (filterVehicle !== "all") params.append("vehicleId", filterVehicle);
+      if (filterLocation !== "all") params.append("locationId", filterLocation);
 
       const res = await fetch(`/api/reports/expenses?${params}`);
       const data = await res.json();
@@ -219,7 +228,9 @@ export function ReportsModule({ roles }: { roles: string[] }) {
   const fetchRouteVehicleReport = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/reports/routes-vehicles");
+      const params = new URLSearchParams();
+      if (filterLocation !== "all") params.append("locationId", filterLocation);
+      const res = await fetch(`/api/reports/routes-vehicles?${params}`);
       const data = await res.json();
       if (res.ok) setRouteVehicleData(data);
     } catch (err) {
@@ -237,7 +248,7 @@ export function ReportsModule({ roles }: { roles: string[] }) {
     if (activeTab === "budget") fetchBudgetReport();
     if (activeTab === "expenses") fetchExpenseReport();
     if (activeTab === "routes-vehicles") fetchRouteVehicleReport();
-  }, [activeTab]);
+  }, [activeTab, filterLocation]);
 
   const getRouteDisplay = (e: ExpenseDetailed) => {
     if (e.items && Array.isArray(e.items) && e.items.length > 0) {
@@ -351,6 +362,19 @@ export function ReportsModule({ roles }: { roles: string[] }) {
               <p className="text-sm text-slate-500">Overview of spent vs remaining budget across categories</p>
             </div>
             <div className="flex gap-2">
+              {canSeeAllLocations && (
+                <div className="w-[200px]">
+                  <SearchableSelect
+                    value={filterLocation}
+                    onValueChange={setFilterLocation}
+                    options={[
+                      { value: "all", label: "All Locations" },
+                      ...locations.map(l => ({ value: l.id, label: `${l.name} (${l.city})` }))
+                    ]}
+                    placeholder="Filter by Location"
+                  />
+                </div>
+              )}
               <Button variant="outline" size="sm" onClick={handleExportBudget}>
                 <Download className="h-4 w-4 mr-2" /> Export Excel
               </Button>
@@ -578,6 +602,22 @@ export function ReportsModule({ roles }: { roles: string[] }) {
                        <Input type="date" value={filterToDate} onChange={(e) => setFilterToDate(e.target.value)} className="bg-white dark:bg-slate-800" />
                     </div>
 
+                    {canSeeAllLocations && (
+                      <div className="space-y-2">
+                         <Label>Location</Label>
+                         <SearchableSelect
+                           value={filterLocation}
+                           onValueChange={setFilterLocation}
+                           options={[
+                             { value: "all", label: "All Locations" },
+                             ...locations.map(l => ({ value: l.id, label: `${l.name} (${l.city})` }))
+                           ]}
+                           placeholder="All Locations"
+                           searchPlaceholder="Search location..."
+                         />
+                      </div>
+                    )}
+
                     <div className="space-y-2">
                        <Label>Min Amount</Label>
                        <Input type="number" value={filterMinAmount} onChange={(e) => setFilterMinAmount(e.target.value)} placeholder="0" className="bg-white dark:bg-slate-800" />
@@ -591,13 +631,14 @@ export function ReportsModule({ roles }: { roles: string[] }) {
                     <div className="md:col-span-3 lg:col-span-4 flex justify-end gap-2 pt-2">
                        <Button variant="ghost" onClick={() => {
                          setFilterStatus("all");
-                         setFilterType("all");
-                         setFilterRoute("all");
-                         setFilterVehicle("all");
-                         setFilterFromDate("");
-                         setFilterToDate("");
-                         setFilterMinAmount("");
-                         setFilterMaxAmount("");
+                        setFilterType("all");
+                        setFilterRoute("all");
+                        setFilterVehicle("all");
+                        setFilterLocation("all");
+                        setFilterFromDate("");
+                        setFilterToDate("");
+                        setFilterMinAmount("");
+                        setFilterMaxAmount("");
                        }}>Clear Filters</Button>
                        <Button onClick={fetchExpenseReport} className="bg-blue-600 hover:bg-blue-700">Apply Filters</Button>
                     </div>
@@ -720,6 +761,19 @@ export function ReportsModule({ roles }: { roles: string[] }) {
               <p className="text-sm text-slate-500">Comprehensive list of all registered routes and vehicles</p>
             </div>
             <div className="flex gap-2">
+              {canSeeAllLocations && (
+                <div className="w-[200px]">
+                  <SearchableSelect
+                    value={filterLocation}
+                    onValueChange={setFilterLocation}
+                    options={[
+                      { value: "all", label: "All Locations" },
+                      ...locations.map(l => ({ value: l.id, label: `${l.name} (${l.city})` }))
+                    ]}
+                    placeholder="Filter by Location"
+                  />
+                </div>
+              )}
               <Button variant="outline" size="sm" onClick={handleExportRoutesVehicles}>
                 <Download className="h-4 w-4 mr-2" /> Export Excel
               </Button>

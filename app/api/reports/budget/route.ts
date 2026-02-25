@@ -14,7 +14,8 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const isSuperAdmin = isSuperAdminUser(user);
-  const locationId = (isSuperAdmin || isAccountant) ? searchParams.get("locationId") : user.locationId;
+  const isAdmin = isAdminUser(user);
+  const locationId = (isAdmin || isAccountant) ? searchParams.get("locationId") : user.locationId;
 
   const where: any = locationId ? { locationId } : {};
 

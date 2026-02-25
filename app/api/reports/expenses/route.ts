@@ -23,7 +23,8 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const isSuperAdmin = isSuperAdminUser(user);
-  const canViewAllLocations = isSuperAdmin || isAccountant;
+  const isAdmin = isAdminUser(user);
+  const canViewAllLocations = isAdmin || isAccountant;
   const locationId = canViewAllLocations ? searchParams.get("locationId") : null;
   
   const where: any = canViewAllLocations
@@ -70,6 +71,9 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  let targetRouteNo: string | null = null;
+  let targetVehicleNo: string | null = null;
+
   // Route filter
   const routeId = searchParams.get("routeId");
   if (routeId && routeId !== "all") {
@@ -79,6 +83,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (route) {
+      targetRouteNo = route.routeNo;
       if (!where.AND) where.AND = [];
       where.AND.push({
         OR: [
@@ -100,6 +105,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (vehicle) {
+      targetVehicleNo = vehicle.vehicleNo;
       if (!where.AND) where.AND = [];
       where.AND.push({
         OR: [
@@ -125,5 +131,34 @@ export async function GET(request: NextRequest) {
     orderBy: { createdAt: "desc" },
   });
 
-  return NextResponse.json({ expenses });
+  let processedExpenses = expenses;
+
+  // If filtering by route or vehicle, we should only return the amount for that specific route/vehicle
+  // if the expense sheet contains multiple items.
+  if (targetRouteNo || targetVehicleNo) {
+    processedExpenses = expenses.map(expense => {
+      const items = (expense.items as any[]) || [];
+      if (items.length > 0) {
+        const filteredAmount = items.reduce((sum, item) => {
+          let matches = true;
+          // if (targetRouteNo && item.routeNo !== targetRouteNo) matches = false;
+          if (targetVehicleNo && item.vehicleNo !== targetVehicleNo) matches = false;
+          
+          if (matches) {
+            return sum + (Number(item.amount) || 0);
+          }
+          return sum;
+        }, 0);
+        
+        // Only override if we found matching items. If no items matched but the record was returned,
+        // it means it matched via the top-level routeId/vehicleId.
+        if (filteredAmount > 0) {
+          return { ...expense, amount: filteredAmount };
+        }
+      }
+      return expense;
+    });
+  }
+
+  return NextResponse.json({ expenses: processedExpenses });
 }
