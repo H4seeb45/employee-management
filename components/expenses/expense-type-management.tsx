@@ -234,6 +234,32 @@ export function ExpenseTypeManagement() {
     }
   };
 
+  const exportToExcel = () => {
+    if (filteredTypes.length === 0) {
+      alert("No records to export.");
+      return;
+    }
+    
+    const dataToExport = filteredTypes.map(t => ({
+      "Type Name*": t.name,
+      "Description": t.description || "",
+      "Code*": t.expenseCode || "",
+      "Vehicle Required (true/false)": t.requiresRouteAndVehicle ? "true" : "false",
+      "Active (true/false)": t.isActive ? "true" : "false",
+      "Location": t.location?.name || ""
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Expense Types");
+    
+    const fileName = selectedLocationId === "all" 
+      ? "All_Expense_Types.xlsx" 
+      : `Expense_Types_${locations.find(l => l.id === selectedLocationId)?.name || 'Location'}.xlsx`;
+      
+    XLSX.writeFile(wb, fileName);
+  };
+
   const downloadTemplate = () => {
     const template = [
       { "Type Name*": "Fuel", "Description": "Vehicle fuel", "Code*": "VEHICLE_FUEL", "Vehicle Required (true/false)": "true", "Active (true/false)": "true" },
@@ -380,6 +406,15 @@ export function ExpenseTypeManagement() {
               >
                 <Download className="h-3.5 w-3.5 mr-1.5" />
                 Template
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={exportToExcel}
+                className="text-emerald-600 border-emerald-200 bg-emerald-50/50"
+              >
+                <Download className="h-3.5 w-3.5 mr-1.5" />
+                Export
               </Button>
               <div className="relative">
                 <Button variant="outline" size="sm" className="text-blue-600 border-blue-200 bg-blue-50/50">

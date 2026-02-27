@@ -33,11 +33,14 @@ export async function GET(request: NextRequest) {
     1,
     Number.parseInt(searchParams.get("page") || "1", 10)
   );
-  const limit = Math.min(
-    50,
-    Math.max(1, Number.parseInt(searchParams.get("limit") || "10", 10))
-  );
-  const skip = (page - 1) * limit;
+  const isExport = searchParams.get("all") === "true";
+  const limit = isExport 
+    ? 10000 
+    : Math.min(
+        50,
+        Math.max(1, Number.parseInt(searchParams.get("limit") || "10", 10))
+      );
+  const skip = isExport ? 0 : (page - 1) * limit;
 
   const isSuperAdmin = isSuperAdminUser(user);
   const isAdmin = isAdminUser(user);

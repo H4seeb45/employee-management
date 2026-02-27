@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import * as XLSX from "xlsx";
 import { useReactToPrint } from "react-to-print";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -440,6 +441,105 @@ export function ExpenseModule({
   useEffect(() => {
     fetchBudgetAndStats();
   }, [locationId, searchQuery, filterStatus, filterType, filterFromDate, filterToDate, filterRoute, filterVehicle, filterMinAmount, filterMaxAmount]);
+
+  const handleExportForMapping = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (locationId) params.append("locationId", locationId);
+      if (searchQuery) params.append("searchId", searchQuery);
+      if (filterStatus !== "all") params.append("status", filterStatus);
+      if (filterType !== "all") params.append("expenseType", filterType);
+      if (filterFromDate) params.append("fromDate", filterFromDate);
+      if (filterToDate) params.append("toDate", filterToDate);
+      if (filterRoute !== "all") params.append("routeId", filterRoute);
+      if (filterVehicle !== "all") params.append("vehicleId", filterVehicle);
+      if (filterMinAmount) params.append("minAmount", filterMinAmount);
+      if (filterMaxAmount) params.append("maxAmount", filterMaxAmount);
+      params.append("all", "true");
+
+      const res = await fetch(`/api/expenses?${params.toString()}`);
+      if (!res.ok) throw new Error("Failed to fetch records for export");
+      
+      const data = await res.json();
+      const allExpenses = data.expenses || [];
+
+      if (allExpenses.length === 0) {
+        alert("No expenses to export.");
+        return;
+      }
+
+      const exportData = allExpenses.map((e: any) => ({
+        "Record ID": e.id,
+        "Date": new Date(e.createdAt).toLocaleDateString(),
+        "Category": e.category || "Expense",
+        "Current Type": e.expenseType?.name || "None",
+        "Amount": e.amount,
+        "Details": e.details || "",
+        "Location": e.location?.name || "",
+        "New Expense Type Code*": "" 
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Expenses_Mapping");
+      XLSX.writeFile(wb, "Expenses_For_Type_Mapping.xlsx");
+    } catch (err) {
+      console.error("Export mapping error:", err);
+      alert("Failed to export records for mapping.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImportTypeMapping = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstream = evt.target?.result;
+        const wb = XLSX.read(bstream, { type: "binary" });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws);
+
+        const mappings = data.map((row: any) => ({
+          recordId: row["Record ID"],
+          expenseCode: row["New Expense Type Code*"]
+        })).filter((m: any) => m.recordId && m.expenseCode);
+
+        if (mappings.length === 0) {
+          alert("No valid mappings found in Excel sheet. Please ensure 'Record ID' and 'New Expense Type Code*' are present.");
+          return;
+        }
+
+        setLoading(true);
+        const res = await fetch("/api/expenses/bulk-map-types", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mappings }),
+        });
+
+        const result = await res.json();
+        if (res.ok) {
+          alert(result.message);
+          fetchExpenses();
+          fetchBudgetAndStats();
+        } else {
+          alert("Failed to map types: " + result.message);
+        }
+      } catch (err) {
+        console.error("Mapping import error:", err);
+        alert("Failed to process Excel file for mapping.");
+      } finally {
+        setLoading(false);
+        e.target.value = "";
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
 
   const fetchExpenses = async () => {
     setLoading(true);
@@ -971,20 +1071,48 @@ export function ExpenseModule({
                     Find specific expense claims
                   </CardDescription>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="border-slate-300 dark:border-slate-600"
-                >
-                  <Filter className="h-4 w-4 mr-2" />
-                  {showFilters ? "Hide" : "Show"} Filters
-                  {showFilters ? (
-                    <ChevronDown className="h-4 w-4 ml-2" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 ml-2" />
-                  )}
-                </Button>
+                <div className="flex items-center gap-2">
+                  {/* Importing expenses and mapping expense types for data reconceliation */}
+                  {/* <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportForMapping}
+                    className="border-slate-300 dark:border-slate-600 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Export Mapping
+                  </Button> */}
+                  {/* <div className="relative">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-slate-300 dark:border-slate-600 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Import Mapping
+                    </Button>
+                    <input
+                      type="file"
+                      accept=".xlsx, .xls"
+                      onChange={handleImportTypeMapping}
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                    />
+                  </div> */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="border-slate-300 dark:border-slate-600"
+                  >
+                    <Filter className="h-4 w-4 mr-2" />
+                    {showFilters ? "Hide" : "Show"} Filters
+                    {showFilters ? (
+                      <ChevronDown className="h-4 w-4 ml-2" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 ml-2" />
+                    )}
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <AnimatePresence>
@@ -1223,10 +1351,8 @@ export function ExpenseModule({
                                 {expense?.location?.name}
                               </span>
                             </TableCell>
-                            <TableCell>
-                              <span className="text-slate-5=900 dark:text-white0 truncate max-w-xs">
-                                {expense?.details}
-                              </span>
+                            <TableCell className="text-slate-5=900 dark:text-white0 truncate break-words max-w-[200px]">
+                              {expense?.details}
                             </TableCell>
                             <TableCell>
                               {getRouteDisplay(expense)}
