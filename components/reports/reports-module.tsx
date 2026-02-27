@@ -72,7 +72,7 @@ type BudgetReport = {
 
 type ExpenseDetailed = {
   id: string;
-  expenseType: string;
+  expenseType: {name: string,id:string,expenseCode:string};
   details: string | null;
   amount: number;
   status: string;
@@ -111,7 +111,8 @@ export function ReportsModule({ roles }: { roles: string[] }) {
   const [budgetData, setBudgetData] = useState<BudgetReport[]>([]);
   const [expenseData, setExpenseData] = useState<ExpenseDetailed[]>([]);
   const [routeVehicleData, setRouteVehicleData] = useState<RouteVehicleReport | null>(null);
-
+    const [dynamicExpenseTypes, setDynamicExpenseTypes] = useState<any[]>([]);
+  
   // --- Filter States (for Expense Report) ---
   const [showFilters, setShowFilters] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
@@ -244,9 +245,28 @@ export function ReportsModule({ roles }: { roles: string[] }) {
     fetchRoutesAndVehicles();
   }, []);
 
+  const fetchExpenseTypes = async (locId?: string | null) => {
+      try {
+        const params = new URLSearchParams();
+        if (locId) params.append("locationId", locId);
+        params.append("active", "true");
+        
+        const res = await fetch(`/api/expense-types?${params.toString()}`);
+        if (res.ok) {
+          const data = await res.json();
+          setDynamicExpenseTypes(data.expenseTypes || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch expense types:", err);
+      }
+    };
+
   useEffect(() => {
     if (activeTab === "budget") fetchBudgetReport();
-    if (activeTab === "expenses") fetchExpenseReport();
+    if (activeTab === "expenses") {
+      fetchExpenseReport();
+      fetchExpenseTypes(filterLocation);
+    }
     if (activeTab === "routes-vehicles") fetchRouteVehicleReport();
   }, [activeTab, filterLocation]);
 
@@ -302,7 +322,7 @@ export function ReportsModule({ roles }: { roles: string[] }) {
     const data = expenseData.map(e => ({
       ID: e.id,
       Date: new Date(e.createdAt).toLocaleDateString(),
-      Type: expenseTypes.find(t => t.value === e.expenseType)?.label || e.expenseType,
+      Type: e.expenseType?.name,
       Details: e.details,
       Amount: e.amount,
       Status: e.status,
@@ -557,7 +577,7 @@ export function ReportsModule({ roles }: { roles: string[] }) {
                          onValueChange={setFilterType}
                          options={[
                            { value: "all", label: "All Types" },
-                           ...expenseTypes.map(t => ({ value: t.value, label: t.label }))
+                           ...dynamicExpenseTypes.map((type) => ({ value: type.id, label: type.name }))
                          ]}
                          placeholder="All Types"
                          searchPlaceholder="Search type..."
@@ -699,7 +719,9 @@ export function ReportsModule({ roles }: { roles: string[] }) {
                               {new Date(e.createdAt).toLocaleDateString()}
                             </TableCell>
                             <TableCell className="font-medium text-xs">
-                               {expenseTypes.find(t => t.value === e.expenseType)?.label || e.expenseType}
+                               {e.expenseType?.name}
+                              
+                               {/* {expenseTypes.find(t => t.value === e.expenseType)?.label || e.expenseType} */}
                             </TableCell>
                             <TableCell className="max-w-[200px] text-xs truncate" title={e.details || ""}>
                               {e.details}

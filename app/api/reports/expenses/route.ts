@@ -42,7 +42,10 @@ export async function GET(request: NextRequest) {
   // Expense Type filter
   const expenseType = searchParams.get("expenseType");
   if (expenseType && expenseType !== "all") {
-    where.expenseType = expenseType;
+    where.OR = [
+      { expenseType: { name: expenseType } },
+      { expenseTypeId: expenseType }
+    ];
   }
 
   // Amount range filter
@@ -127,6 +130,7 @@ export async function GET(request: NextRequest) {
       disbursedBy: true,
       route: true,
       vehicle: true,
+      expenseType: true,
     },
     orderBy: { createdAt: "desc" },
   });

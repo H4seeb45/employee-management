@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { OldExpenseType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   getCurrentUser,
@@ -72,7 +73,14 @@ export async function GET(request: NextRequest) {
   if (status && status !== "all") where.status = status;
 
   const expenseType = searchParams.get("expenseType");
-  if (expenseType && expenseType !== "all") where.expenseType = expenseType;
+  if (expenseType && expenseType !== "all") {
+    const isLegacyType = Object.values(OldExpenseType).includes(expenseType as any);
+    where.OR = [
+      ...(isLegacyType ? [{ expenseTypeEnum: expenseType as any }] : []),
+      { expenseType: { name: expenseType } },
+      { expenseTypeId: expenseType }
+    ];
+  }
 
   const fromDate = searchParams.get("fromDate");
   const toDate = searchParams.get("toDate");
@@ -170,16 +178,16 @@ export async function GET(request: NextRequest) {
     }),
     prisma.expenseSheet.findMany({
       where,
-      select: { expenseType: true, amount: true, items: true }
-    }),
+      select: { expenseTypeEnum: true, expenseType: { select: { name: true } }, amount: true, items: true }
+    } as any),
     prisma.expenseSheet.findMany({
       where: {
         ...statsWhere,
         createdAt: { gte: startOfMonth, lt: endOfMonth },
         status: { not: "REJECTED" },
       },
-      select: { amount: true, expenseType: true, items: true }
-    }),
+      select: { amount: true, expenseTypeEnum: true, expenseType: { select: { name: true } }, items: true }
+    } as any),
     prisma.budget.findFirst({
       where: { 
         ...(statsLocationFilter.locationId ? { locationId: statsLocationFilter.locationId } : {}),
@@ -241,7 +249,8 @@ export async function GET(request: NextRequest) {
       if (filteredAmount > 0) amount = filteredAmount;
     }
     
-    acc[rec.expenseType] = (acc[rec.expenseType] || 0) + amount;
+    const typeLabel = rec.expenseType?.name || rec.expenseTypeEnum || "Unknown";
+    acc[typeLabel] = (acc[typeLabel] || 0) + amount;
     return acc;
   }, {});
 
@@ -264,7 +273,8 @@ export async function GET(request: NextRequest) {
       if (filteredAmount > 0) amount = filteredAmount;
     }
     
-    acc[rec.expenseType] = (acc[rec.expenseType] || 0) + amount;
+    const typeLabel = rec.expenseType?.name || rec.expenseTypeEnum || "Unknown";
+    acc[typeLabel] = (acc[typeLabel] || 0) + amount;
     return acc;
   }, {});
 

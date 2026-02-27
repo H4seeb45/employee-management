@@ -36,20 +36,29 @@ export async function GET(request: NextRequest) {
     include: { location: true },
   });
 
-  const expenses = await prisma.expenseSheet.groupBy({
-    by: ["expenseType", "locationId"],
+  const expensesRaw = await prisma.expenseSheet.findMany({
     where: {
       ...where,
       createdAt: { gte: startOfMonth, lt: endOfMonth },
       status: { not: "REJECTED" },
     },
-    _sum: { amount: true },
+    include: {
+      expenseType: true
+    },
+  });
+
+  // Group expenses by expenseCode/Enum and locationId
+  const expensesGrouped: Record<string, number> = {};
+  expensesRaw.forEach(e => {
+    const code = e.expenseType?.expenseCode || e.expenseTypeEnum || "UNKNOWN";
+    const key = `${code}_${e.locationId}`;
+    expensesGrouped[key] = (expensesGrouped[key] || 0) + e.amount;
   });
 
   const report = budgets.map(budget => {
     const categories = (budget.categories as Record<string, number>) || {};
     const categoryReport = Object.entries(categories).map(([type, limit]) => {
-      const spent = expenses.find(e => e.expenseType === type && e.locationId === budget.locationId)?._sum?.amount || 0;
+      const spent = expensesGrouped[`${type}_${budget.locationId}`] || 0;
       return {
         type,
         limit,

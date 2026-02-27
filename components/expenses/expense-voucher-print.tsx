@@ -7,7 +7,7 @@ import { expenseTypes } from "./expense-types";
 type ExpenseVoucherPrintProps = {
   expense: {
     id: string;
-    expenseType: string;
+    expenseType: {name: string,id:string,expenseCode:string};
     amount: number;
     details: string | null;
     status?: string;
@@ -41,14 +41,17 @@ type ExpenseVoucherPrintProps = {
     disbursedAmount?: number;
     category?: string;
     items?: any;
+    expenseTypeEnum?: string;
+    expenseTypeId?: string;
   } | null;
   routes?: { id: string; routeNo: string; name: string }[];
+  dynamicExpenseTypes?: any[];
 };
 
 export const ExpenseVoucherPrint = React.forwardRef<
   HTMLDivElement,
   ExpenseVoucherPrintProps
->(({ expense, routes }, ref) => {
+>(({ expense, routes, dynamicExpenseTypes = [] }, ref) => {
   // Return null if no expense is provided
   if (!expense) {
     return <div ref={ref} />;
@@ -183,7 +186,7 @@ export const ExpenseVoucherPrint = React.forwardRef<
           </div>
           <div className="flex">
             <span className="font-bold w-28">Expense Type:</span>
-            <span>{expenseTypes.find((type) => type.value === expense.expenseType)?.label || expense.expenseType}</span>
+            <span>{dynamicExpenseTypes.find((type) => type.id === expense.expenseTypeId)?.name}</span>
           </div>
           {expense.location && (
             <div className="flex">
@@ -191,13 +194,13 @@ export const ExpenseVoucherPrint = React.forwardRef<
               <span>{expense.location.city} - {expense.location.name}</span>
             </div>
           )}
-          {expense.vehicle && requiresRouteAndVehicle(expense.expenseType) ? (
+          {expense.vehicle && requiresRouteAndVehicle(expense.expenseType?.id, dynamicExpenseTypes) ? (
             <div className="flex">
               <span className="font-bold w-28">Vehicle:</span>
               <span>{expense.vehicle?.vehicleNo}</span>
             </div>
           ) : null}
-          {expense.route && requiresRouteAndVehicle(expense.expenseType) ? (
+          {expense.route && requiresRouteAndVehicle(expense.expenseType?.id, dynamicExpenseTypes) ? (
             <div className="flex">
               <span className="font-bold w-24">Route:</span>
               <span>{expense.route?.routeNo} - {expense.route?.name}</span>
@@ -206,7 +209,7 @@ export const ExpenseVoucherPrint = React.forwardRef<
         </div>
 
         {/* Payment / Disbursement Details Section */}
-        {(expense.disburseType || "Cash") === "Cash" && expense.expenseType !== "TOLLS_TAXES" && (
+        {(expense.disburseType || "Cash") === "Cash" && expense.expenseType?.expenseCode !== "TOLLS_TAXES" && (
           /* Standard Table for Cash Payments */
           <div className="mb-4">
             <table className="w-full border-2 border-black text-sm">
@@ -294,18 +297,18 @@ export const ExpenseVoucherPrint = React.forwardRef<
         {expense.items && Array.isArray(expense.items) && expense.items.length > 0 && (
           <div className="mb-4">
             <h3 className="text-xs font-bold uppercase border-black mb-2 pb-1">
-              {(expense.category === "Fixed Asset" || expense.expenseType === "FIXED_ASSET") ? "Asset List / Breakdown" : "Payment Breakdown Details"}
+              {(expense.category === "Fixed Asset" || expense.expenseType?.expenseCode === "FIXED_ASSET") ? "Asset List / Breakdown" : "Payment Breakdown Details"}
             </h3>
             <table className="w-full border-2 border-black text-[11px]">
               <thead>
                 <tr className="bg-gray-100">
                   <th className="border border-black p-1 text-left w-6">#</th>
                   {/* Determine columns based on first item's data */}
-                  {requiresRouteAndVehicle(expense.expenseType) || expense.expenseType === "TOLLS_TAXES" ? (
+                  {requiresRouteAndVehicle(expense.expenseType?.id, dynamicExpenseTypes) || expense.expenseType?.expenseCode === "TOLLS_TAXES" ? (
                     <>
                       <th className="border border-black p-1 text-left">Vehicle No.</th>
                       <th className="border border-black p-1 text-left">Route No.</th>
-                      {requiresRouteAndVehicle(expense.expenseType) &&<th className="border border-black p-1 text-left">Detail</th>}
+                      {requiresRouteAndVehicle(expense.expenseType?.id, dynamicExpenseTypes) &&<th className="border border-black p-1 text-left">Detail</th>}
                     </>
                   ) : (
                     <th className="border border-black p-1 text-left">Item / Detail</th>
@@ -327,11 +330,11 @@ export const ExpenseVoucherPrint = React.forwardRef<
                   return (
                     <tr key={idx}>
                       <td className="border border-black p-1 text-center">{idx + 1}</td>
-                      {(requiresRouteAndVehicle(expense.expenseType) || expense.expenseType === "TOLLS_TAXES") ? (
+                      {(requiresRouteAndVehicle(expense.expenseType?.id, dynamicExpenseTypes) || expense.expenseType?.expenseCode === "TOLLS_TAXES") ? (
                         <>
                           <td className="border border-black p-1">{vehicle || "N/A"}</td>
                           <td className="border border-black p-1">{routeNo + " - " + routeName || "N/A"}</td>
-                          {requiresRouteAndVehicle(expense.expenseType) && <td className="border border-black p-1">{item.details || "N/A"}</td>}
+                          {requiresRouteAndVehicle(expense.expenseType?.id, dynamicExpenseTypes) && <td className="border border-black p-1">{item.details || "N/A"}</td>}
                         </>
                       ) : (
                         <td className="border border-black p-1">{item.details || item.name || "N/A"}</td>
@@ -343,7 +346,7 @@ export const ExpenseVoucherPrint = React.forwardRef<
                   );
                 })}
                 <tr className="bg-gray-50 font-bold">
-                  <td colSpan={requiresRouteAndVehicle(expense.expenseType) || expense.expenseType === "TOLLS_TAXES" ? 3 : 2} className="border border-black p-1 text-right">
+                  <td colSpan={requiresRouteAndVehicle(expense.expenseType?.id, dynamicExpenseTypes) || expense.expenseType?.expenseCode === "TOLLS_TAXES" ? 3 : 2} className="border border-black p-1 text-right">
                     Total
                   </td>
                   <td className="border border-black p-1 text-right">

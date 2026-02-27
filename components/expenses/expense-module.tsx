@@ -87,7 +87,7 @@ type ExpenseAttachment = {
 
 type ExpenseSheet = {
   id: string;
-  expenseType: string;
+  expenseType: {name: string,id:string,expenseCode:string};
   details: string | null;
   amount: number;
   status: string;
@@ -111,23 +111,27 @@ type ExpenseSheet = {
     routeNo?: string; 
     description: string; 
     amount: string }[] | null;
+  expenseTypeId: string;
 };
 
 // Required route/vehicle check
-  export const requiresRouteAndVehicle = (type: string) => {
-    const vehicleTypes = [
-      "LOADING_CHARGES",
-      "REPAIR_MAINT_VEHICLE",
-      "RIKSHAW_RENTAL",
-      "VEHICLE_CHALLAN",
-      "VEHICLE_FUEL",
-      "VEHICLE_RENTAL",
-      "VEHICLES_RENT",
-      "VEHICLE_PARKING",
-      "VEHICLE_PASSING",
-    ];
-    return vehicleTypes.includes(type);
-  };
+export const requiresRouteAndVehicle = (type: string, dynamicTypes: any[] = []) => {
+  const dynamicType = dynamicTypes.find(t => t.id === type || t.name === type || t.expenseCode === type);
+  if (dynamicType) return dynamicType.requiresRouteAndVehicle;
+
+  const vehicleTypes = [
+    "LOADING_CHARGES",
+    "REPAIR_MAINT_VEHICLE",
+    "RIKSHAW_RENTAL",
+    "VEHICLE_CHALLAN",
+    "VEHICLE_FUEL",
+    "VEHICLE_RENTAL",
+    "VEHICLES_RENT",
+    "VEHICLE_PARKING",
+    "VEHICLE_PASSING",
+  ];
+  return vehicleTypes.includes(type);
+};
 
 export function ExpenseModule({
   roles,
@@ -141,6 +145,7 @@ export function ExpenseModule({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [expenses, setExpenses] = useState<ExpenseSheet[]>([]);
+  const [dynamicExpenseTypes, setDynamicExpenseTypes] = useState<any[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -293,6 +298,22 @@ export function ExpenseModule({
     }
   };
 
+  const fetchExpenseTypes = async (locId?: string | null) => {
+    try {
+      const params = new URLSearchParams();
+      if (locId) params.append("locationId", locId);
+      params.append("active", "true");
+      
+      const res = await fetch(`/api/expense-types?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setDynamicExpenseTypes(data.expenseTypes || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch expense types:", err);
+    }
+  };
+
   const loadVehicleTransactions = async (vehicleId: string, type?: string) => {
     if (!vehicleId) {
       setVehicleTransactions([]);
@@ -361,7 +382,7 @@ export function ExpenseModule({
 
   useEffect(() => {
     if (selectedExpense) {
-      loadTypeHistory(selectedExpense.expenseType);
+      loadTypeHistory(selectedExpense.expenseType?.id as string);
       if (selectedExpense.vehicleId) {
         loadVehicleTransactions(selectedExpense.vehicleId);
       }
@@ -369,8 +390,9 @@ export function ExpenseModule({
   }, [selectedExpense]);
 
   useEffect(() => {
-    // Fetch routes and vehicles for both form and filters
+    // Fetch routes, vehicles and expense types for both form and filters
     fetchRoutesAndVehicles(locationId);
+    fetchExpenseTypes(locationId);
     
     // Reset filters when location changes
     setFilterRoute("all");
@@ -460,7 +482,7 @@ export function ExpenseModule({
     e.preventDefault();
     
     // Validate all required fields
-    const needsRouteAndVehicle = requiresRouteAndVehicle(expenseType);
+    const needsRouteAndVehicle = requiresRouteAndVehicle(expenseType, dynamicExpenseTypes);
     if (!expenseType || (entryMode === "single" && category === "Expense" && expenseType !== "TOLLS_TAXES" && !details)) {
       setError("All fields are required.");
       setSaving(false);
@@ -566,7 +588,9 @@ export function ExpenseModule({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           category,
-          expenseType: category === "Fixed Asset" ? "FIXED_ASSET" : expenseType,
+          expenseType: category === "Fixed Asset" ? "FIXED_ASSET" : undefined,
+          // category === "Fixed Asset" ? undefined : 
+          expenseTypeId: expenseType === "FIXED_ASSET" ? dynamicExpenseTypes.find((t) => t.expenseCode === "FIXED_ASSET")?.id : expenseType,
           items,
           amount: finalAmount,
           details,
@@ -696,9 +720,11 @@ export function ExpenseModule({
 
   const categoryRemaining = (() => {
     if (!budgetInfo || !budgetInfo.categories || !expenseType) return null;
-    const categoryBudget = budgetInfo.categories[expenseType] || 0;
+    const expenseCode = dynamicExpenseTypes.find((t) => t.id === expenseType)?.expenseCode;
+    if (!expenseCode) return null;
+    const categoryBudget = budgetInfo.categories[expenseCode] || 0;
     if (categoryBudget === 0) return null;
-    const spentThisMonth = stats.monthlyTypeTotals[expenseType] || 0;
+    const spentThisMonth = stats.monthlyTypeTotals[expenseCode] || 0;
     return categoryBudget - spentThisMonth;
   })();
 
@@ -877,7 +903,7 @@ export function ExpenseModule({
                   
                   {filterType !== "all" && (
                     <Badge variant="secondary" className="gap-1 px-2 py-0.5 h-6 bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-800 text-[10px]">
-                      {expenseTypes.find(t => t.value === filterType)?.label || filterType}
+                      {dynamicExpenseTypes.find(t => t.id === filterType)?.name || filterType}
                       <X className="h-3 w-3 cursor-pointer hover:text-purple-900 dark:hover:text-purple-100" onClick={() => {setFilterType("all"); setTempFilterType("all");}} />
                     </Badge>
                   )}
@@ -997,7 +1023,7 @@ export function ExpenseModule({
                           onValueChange={setTempFilterType}
                           options={[
                             { value: "all", label: "All Types" },
-                            ...expenseTypes.map((type) => ({ value: type.value, label: type.label })),
+                            ...dynamicExpenseTypes.map((type) => ({ value: type.id, label: type.name }))
                           ]}
                           placeholder="All types"
                           searchPlaceholder="Search type..."
@@ -1149,6 +1175,9 @@ export function ExpenseModule({
                           <TableHead className="font-semibold text-slate-700 dark:text-slate-300 rounded-lg">
                             Type
                           </TableHead>
+                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300 rounded-lg">
+                            Location
+                          </TableHead>
                           <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
                             Details
                           </TableHead>
@@ -1185,10 +1214,14 @@ export function ExpenseModule({
                             <TableCell>
                               <div className="flex flex-col">
                                 <span className="font-medium text-slate-900 dark:text-white">
-                                  {expenseTypes.find((t) => t.value === expense.expenseType)
-                                    ?.label || expense.expenseType}
+                                  {expense.expenseType?.name}
                                 </span>
                               </div>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-slate-5=900 dark:text-white0 truncate max-w-xs">
+                                {expense?.location?.name}
+                              </span>
                             </TableCell>
                             <TableCell>
                               <span className="text-slate-5=900 dark:text-white0 truncate max-w-xs">
@@ -1325,14 +1358,14 @@ export function ExpenseModule({
                 </div>
                 {budgetInfo && (
                   <div className="flex gap-6 items-center">
-                    {categoryRemaining !== null && (
+                    {/* {categoryRemaining !== null && (
                       <div className="text-right border-r border-blue-200 dark:border-blue-800 pr-6">
                         <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Category Budget</p>
                         <p className={`text-base font-bold ${categoryRemaining > 0 ? 'text-indigo-600 dark:text-indigo-400' : 'text-rose-600'}`}>
                           {new Intl.NumberFormat("en-PK", { style: "currency", currency: "PKR", minimumFractionDigits: 0 }).format(categoryRemaining)}
                         </p>
                       </div>
-                    )}
+                    )} */}
                     <div className="text-right">
                       <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Total Remaining</p>
                       <p className={`text-lg font-black ${budgetInfo.remainingBudget > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600'}`}>
@@ -1400,9 +1433,10 @@ export function ExpenseModule({
                           <SearchableSelect
                             value={expenseType}
                             onValueChange={setExpenseType}
-                            options={expenseTypes
-                              .filter((type) => type.value !== "FIXED_ASSET")
-                              .map((type) => ({ value: type.value, label: type.label }))}
+                            options={dynamicExpenseTypes
+                              .filter((type) => type.name !== "Fixed Asset")
+                              .map((type) => ({ value: type.id, label: type.name }))
+                            }
                             placeholder="Select expense type"
                             searchPlaceholder="Search type..."
                           />
@@ -1473,7 +1507,7 @@ export function ExpenseModule({
                             <div className="space-y-3">
                               {bulkItems.map((item, index) => (
                                 <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end p-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm">
-                                 {requiresRouteAndVehicle(expenseType) && <><div className="md:col-span-3 space-y-1">
+                                 {requiresRouteAndVehicle(expenseType, dynamicExpenseTypes) && <><div className="md:col-span-3 space-y-1">
                                     <Label className="text-[10px] uppercase tracking-wider text-slate-500">Vehicle <span className="text-red-500">*</span></Label>
                                     <SearchableSelect
                                       value={item.vehicleNo!}
@@ -1762,7 +1796,7 @@ export function ExpenseModule({
                     </div>
                   )}
 
-                  {requiresRouteAndVehicle(expenseType) && entryMode !== "bulk" && (
+                  {requiresRouteAndVehicle(expenseType,dynamicExpenseTypes) && entryMode !== "bulk" && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
                       <div className="space-y-2">
                         <Label className="text-slate-700 dark:text-slate-300">Route <span className="text-rose-500">*</span></Label>
@@ -1789,7 +1823,7 @@ export function ExpenseModule({
                   )}
 
                   {/* Vehicle Transaction History */}
-                  {requiresRouteAndVehicle(expenseType) && selectedVehicle && (
+                  {requiresRouteAndVehicle(expenseType,dynamicExpenseTypes) && selectedVehicle && (
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">
                         Last 3 {expenseTypes.find(t => t.value === expenseType)?.label || "Related"} Transactions for Selected Vehicle
@@ -1812,7 +1846,7 @@ export function ExpenseModule({
                               <div className="flex justify-between items-start">
                                 <div className="flex-1">
                                   <p className="text-sm font-medium">
-                                    {expenseTypes.find((t) => t.value === transaction.expenseType)?.label ?? transaction.expenseType}
+                                    {transaction.expenseType?.name}
                                   </p>
                                   <p className="text-xs text-muted-foreground">
                                     {new Date(transaction.createdAt).toLocaleDateString()} - {transaction?.route?.name} - {transaction.status}
@@ -2017,9 +2051,16 @@ export function ExpenseModule({
               )}
 
               {/* Status Badge */}
-              <div className="flex items-center justify-between p-4 rounded-lg bg-slate-50 dark:bg-slate-800">
+              <div className="flex items-center justify-between py-4 rounded-lg bg-slate-50 dark:bg-slate-800 w-full">
+                <div>
+                  <Label className="text-xs text-slate-500 dark:text-slate-400">Location</Label>
+                  <p className="text-sm font-mono font-medium text-slate-900 dark:text-white mt-1">
+                    {selectedExpense.location?.name}
+                  </p>
+                </div>
                 <div>
                   <Label className="text-xs text-slate-500 dark:text-slate-400">Current Status    </Label>
+                  <div>
                   <Badge
                     className={`mt-1 ${
                       selectedExpense.status === "PENDING"
@@ -2033,6 +2074,7 @@ export function ExpenseModule({
                   >
                     {selectedExpense.status}
                   </Badge>
+                  </div>
                 </div>
                 <div className="text-right">
                   <Label className="text-xs text-slate-500 dark:text-slate-400">Expense ID</Label>
@@ -2053,7 +2095,7 @@ export function ExpenseModule({
                 <div>
                   <Label className="text-xs text-slate-500 dark:text-slate-400">Expense Type</Label>
                   <p className="text-sm font-medium text-slate-900 dark:text-white mt-1">
-                    {expenseTypes.find((t) => t.value === selectedExpense.expenseType)?.label || selectedExpense.expenseType}
+                    {dynamicExpenseTypes.find((t) => t.id === selectedExpense.expenseTypeId)?.name || selectedExpense.expenseType}
                   </p>
                 </div>
                 <div>
@@ -2107,14 +2149,14 @@ export function ExpenseModule({
               {/* Tolls & Taxes Breakdown and Items Breakdown */}
               {selectedExpense.category !== "Fixed Asset" && selectedExpense.items && Array.isArray(selectedExpense.items) && (
                 <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                  <Label className="text-xs text-blue-700 dark:text-blue-400 mb-2 font-bold uppercase tracking-wider">{selectedExpense.expenseType === "TOLLS_TAXES" ? "Tolls & Taxes" : "Items"} Breakdown</Label>
+                  <Label className="text-xs text-blue-700 dark:text-blue-400 mb-2 font-bold uppercase tracking-wider">{selectedExpense.expenseType?.expenseCode === "TOLLS_TAXES" ? "Tolls & Taxes" : "Items"} Breakdown</Label>
                   <div className="space-y-2 mt-2">
-                    <div className={`grid grid-cols-${requiresRouteAndVehicle(selectedExpense.expenseType) ? 4 : 3} gap-2 text-[10px] font-bold text-slate-500 border-b pb-1`}>
-                      {requiresRouteAndVehicle(selectedExpense.expenseType) || selectedExpense.expenseType === "TOLLS_TAXES" ?
+                    <div className={`grid grid-cols-${requiresRouteAndVehicle(selectedExpense.expenseType?.id,dynamicExpenseTypes) ? 4 : 3} gap-2 text-[10px] font-bold text-slate-500 border-b pb-1`}>
+                      {requiresRouteAndVehicle(selectedExpense.expenseType?.id,dynamicExpenseTypes) || selectedExpense.expenseType?.expenseCode === "TOLLS_TAXES" ?
                       <> 
                       <span>Vehicle</span>
                       <span>Route</span>
-                      {requiresRouteAndVehicle(selectedExpense.expenseType) &&<span>Detail</span>}
+                      {requiresRouteAndVehicle(selectedExpense.expenseType.id,dynamicExpenseTypes) &&<span>Detail</span>}
                       </>
                       :<span>Details</span>}
                       <span className="text-right">Amount</span>
@@ -2127,12 +2169,12 @@ export function ExpenseModule({
                       // }
                       return (
                         // border-b
-                        <div key={idx} className={`grid grid-cols-${requiresRouteAndVehicle(selectedExpense.expenseType) ? 4 : 3} gap-2 text-sm border-blue-100 dark:border-blue-900/40 last:border-0 pb-1.5 pt-1`}>
-                          {requiresRouteAndVehicle(selectedExpense.expenseType) || selectedExpense.expenseType === "TOLLS_TAXES" ? 
+                        <div key={idx} className={`grid grid-cols-${requiresRouteAndVehicle(selectedExpense.expenseType?.id,dynamicExpenseTypes) ? 4 : 3} gap-2 text-sm border-blue-100 dark:border-blue-900/40 last:border-0 pb-1.5 pt-1`}>
+                          {requiresRouteAndVehicle(selectedExpense.expenseType?.id,dynamicExpenseTypes) || selectedExpense.expenseType?.expenseCode === "TOLLS_TAXES" ? 
                           <>
                           <span className="text-slate-700 dark:text-slate-300 font-medium truncate">{vehicle || "N/A"}</span>
                           <span className="text-slate-600 dark:text-slate-400 truncate">{route || "N/A"}</span>
-                          {requiresRouteAndVehicle(selectedExpense.expenseType) &&<span className="text-slate-600 dark:text-slate-400 truncate">{item.details || "N/A"}</span>}
+                          {requiresRouteAndVehicle(selectedExpense.expenseType?.id,dynamicExpenseTypes) &&<span className="text-slate-600 dark:text-slate-400 truncate">{item.details || "N/A"}</span>}
                           </>
                           :<span className="text-slate-700 dark:text-slate-300 font-medium truncate">{item.details || "N/A"}</span>}
                           <span className="font-bold text-slate-900 dark:text-slate-100 text-right">Rs. {Number(item.amount).toLocaleString()}</span>
@@ -2149,7 +2191,7 @@ export function ExpenseModule({
 
               {/* Expense Type History in View Dialog */}
               <div className="space-y-2">
-                <Label className="text-xs text-slate-500 dark:text-slate-400">Recent History for {expenseTypes.find(t => t.value === selectedExpense.expenseType)?.label}</Label>
+                <Label className="text-xs text-slate-500 dark:text-slate-400">Recent History for {selectedExpense.expenseType?.name}</Label>
                 {loadingTypeHistory ? (
                   <div className="text-sm text-muted-foreground py-2 italic font-light">
                     Loading history...
@@ -2257,7 +2299,7 @@ export function ExpenseModule({
               )}
               
               {/* Vehicle Transaction History */}
-              {requiresRouteAndVehicle(selectedExpense.expenseType) && selectedExpense.vehicleId && (
+              {requiresRouteAndVehicle(selectedExpense.expenseType?.id,dynamicExpenseTypes) && selectedExpense.vehicleId && (
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">Last 3 Transactions for Selected Vehicle</Label>
                       {loadingTransactions ? (
@@ -2278,7 +2320,7 @@ export function ExpenseModule({
                               <div className="flex justify-between items-start">
                                 <div className="flex-1">
                                   <p className="text-sm font-medium">
-                                    {expenseTypes.find((t) => t.value === transaction.expenseType)?.label ?? transaction.expenseType}
+                                    {transaction.expenseType.name}
                                   </p>
                                   <p className="text-xs text-muted-foreground">
                                     {new Date(transaction.createdAt).toLocaleDateString()} - {transaction?.route?.name} - {transaction.status}
@@ -2541,7 +2583,7 @@ export function ExpenseModule({
 
       {/* Hidden Print Component */}
       <div style={{ display: "none" }}>
-        <ExpenseVoucherPrint ref={printRef} expense={expenseToPrint} routes={routes}  />
+        <ExpenseVoucherPrint ref={printRef} expense={expenseToPrint} routes={routes} dynamicExpenseTypes={dynamicExpenseTypes}  />
       </div>
     </div>
   );

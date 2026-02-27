@@ -15,8 +15,7 @@ import {
   Loader2,
   RefreshCw
 } from "lucide-react";
-import { motion } from "framer-motion";
-import { expenseTypes } from "@/components/expenses/expense-types";
+import { useLayout } from "@/components/layout/layout-provider";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
   Select,
@@ -25,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { motion } from "framer-motion";
 
 type Budget = {
   id: string;
@@ -47,9 +47,11 @@ const months = [
 ];
 
 export function BudgetManagement({ roles }: { roles: string[] }) {
+  const { user } = useLayout();
   const [loading, setLoading] = useState(true);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [locations, setLocations] = useState<{ id: string; name: string; city: string }[]>([]);
+  const [dynamicExpenseTypes, setDynamicExpenseTypes] = useState<any[]>([]);
   const [selectedFilterLocation, setSelectedFilterLocation] = useState<string>("all");
   const [categoryBudgets, setCategoryBudgets] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -97,12 +99,32 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
     }
   };
 
+  const fetchExpenseTypes = async (locationId: string) => {
+    if (!locationId) return;
+    try {
+      const res = await fetch(`/api/expense-types?locationId=${locationId}&active=true`);
+      const data = await res.json();
+      if (res.ok) {
+        setDynamicExpenseTypes(data.expenseTypes || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch expense types", err);
+    }
+  };
+
   useEffect(() => {
     fetchBudgets();
     if (isAdmin) {
       fetchLocations();
     }
   }, [isAdmin]);
+
+  useEffect(() => {
+    const locId = isAdmin ? selectedFormLocationId : user?.locationId;
+    if (locId) {
+      fetchExpenseTypes(locId);
+    }
+  }, [selectedFormLocationId, isAdmin, user?.locationId]);
 
   const filteredBudgets = budgets.filter(b => 
     selectedFilterLocation === "all" || b.locationId === selectedFilterLocation
@@ -294,28 +316,38 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {expenseTypes.map((type) => (
-                  <div key={type.value} className="space-y-2">
-                    <Label htmlFor={type.value} className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                      {type.label}
-                    </Label>
-                    <div className="relative">
-                      <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                      <Input
-                        id={type.value}
-                        type="number"
-                        step="1"
-                        placeholder="0"
-                        className="pl-9 h-9"
-                        value={categoryBudgets[type.value] || ""}
-                        onChange={(e) => setCategoryBudgets({
-                          ...categoryBudgets,
-                          [type.value]: e.target.value
-                        })}
-                      />
+                {dynamicExpenseTypes.length > 0 ? (
+                  dynamicExpenseTypes.map((type) => (
+                    <div key={type.id} className="space-y-2">
+                      <Label htmlFor={type.expenseCode} className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        {type.name}
+                      </Label>
+                      <div className="relative">
+                        <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Input
+                          id={type.expenseCode}
+                          type="number"
+                          step="1"
+                          placeholder="0"
+                          className="pl-9 h-9"
+                          value={categoryBudgets[type.expenseCode] || ""}
+                          onChange={(e) => setCategoryBudgets({
+                            ...categoryBudgets,
+                            [type.expenseCode]: e.target.value
+                          })}
+                        />
+                      </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="col-span-full py-8 text-center bg-slate-50 dark:bg-slate-900/40 rounded-lg border border-dashed border-slate-200 dark:border-slate-800">
+                    <p className="text-sm text-slate-500">
+                      {selectedFormLocationId || (!isAdmin && user?.locationId) 
+                        ? "No active expense types found for this location." 
+                        : "Select a location to load expense categories."}
+                    </p>
                   </div>
-                ))}
+                )}
               </div>
 
               <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-800">
@@ -496,11 +528,12 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
                         </AccordionTrigger>
                         <AccordionContent>
                           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-3 mt-2 p-4 bg-slate-50 dark:bg-slate-900/30 rounded-xl border border-slate-100 dark:border-slate-800/50 text-[11px]">
-                            {Object.entries(budget.categories as Record<string, number>)
-                              .sort(([, a], [, b]) => b - a)
-                              .map(([key, val]) => {
-                                const label = expenseTypes.find(t => t.value === key)?.label || key;
-                                return (
+                             {Object.entries(budget.categories as Record<string, number>)
+                               .sort(([, a], [, b]) => b - a)
+                               .map(([key, val]) => {
+                                 // Try to find the name in dynamic types first, then fallback to key
+                                 const label = dynamicExpenseTypes.find(t => t.expenseCode === key)?.name || key;
+                                 return (
                                   <div key={key} className="flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/50 pb-1.5 h-auto">
                                     <span className="text-slate-500 font-medium truncate max-w-[140px]" title={label}>{label}</span>
                                     <span className="font-bold text-slate-900 dark:text-slate-100 shrink-0">

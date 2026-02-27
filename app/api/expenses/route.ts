@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+// import { ExpenseType as OldExpenseType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   getCurrentUser,
@@ -93,7 +94,10 @@ export async function GET(request: NextRequest) {
   // Search by expense type
   const expenseType = searchParams.get("expenseType");
   if (expenseType) {
-    where.expenseType = expenseType;
+    where.OR = [
+      { expenseType: { name: expenseType } },
+      { expenseTypeId: expenseType }
+    ];
   }
 
   // Search by amount range
@@ -188,6 +192,7 @@ export async function GET(request: NextRequest) {
       attachments: true,
       route: true,
       vehicle: true,
+      expenseType: true,
     },
     orderBy: { createdAt: "desc" },
     skip,
@@ -246,6 +251,7 @@ export async function POST(request: NextRequest) {
   const category = body?.category?.toString() ?? "Expense";
   const items = body?.items ?? null;
   const expenseType = body?.expenseType?.toString();
+  const expenseTypeId = body?.expenseTypeId?.toString();
   const amount = Number.parseFloat(body?.amount);
   const details = body?.details?.toString() ?? null;
   const disburseType = body?.disburseType?.toString() ?? "Cash";
@@ -253,10 +259,37 @@ export async function POST(request: NextRequest) {
   const routeId = body?.routeId?.toString() ?? null;
   const vehicleId = body?.vehicleId?.toString() ?? null;
 
-  // If Fixed Asset, the type is implicitly FIXED_ASSET
-  const effectiveExpenseType = category === "Fixed Asset" ? "FIXED_ASSET" : expenseType;
+  // If Fixed Asset, the type is implicitly FIXED_ASSET (old enum) or a dynamic type named "Fixed Asset"
+  // let effectiveExpenseType = category === "Fixed Asset" ? "FIXED_ASSET" : expenseType;
+  let effectiveExpenseType = expenseType;
+  let effectiveExpenseTypeId = expenseTypeId;
 
-  if (!effectiveExpenseType || Number.isNaN(amount)) {
+  // Resolve name from ID if needed for budget checks
+  if (effectiveExpenseTypeId && !effectiveExpenseType) {
+    const type = await prisma.expenseType.findUnique({
+      where: { id: effectiveExpenseTypeId }
+    });
+    if (type) {
+      effectiveExpenseType = type.expenseCode;
+    } else {
+      // Fallback: if not found in dynamic types, the ID might be a static type string
+      effectiveExpenseType = effectiveExpenseTypeId;
+      effectiveExpenseTypeId = undefined; // Not a valid DB ID
+    }
+  } else if (effectiveExpenseTypeId) {
+    // Both provided or just ID provided but name is already set
+    // We still need to verify if the ID is valid to avoid FK violation
+    const type = await prisma.expenseType.findUnique({
+      where: { id: effectiveExpenseTypeId }
+    });
+    if (!type) {
+      effectiveExpenseTypeId = undefined;
+    }
+    else {
+      effectiveExpenseType = type.expenseCode;
+    }
+  }
+  if (!effectiveExpenseTypeId && !effectiveExpenseType || Number.isNaN(amount)) {
     return NextResponse.json(
       { message: "Expense type and amount are required." },
       { status: 400 }
@@ -312,7 +345,10 @@ export async function POST(request: NextRequest) {
     const categorySpent = await prisma.expenseSheet.aggregate({
       where: {
         locationId: user.locationId,
-        expenseType: effectiveExpenseType as any,
+        OR: [
+          { expenseTypeEnum: effectiveExpenseType as any },
+          { expenseType: { name: effectiveExpenseType } }
+        ],
         createdAt: { gte: start, lt: end },
         status: { not: "REJECTED" },
       },
@@ -358,7 +394,8 @@ export async function POST(request: NextRequest) {
   const created = await prisma.expenseSheet.create({
     data: {
       category,
-      expenseType: effectiveExpenseType as any,
+      expenseTypeId: effectiveExpenseTypeId || undefined,
+      expenseTypeEnum: !effectiveExpenseTypeId ? (effectiveExpenseType as any) : undefined,
       items: items || undefined,
       amount,
       details,
@@ -377,7 +414,7 @@ export async function POST(request: NextRequest) {
         })),
       },
     },
-    include: { attachments: true, location: true, route: true, vehicle: true },
+    include: { attachments: true, location: true, route: true, vehicle: true, expenseType: true },
   });
 
   const adminUsers = await prisma.user.findMany({
@@ -398,7 +435,7 @@ export async function POST(request: NextRequest) {
       data: adminUsers.map((admin) => ({
         userId: admin.id,
         title: "Expense awaiting approval",
-        message: `A new expense sheet for ${created.expenseType} was submitted.`,
+        message: `A new expense sheet for ${effectiveExpenseType} was submitted.`,
         link: "/dashboard/expenses",
       })),
     });

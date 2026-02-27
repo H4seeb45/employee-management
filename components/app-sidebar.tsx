@@ -43,6 +43,12 @@ const sidebarItems = [
     requiredRoles: ["Cashier", "Accountant"],
   },
   {
+    name: "Expense Types",
+    href: "/dashboard/expense-types",
+    icon: Settings,
+    adminOnly: true,
+  },
+  {
     name: "Budget",
     href: "/dashboard/budget",
     icon: Banknote,
