@@ -2446,7 +2446,7 @@ export function ExpenseModule({
                               <div className="flex justify-between items-start">
                                 <div className="flex-1">
                                   <p className="text-sm font-medium">
-                                    {transaction.expenseType.name}
+                                    {transaction?.expenseType?.name}
                                   </p>
                                   <p className="text-xs text-muted-foreground">
                                     {new Date(transaction.createdAt).toLocaleDateString()} - {transaction?.route?.name} - {transaction.status}
