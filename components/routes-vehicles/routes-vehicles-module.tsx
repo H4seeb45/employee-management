@@ -597,13 +597,13 @@ export function RoutesVehiclesModule() {
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button
+                            {/* <Button
                               variant="destructive"
                               size="sm"
                               onClick={() => handleDeleteRoute(route.id)}
                             >
                               <Trash2 className="h-4 w-4" />
-                            </Button>
+                            </Button> */}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -696,13 +696,13 @@ export function RoutesVehiclesModule() {
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button
+                            {/* <Button
                               variant="destructive"
                               size="sm"
                               onClick={() => handleDeleteVehicle(vehicle.id)}
                             >
                               <Trash2 className="h-4 w-4" />
-                            </Button>
+                            </Button> */}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -725,12 +725,13 @@ export function RoutesVehiclesModule() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="routeNo">Route Number *</Label>
+              <Label htmlFor="routeNo">Route Number {editingRoute ? "" : "*"}</Label>
               <Input
                 id="routeNo"
                 value={routeNo}
                 onChange={(e) => setRouteNo(e.target.value)}
                 placeholder="e.g., R001"
+                disabled={!!editingRoute}
               />
             </div>
             <div className="space-y-2">
@@ -790,12 +791,13 @@ export function RoutesVehiclesModule() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="vehicleNo">Vehicle Number *</Label>
+              <Label htmlFor="vehicleNo">Vehicle Number {editingVehicle ? "" : "*"}</Label>
               <Input
                 id="vehicleNo"
                 value={vehicleNo}
                 onChange={(e) => setVehicleNo(e.target.value)}
                 placeholder="e.g., V001"
+                disabled={!!editingVehicle}
               />
             </div>
             <div className="space-y-2">

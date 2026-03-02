@@ -459,7 +459,7 @@ export function ExpenseTypeManagement() {
                   <TableHead className="font-semibold">Description</TableHead>
                    <TableHead className="font-semibold text-center">Status</TableHead>
                   <TableHead className="font-semibold text-center">Vehicle/Route Req.</TableHead>
-                  <TableHead className="font-semibold text-right">Actions</TableHead>
+                  {/* <TableHead className="font-semibold text-right">Actions</TableHead> */}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -504,7 +504,7 @@ export function ExpenseTypeManagement() {
                           {type.requiresRouteAndVehicle ? "Required" : "Not Required"}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">
+                      {/* <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button 
                             variant="ghost" 
@@ -514,16 +514,16 @@ export function ExpenseTypeManagement() {
                           >
                             <Edit2 className="h-4 w-4" />
                           </Button>
-                          {/* <Button 
+                          <Button 
                             variant="ghost" 
                             size="icon" 
                             onClick={() => handleDelete(type.id)}
                             className="h-8 w-8 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-900/20"
                           >
                             <Trash2 className="h-4 w-4" />
-                          </Button> */}
+                          </Button>
                         </div>
-                      </TableCell>
+                      </TableCell> */}
                     </TableRow>
                   ))
                 )}
@@ -534,7 +534,7 @@ export function ExpenseTypeManagement() {
       </Card>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingType ? "Edit Expense Type" : "Add New Expense Type"}
