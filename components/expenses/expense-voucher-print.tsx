@@ -209,7 +209,7 @@ export const ExpenseVoucherPrint = React.forwardRef<
         </div>
 
         {/* Payment / Disbursement Details Section */}
-        {(expense.disburseType || "Cash") === "Cash" && expense.expenseType?.expenseCode !== "TOLLS_TAXES" && (
+        {(expense.disburseType || "Cash") === "Cash" && !expense.items && (
           /* Standard Table for Cash Payments */
           <div className="mb-4">
             <table className="w-full border-2 border-black text-sm">

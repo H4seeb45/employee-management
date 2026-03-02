@@ -818,7 +818,7 @@ export function ExpenseModule({
     totalAmount: Object.values(stats.typeTotals).reduce((sum, amount) => sum + amount, 0),
   };
 
-  const categoryRemaining = (() => {
+  const calculateCategoryRemaining = () => {
     if (!budgetInfo || !budgetInfo.categories || !expenseType) return null;
     const expenseCode = dynamicExpenseTypes.find((t) => t.id === expenseType)?.expenseCode;
     if (!expenseCode) return null;
@@ -826,7 +826,9 @@ export function ExpenseModule({
     if (categoryBudget === 0) return null;
     const spentThisMonth = stats.monthlyTypeTotals[expenseCode] || 0;
     return categoryBudget - spentThisMonth;
-  })();
+  };
+
+  const categoryRemaining = calculateCategoryRemaining();
 
   const getRouteDisplay = (e: ExpenseSheet) => {
     if (e.items && Array.isArray(e.items) && e.items.length > 0) {
@@ -1484,14 +1486,14 @@ export function ExpenseModule({
                 </div>
                 {budgetInfo && (
                   <div className="flex gap-6 items-center">
-                    {/* {categoryRemaining !== null && (
+                    {categoryRemaining !== null && (
                       <div className="text-right border-r border-blue-200 dark:border-blue-800 pr-6">
                         <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Category Budget</p>
                         <p className={`text-base font-bold ${categoryRemaining > 0 ? 'text-indigo-600 dark:text-indigo-400' : 'text-rose-600'}`}>
                           {new Intl.NumberFormat("en-PK", { style: "currency", currency: "PKR", minimumFractionDigits: 0 }).format(categoryRemaining)}
                         </p>
                       </div>
-                    )} */}
+                    )}
                     <div className="text-right">
                       <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Total Remaining</p>
                       <p className={`text-lg font-black ${budgetInfo.remainingBudget > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600'}`}>
@@ -2221,7 +2223,8 @@ export function ExpenseModule({
                 <div>
                   <Label className="text-xs text-slate-500 dark:text-slate-400">Expense Type</Label>
                   <p className="text-sm font-medium text-slate-900 dark:text-white mt-1">
-                    {dynamicExpenseTypes.find((t) => t.id === selectedExpense.expenseTypeId)?.name || selectedExpense.expenseType}
+                   {/* dynamicExpenseTypes.find((t) => t.id === selectedExpense.expenseTypeId)?.name || */}
+                    {selectedExpense.expenseType?.name}
                   </p>
                 </div>
                 <div>
