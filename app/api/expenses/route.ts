@@ -349,7 +349,7 @@ export async function POST(request: NextRequest) {
       where: {
         locationId: user.locationId,
         OR: [
-          { expenseTypeEnum: effectiveExpenseType as any },
+          // { expenseTypeEnum: effectiveExpenseType as any },
           { expenseType: { name: effectiveExpenseType } }
         ],
         createdAt: { gte: start, lt: end },
