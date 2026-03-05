@@ -111,8 +111,14 @@ export function ReportsModule({ roles }: { roles: string[] }) {
   const [budgetData, setBudgetData] = useState<BudgetReport[]>([]);
   const [expenseData, setExpenseData] = useState<ExpenseDetailed[]>([]);
   const [routeVehicleData, setRouteVehicleData] = useState<RouteVehicleReport | null>(null);
-    const [dynamicExpenseTypes, setDynamicExpenseTypes] = useState<any[]>([]);
-  
+  const [dynamicExpenseTypes, setDynamicExpenseTypes] = useState<any[]>([]);
+
+  const [filterMonthStr, setFilterMonthStr] = useState(() => {
+    const now = new Date();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    return `${now.getFullYear()}-${mm}`;
+  });
+
   // --- Filter States (for Expense Report) ---
   const [showFilters, setShowFilters] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
@@ -192,6 +198,11 @@ export function ReportsModule({ roles }: { roles: string[] }) {
     try {
       const params = new URLSearchParams();
       if (filterLocation !== "all") params.append("locationId", filterLocation);
+      if (filterMonthStr) {
+        const [year, month] = filterMonthStr.split('-');
+        params.append("year", year);
+        params.append("month", month);
+      }
       const res = await fetch(`/api/reports/budget?${params}`);
       const data = await res.json();
       if (res.ok) setBudgetData(data.report);
@@ -268,7 +279,7 @@ export function ReportsModule({ roles }: { roles: string[] }) {
       fetchExpenseTypes(filterLocation);
     }
     if (activeTab === "routes-vehicles") fetchRouteVehicleReport();
-  }, [activeTab, filterLocation]);
+  }, [activeTab, filterLocation, filterMonthStr]);
 
   const getRouteDisplay = (e: ExpenseDetailed) => {
     if (e.items && Array.isArray(e.items) && e.items.length > 0) {
@@ -381,7 +392,20 @@ export function ReportsModule({ roles }: { roles: string[] }) {
               <h2 className="text-lg font-semibold">Budget Summary</h2>
               <p className="text-sm text-slate-500">Overview of spent vs remaining budget across categories</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
+              <Input
+                type="month"
+                value={filterMonthStr}
+                onChange={(e) => setFilterMonthStr(e.target.value)}
+                onClick={(e) => {
+                  try {
+                    if ('showPicker' in e.currentTarget) {
+                      (e.currentTarget as HTMLInputElement).showPicker();
+                    }
+                  } catch (err) {}
+                }}
+                className="h-9 cursor-pointer"
+              />
               {canSeeAllLocations && (
                 <div className="w-[200px]">
                   <SearchableSelect
