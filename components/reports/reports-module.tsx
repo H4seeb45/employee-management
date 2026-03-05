@@ -404,7 +404,7 @@ export function ReportsModule({ roles }: { roles: string[] }) {
                     }
                   } catch (err) {}
                 }}
-                className="h-9 cursor-pointer"
+                className="h-9 cursor-pointer max-w-[175px]"
               />
               {canSeeAllLocations && (
                 <div className="w-[200px]">
