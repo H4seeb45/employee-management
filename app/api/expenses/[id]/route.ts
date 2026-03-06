@@ -148,9 +148,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (!isAdminUser(user) && !isSuperAdminUser(user)) {
       return NextResponse.json({ message: "Forbidden." }, { status: 403 });
     }
-    if (expense.status !== "PENDING") {
+    if (expense.status === "DISBURSED") {
       return NextResponse.json(
-        { message: "Only pending expenses can be rejected." },
+        { message: "Expenses that are disbursed can't be rejected." },
         { status: 400 }
       );
     }
