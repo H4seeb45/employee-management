@@ -2656,7 +2656,7 @@ export function ExpenseModule({
                   )}
 
                   {/* Reject Button - Show for Admin when status is PENDING */}
-                  {isAdmin && selectedExpense.status === "PENDING" && (
+                  {isAdmin && (selectedExpense.status === "PENDING" || selectedExpense.status === "APPROVED") && (
                     <Button
                       onClick={() => handleExpenseAction(selectedExpense.id, "reject")}
                       disabled={processingAction}
