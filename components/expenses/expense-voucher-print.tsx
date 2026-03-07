@@ -2,7 +2,6 @@
 
 import React from "react";
 import { requiresRouteAndVehicle } from "./expense-module";
-import { expenseTypes } from "./expense-types";
 
 type ExpenseVoucherPrintProps = {
   expense: {

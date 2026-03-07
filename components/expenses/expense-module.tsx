@@ -76,7 +76,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { UploadButton } from "@/lib/uploadthing";
 import { ExpenseVoucherPrint } from "./expense-voucher-print";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { expenseTypes } from "./expense-types";
+// import { expenseTypes } from "./expense-types";
 
 type ExpenseAttachment = {
   url: string;
@@ -1885,7 +1885,7 @@ export function ExpenseModule({
                   {/* Expense Type History */}
                   {expenseType && (
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">Recent History for {expenseTypes.find(t => t.value === expenseType)?.label}</Label>
+                      <Label className="text-sm font-medium">Recent History for {dynamicExpenseTypes.find(t => t.expenseCode === expenseType)?.name}</Label>
                       {loadingTypeHistory ? (
                         <div className="text-sm text-muted-foreground p-3 border rounded-md">
                           Loading history...
@@ -1954,7 +1954,7 @@ export function ExpenseModule({
                   {requiresRouteAndVehicle(expenseType,dynamicExpenseTypes) && selectedVehicle && (
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">
-                        Last 3 {expenseTypes.find(t => t.value === expenseType)?.label || "Related"} Transactions for Selected Vehicle
+                        Last 3 {dynamicExpenseTypes.find(t => t.expenseCode === expenseType)?.name || "Related"} Transactions for Selected Vehicle
                       </Label>
                       {loadingTransactions ? (
                         <div className="text-sm text-muted-foreground p-3 border rounded-md">

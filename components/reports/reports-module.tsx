@@ -50,7 +50,6 @@ import {
   CheckCircle2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { expenseTypes } from "@/components/expenses/expense-types";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 
 // --- Types ---
@@ -106,6 +105,7 @@ export function ReportsModule({ roles }: { roles: string[] }) {
   const [activeTab, setActiveTab] = useState("budget");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isExportingMTD, setIsExportingMTD] = useState(false);
 
   // --- Reports Data ---
   const [budgetData, setBudgetData] = useState<BudgetReport[]>([]);
@@ -314,12 +314,61 @@ export function ReportsModule({ roles }: { roles: string[] }) {
     XLSX.writeFile(wb, `${fileName}.xlsx`);
   };
 
+  const handleExportBudgetMTD = async () => {
+    setIsExportingMTD(true);
+    try {
+      const params = new URLSearchParams();
+      if (filterLocation !== "all") params.append("locationId", filterLocation);
+      if (filterMonthStr) {
+        const [year, month] = filterMonthStr.split('-');
+        params.append("year", year);
+        params.append("month", month);
+      }
+      const res = await fetch(`/api/reports/budget-mtd?${params}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to fetch MTD report");
+
+      const { report, daysToReport, monthAbbr } = data;
+      
+      const excelData = report.map((r: any) => {
+        const row: any = {
+          "Details": r.name,
+          "Last Month": r.lastMonthBudget || 0,
+          "Budget Current Month": r.currentMonthBudget || 0,
+          "MTD": r.mtdSpent || 0,
+        };
+
+        for (let i = 1; i <= daysToReport; i++) {
+          row[`${i}-${monthAbbr}`] = r.dailyExpenses[i] || 0;
+        }
+        return row;
+      });
+
+      if (excelData.length > 0) {
+        const numericKeys = ["Last Month", "Budget Current Month", "MTD"];
+        for (let i = 1; i <= daysToReport; i++) numericKeys.push(`${i}-${monthAbbr}`);
+        
+        const totalRow: any = { "Details": "Total" };
+        numericKeys.forEach(key => {
+          totalRow[key] = excelData.reduce((sum: number, r: any) => sum + (Number(r[key]) || 0), 0);
+        });
+        excelData.push(totalRow);
+      }
+
+      exportToExcel(excelData, `Budget_MTD_Report`);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsExportingMTD(false);
+    }
+  };
+
   const handleExportBudget = () => {
     const flatData = budgetData.flatMap(b => 
       b.categories.map(c => ({
         Location: `${b.location.name} (${b.location.city})`,
         "Total Budget": b.totalBudget,
-        Category: expenseTypes.find(t => t.value === c.type)?.label || c.type,
+        Category: dynamicExpenseTypes.find(t => t.expenseCode === c.type)?.name || c.type,
         "Category Limit": c.limit,
         "Spent": c.spent,
         "Left": c.left,
@@ -420,7 +469,11 @@ export function ReportsModule({ roles }: { roles: string[] }) {
                 </div>
               )}
               <Button variant="outline" size="sm" onClick={handleExportBudget}>
-                <Download className="h-4 w-4 mr-2" /> Export Excel
+                <Download className="h-4 w-4 mr-2" /> Export Summary
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleExportBudgetMTD} disabled={isExportingMTD}>
+                {isExportingMTD ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />} 
+                {isExportingMTD ? 'Exporting...' : 'Export MTD'}
               </Button>
               <Button size="sm" onClick={onPrintBudget}>
                 <Printer className="h-4 w-4 mr-2" /> Print Report
@@ -502,7 +555,7 @@ export function ReportsModule({ roles }: { roles: string[] }) {
                           return (
                             <TableRow key={cat.type}>
                               <TableCell className="font-medium">
-                                {expenseTypes.find(t => t.value === cat.type)?.label || cat.type}
+                                {dynamicExpenseTypes.find(t => t.expenseCode === cat.type)?.name || cat.type}
                               </TableCell>
                               <TableCell className="text-right">
                                 {new Intl.NumberFormat("en-PK").format(cat.limit)}
@@ -698,7 +751,7 @@ export function ReportsModule({ roles }: { roles: string[] }) {
                   {(filterStatus !== "all" || filterType !== "all" || filterFromDate || filterToDate || filterMinAmount || filterMaxAmount || filterRoute !== "all" || filterVehicle !== "all") && (
                     <p className="text-xs text-slate-500 mt-2">
                        Active Filters: {filterStatus !== "all" && `Status: ${filterStatus} | `} 
-                       {filterType !== "all" && `Type: ${expenseTypes.find(t => t.value === filterType)?.label} | `}
+                       {filterType !== "all" && `Type: ${dynamicExpenseTypes.find(t => t.expenseCode === filterType)?.name} | `}
                        {(filterFromDate || filterToDate) && `Date: ${filterFromDate || "Start"} to ${filterToDate || "End"} | `}
                        {filterRoute !== "all" && `Route: ${routes.find(r => r.id === filterRoute)?.routeNo} | `}
                        {filterVehicle !== "all" && `Vehicle: ${vehicles.find(v => v.id === filterVehicle)?.vehicleNo}`}
