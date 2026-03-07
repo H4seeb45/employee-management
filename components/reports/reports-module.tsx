@@ -112,6 +112,8 @@ export function ReportsModule({ roles }: { roles: string[] }) {
   const [expenseData, setExpenseData] = useState<ExpenseDetailed[]>([]);
   const [routeVehicleData, setRouteVehicleData] = useState<RouteVehicleReport | null>(null);
   const [dynamicExpenseTypes, setDynamicExpenseTypes] = useState<any[]>([]);
+  const [mtdData, setMtdData] = useState<any>(null);
+  const [showMtdView, setShowMtdView] = useState(false);
 
   const [filterMonthStr, setFilterMonthStr] = useState(() => {
     const now = new Date();
@@ -213,6 +215,26 @@ export function ReportsModule({ roles }: { roles: string[] }) {
     }
   };
 
+  const fetchBudgetMtdReport = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (filterLocation !== "all") params.append("locationId", filterLocation);
+      if (filterMonthStr) {
+        const [year, month] = filterMonthStr.split('-');
+        params.append("year", year);
+        params.append("month", month);
+      }
+      const res = await fetch(`/api/reports/budget-mtd?${params}`);
+      const data = await res.json();
+      if (res.ok) setMtdData(data);
+    } catch (err) {
+      setError("Failed to fetch MTD report");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchExpenseReport = async () => {
     setLoading(true);
     try {
@@ -273,13 +295,16 @@ export function ReportsModule({ roles }: { roles: string[] }) {
     };
 
   useEffect(() => {
-    if (activeTab === "budget") fetchBudgetReport();
+    if (activeTab === "budget") {
+        fetchBudgetReport();
+        if (showMtdView) fetchBudgetMtdReport();
+    }
     if (activeTab === "expenses") {
       fetchExpenseReport();
       fetchExpenseTypes(filterLocation);
     }
     if (activeTab === "routes-vehicles") fetchRouteVehicleReport();
-  }, [activeTab, filterLocation, filterMonthStr]);
+  }, [activeTab, filterLocation, filterMonthStr, showMtdView]);
 
   const getRouteDisplay = (e: ExpenseDetailed) => {
     if (e.items && Array.isArray(e.items) && e.items.length > 0) {
@@ -436,12 +461,30 @@ export function ReportsModule({ roles }: { roles: string[] }) {
 
         {/* --- Budget Report Tab --- */}
         <TabsContent value="budget" className="space-y-4">
-          <div className="flex justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+          <div className="flex flex-col justify-center gap-4 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
             <div>
-              <h2 className="text-lg font-semibold">Budget Summary</h2>
-              <p className="text-sm text-slate-500">Overview of spent vs remaining budget across categories</p>
+              <h2 className="text-lg font-semibold">{showMtdView ? 'Budget MTD Report' : 'Budget Summary'}</h2>
+              <p className="text-sm text-slate-500">{showMtdView ? 'Month-to-date daily budget tracking' : 'Overview of spent vs remaining budget across categories'}</p>
             </div>
-            <div className="flex gap-2 items-center">
+            <div className="flex flex-col md:flex-row gap-2 md:items-center">
+              <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg mr-2">
+                <Button 
+                    variant={!showMtdView ? "secondary" : "ghost"} 
+                    size="sm" 
+                    onClick={() => setShowMtdView(false)}
+                    className="h-8"
+                >
+                    Summary View
+                </Button>
+                <Button 
+                    variant={showMtdView ? "secondary" : "ghost"} 
+                    size="sm" 
+                    onClick={() => setShowMtdView(true)}
+                    className="h-8"
+                >
+                    MTD View
+                </Button>
+              </div>
               <Input
                 type="month"
                 value={filterMonthStr}
@@ -496,13 +539,14 @@ export function ReportsModule({ roles }: { roles: string[] }) {
                 </div>
               )}
               
-              {!loading && budgetData.length === 0 && (
+              {!showMtdView && !loading && budgetData.length === 0 && (
                 <div className="text-center py-12 text-slate-500 bg-slate-50 dark:bg-slate-900/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800">
                    No budget reports found.
                 </div>
               )}
 
-              {!loading && budgetData.map((budget) => {
+              {/* Summary View */}
+              {!showMtdView && !loading && budgetData.map((budget) => {
                 const budgetUsagePercent = budget.totalBudget > 0 ? (budget.totalSpent / budget.totalBudget) * 100 : 0;
                return <Card key={budget.id} className="overflow-hidden border-slate-200 dark:border-slate-800">
                   <CardHeader className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
@@ -586,6 +630,72 @@ export function ReportsModule({ roles }: { roles: string[] }) {
                 </Card>
 })}
             </div>
+
+            {/* MTD View */}
+            {showMtdView && !loading && mtdData && (
+                <Card className="mt-8 border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                    <CardHeader className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                        <CardTitle className="text-lg">Month To Date Expenses: {mtdData.monthAbbr} {mtdData.year}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0 max-w-[1182px]">
+                        <Table>
+                            <TableHeader>
+                                <TableRow className="bg-slate-50/50 dark:bg-slate-900/50 whitespace-nowrap">
+                                    <TableHead className="md:sticky md:left-0 bg-slate-50 dark:bg-slate-900 min-w-[200px]">Details</TableHead>
+                                    <TableHead className="text-right whitespace-nowrap">Last Month</TableHead>
+                                    <TableHead className="text-right whitespace-nowrap">Budget Current Month</TableHead>
+                                    <TableHead className="text-right whitespace-nowrap font-bold text-blue-600">MTD</TableHead>
+                                    {Array.from({ length: mtdData.daysToReport }).map((_, i) => (
+                                        <TableHead key={i} className="text-right whitespace-nowrap bg-slate-100/50 dark:bg-slate-800/50">
+                                            {i + 1}-{mtdData.monthAbbr}
+                                        </TableHead>
+                                    ))}
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {mtdData.report.map((r: any) => (
+                                    <TableRow key={r.code} className="whitespace-nowrap">
+                                        <TableCell className="md:sticky md:left-0 bg-white dark:bg-slate-950 font-medium z-10">{r.name}</TableCell>
+                                        <TableCell className="text-right">{new Intl.NumberFormat("en-PK").format(r.lastMonthBudget)}</TableCell>
+                                        <TableCell className="text-right">{new Intl.NumberFormat("en-PK").format(r.currentMonthBudget)}</TableCell>
+                                        <TableCell className="text-right font-bold text-blue-600 bg-blue-50/30 dark:bg-blue-900/10">
+                                            {new Intl.NumberFormat("en-PK").format(r.mtdSpent)}
+                                        </TableCell>
+                                        {Array.from({ length: mtdData.daysToReport }).map((_, i) => {
+                                            const dayAmount = r.dailyExpenses[i + 1] || 0;
+                                            return (
+                                                <TableCell key={i} className="text-right">
+                                                    {dayAmount > 0 ? new Intl.NumberFormat("en-PK").format(dayAmount) : '-'}
+                                                </TableCell>
+                                            );
+                                        })}
+                                    </TableRow>
+                                ))}
+                                <TableRow className="bg-slate-50 dark:bg-slate-900 font-bold border-t-2">
+                                    <TableCell className="md:sticky md:left-0 bg-slate-50 dark:bg-slate-900 z-10">Total</TableCell>
+                                    <TableCell className="text-right">
+                                        {new Intl.NumberFormat("en-PK").format(mtdData.report.reduce((sum: number, r: any) => sum + r.lastMonthBudget, 0))}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        {new Intl.NumberFormat("en-PK").format(mtdData.report.reduce((sum: number, r: any) => sum + r.currentMonthBudget, 0))}
+                                    </TableCell>
+                                    <TableCell className="text-right text-blue-600 bg-blue-50/50 dark:bg-blue-900/20">
+                                        {new Intl.NumberFormat("en-PK").format(mtdData.report.reduce((sum: number, r: any) => sum + r.mtdSpent, 0))}
+                                    </TableCell>
+                                    {Array.from({ length: mtdData.daysToReport }).map((_, i) => {
+                                        const totalForDay = mtdData.report.reduce((sum: number, r: any) => sum + (r.dailyExpenses[i + 1] || 0), 0);
+                                        return (
+                                            <TableCell key={i} className="text-right bg-slate-100/50 dark:bg-slate-800/50">
+                                                {totalForDay > 0 ? new Intl.NumberFormat("en-PK").format(totalForDay) : '-'}
+                                            </TableCell>
+                                        );
+                                    })}
+                                </TableRow>
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            )}
 
             <div className="hidden print:block mt-12 pt-4 border-t border-slate-200 text-center">
               <p className="text-[10px] text-slate-400 italic">This is a computer-generated report and does not require a physical signature.</p>
