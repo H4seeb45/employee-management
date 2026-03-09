@@ -402,7 +402,7 @@ export function ExpenseTypeManagement() {
                 variant="outline" 
                 size="sm"
                 onClick={downloadTemplate}
-                className="text-slate-600 border-slate-200"
+                className="text-slate-800 dark:text-slate-300 border-slate-200"
               >
                 <Download className="h-3.5 w-3.5 mr-1.5" />
                 Template
@@ -411,13 +411,13 @@ export function ExpenseTypeManagement() {
                 variant="outline" 
                 size="sm"
                 onClick={exportToExcel}
-                className="text-emerald-600 border-emerald-200 bg-emerald-50/50"
+                className="text-emerald-600 border-emerald-200"
               >
                 <Download className="h-3.5 w-3.5 mr-1.5" />
                 Export
               </Button>
               <div className="relative">
-                <Button variant="outline" size="sm" className="text-blue-600 border-blue-200 bg-blue-50/50">
+                <Button variant="outline" size="sm" className="text-blue-600">
                   <Upload className="h-3.5 w-3.5 mr-1.5" />
                   Import
                 </Button>
@@ -459,7 +459,7 @@ export function ExpenseTypeManagement() {
                   <TableHead className="font-semibold">Description</TableHead>
                    <TableHead className="font-semibold text-center">Status</TableHead>
                   <TableHead className="font-semibold text-center">Vehicle/Route Req.</TableHead>
-                  {/* <TableHead className="font-semibold text-right">Actions</TableHead> */}
+                  <TableHead className="font-semibold text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -504,7 +504,7 @@ export function ExpenseTypeManagement() {
                           {type.requiresRouteAndVehicle ? "Required" : "Not Required"}
                         </Badge>
                       </TableCell>
-                      {/* <TableCell className="text-right">
+                      <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button 
                             variant="ghost" 
@@ -514,16 +514,16 @@ export function ExpenseTypeManagement() {
                           >
                             <Edit2 className="h-4 w-4" />
                           </Button>
-                          <Button 
+                          {/* <Button 
                             variant="ghost" 
                             size="icon" 
                             onClick={() => handleDelete(type.id)}
                             className="h-8 w-8 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-900/20"
                           >
                             <Trash2 className="h-4 w-4" />
-                          </Button>
+                          </Button> */}
                         </div>
-                      </TableCell> */}
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -549,11 +549,12 @@ export function ExpenseTypeManagement() {
             )}
             
             <div className="space-y-2">
-              <Label htmlFor="locationId">Location <span className="text-rose-500">*</span></Label>
+              <Label htmlFor="locationId">Location {!editingType && <span className="text-rose-500">*</span>}</Label>
               <Select 
                 value={formData.locationId} 
                 onValueChange={(val) => setFormData({ ...formData, locationId: val })}
                 required
+                disabled={!!editingType}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select Location" />
@@ -580,13 +581,14 @@ export function ExpenseTypeManagement() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="expenseCode">Expense Code <span className="text-rose-500">*</span></Label>
+              <Label htmlFor="expenseCode">Expense Code {!editingType && <span className="text-rose-500">*</span>}</Label>
               <Input
                 id="expenseCode"
                 value={formData.expenseCode}
                 onChange={(e) => setFormData({ ...formData, expenseCode: e.target.value })}
                 placeholder="e.g. VEHICLE_FUEL"
                 required
+                disabled={!!editingType}
               />
               <p className="text-[10px] text-slate-500">Internal code for references/logic (REQUIRED)</p>
             </div>

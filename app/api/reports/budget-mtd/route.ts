@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const expenseTypes = await prisma.expenseType.findMany({
-      where: { isActive: true },
+      where: { ...where, isActive: true },
       orderBy: { name: 'asc' }
     });
 
