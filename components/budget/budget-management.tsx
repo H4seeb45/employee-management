@@ -467,7 +467,7 @@ export function BudgetManagement({ roles }: { roles: string[] }) {
                     </div>
 
                     <div className="flex gap-2">
-                      {isAdmin && (
+                      {isAdmin && (budget.year > currentYear || (budget.year === currentYear && budget.month >= currentMonth)) && (
                         <Button 
                           size="sm" 
                           variant="outline" 
