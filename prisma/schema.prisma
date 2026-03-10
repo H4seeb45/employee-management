@@ -22,6 +22,19 @@ model Employee {
   bloodGroup                String?
   locationId                String?
   salary                    String?
+  basicSalary               Float?
+  attendanceAllowance       Float?
+  dailyAllowance            Float?
+  fuelAllowance             Float?
+  conveyanceAllowance       Float?
+  maintainence              Float?
+  comission                 Float?
+  eachKpiIncentives         Float?
+  incentives                Float?
+  categoryIncentive         Float?
+  taxDeduction              String?
+  eobiDeduction             String?
+  socialSecurityDeduction   String?
   skills                    Json?
   education                 Json?
   documents                 Json?

@@ -15,6 +15,7 @@ import {
   Building,
   User,
   ExternalLink,
+  DollarSign,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -93,9 +94,10 @@ export function ViewEmployeeDetails({ employee }: ViewEmployeeDetailsProps) {
       </div>
 
       <Tabs defaultValue="personal" className="w-full">
-        <TabsList className="grid grid-cols-3 w-full h-12">
+        <TabsList className="grid grid-cols-4 w-full h-12">
           <TabsTrigger value="personal" className="font-semibold">Personal Info</TabsTrigger>
           <TabsTrigger value="employment" className="font-semibold">Employment Info</TabsTrigger>
+          <TabsTrigger value="salary" className="font-semibold">Salary Info</TabsTrigger>
           <TabsTrigger value="documents" className="font-semibold">Documents Info</TabsTrigger>
         </TabsList>
 
@@ -137,6 +139,26 @@ export function ViewEmployeeDetails({ employee }: ViewEmployeeDetailsProps) {
               <InfoRow label="Location" value={employee.location?.name} />
               <InfoRow label="Probation Confirmation" value={employee.probationConfirmationDate ? new Date(employee.probationConfirmationDate).toLocaleDateString() : null} />
               <InfoRow label="Salary" value={employee.salary} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="salary" className="space-y-4 mt-6">
+          <Card className="border-slate-200 dark:border-slate-800">
+            <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <InfoRow label="Basic Salary" value={employee.basicSalary != null ? `Rs. ${Number(employee.basicSalary).toLocaleString()}` : null} />
+              <InfoRow label="Attendance Allowance" value={employee.attendanceAllowance != null ? `Rs. ${Number(employee.attendanceAllowance).toLocaleString()}` : null} />
+              <InfoRow label="Daily Allowance" value={employee.dailyAllowance != null ? `Rs. ${Number(employee.dailyAllowance).toLocaleString()}` : null} />
+              <InfoRow label="Fuel Allowance" value={employee.fuelAllowance != null ? `Rs. ${Number(employee.fuelAllowance).toLocaleString()}` : null} />
+              <InfoRow label="Conveyance Allowance" value={employee.conveyanceAllowance != null ? `Rs. ${Number(employee.conveyanceAllowance).toLocaleString()}` : null} />
+              <InfoRow label="Maintainence" value={employee.maintainence != null ? `Rs. ${Number(employee.maintainence).toLocaleString()}` : null} />
+              <InfoRow label="Comission" value={employee.comission != null ? `Rs. ${Number(employee.comission).toLocaleString()}` : null} />
+              <InfoRow label="Each KPI Incentives" value={employee.eachKpiIncentives != null ? `Rs. ${Number(employee.eachKpiIncentives).toLocaleString()}` : null} />
+              <InfoRow label="Incentives" value={employee.incentives != null ? `Rs. ${Number(employee.incentives).toLocaleString()}` : null} />
+              <InfoRow label="Category Incentive" value={employee.categoryIncentive != null ? `Rs. ${Number(employee.categoryIncentive).toLocaleString()}` : null} />
+              <InfoRow label="Tax Deduction" value={employee.taxDeduction} />
+              <InfoRow label="EOBI Deduction" value={employee.eobiDeduction} />
+              <InfoRow label="Social Security Deduction" value={employee.socialSecurityDeduction} />
             </CardContent>
           </Card>
         </TabsContent>

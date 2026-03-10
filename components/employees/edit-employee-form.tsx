@@ -32,6 +32,8 @@ export function EditEmployeeForm({
 }: EditEmployeeFormProps) {
   const [activeTab, setActiveTab] = useState("personal");
   const [locations, setLocations] = useState<any[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedDocType, setSelectedDocType] = useState("");
   const [formData, setFormData] = useState<any>({
     ...employee,
     joinDate: employee.joinDate || new Date().toISOString(),
@@ -62,6 +64,19 @@ export function EditEmployeeForm({
       if (name === "cnicNumber" && numbersOnly.length > 13) return;
       if (name !== "cnicNumber" && numbersOnly.length > 11) return;
       setFormData((prev: any) => ({ ...prev, [name]: numbersOnly }));
+      return;
+    }
+
+    // Non-negative number validation for salary fields
+    const salaryNumericFields = [
+      "basicSalary", "attendanceAllowance", "dailyAllowance", "fuelAllowance",
+      "conveyanceAllowance", "maintainence", "comission", "eachKpiIncentives",
+      "incentives", "categoryIncentive"
+    ];
+    if (salaryNumericFields.includes(name)) {
+      if (value === "" || /^\d*\.?\d*$/.test(value)) {
+        setFormData((prev: any) => ({ ...prev, [name]: value }));
+      }
       return;
     }
 
@@ -114,8 +129,9 @@ export function EditEmployeeForm({
     return /^03\d{9}$/.test(phone);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
 
     // Validations
     if (formData.email && !validateEmail(formData.email)) {
@@ -143,8 +159,7 @@ export function EditEmployeeForm({
     const requiredPersonalFields = [
       "employeeName", "cnicNumber", "cnicIssueDate", "cnicExpiryDate", 
       "phone", "fatherName", "emergencyContactName", "emergencyContactNumber", 
-      "birthDate", "bloodGroup", "maritalStatus", "gender", "email", 
-      "referenceName", "referenceEmail", "referenceNumber", "address"
+      "birthDate", "bloodGroup", "maritalStatus", "gender", "address"
     ];
 
     const missingFields = requiredPersonalFields.filter(field => !formData[field]);
@@ -155,7 +170,39 @@ export function EditEmployeeForm({
       return;
     }
 
-    onSubmit(formData);
+    // Salary Info validation
+    const requiredSalaryFields = [
+      "basicSalary", "attendanceAllowance", "dailyAllowance", "fuelAllowance",
+      "conveyanceAllowance", "maintainence", "comission", "eachKpiIncentives",
+      "incentives", "categoryIncentive", "taxDeduction", "eobiDeduction",
+      "socialSecurityDeduction"
+    ];
+    const missingSalaryFields = requiredSalaryFields.filter(field => !formData[field] && formData[field] !== 0);
+    if (missingSalaryFields.length > 0) {
+      alert("All fields in the Salary Info tab are required.");
+      setActiveTab("salary");
+      return;
+    }
+
+    // Convert salary numeric fields from strings to numbers before submit
+    const salaryNumericFields = [
+      "basicSalary", "attendanceAllowance", "dailyAllowance", "fuelAllowance",
+      "conveyanceAllowance", "maintainence", "comission", "eachKpiIncentives",
+      "incentives", "categoryIncentive"
+    ];
+    const submissionData = { ...formData };
+    for (const field of salaryNumericFields) {
+      if (submissionData[field] !== undefined && submissionData[field] !== "" && submissionData[field] !== null) {
+        submissionData[field] = parseFloat(submissionData[field]);
+      }
+    }
+
+    setIsSubmitting(true);
+    try {
+      await onSubmit(submissionData);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const renderDateField = (label: string, name: string, required = false) => {
@@ -194,10 +241,11 @@ export function EditEmployeeForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-8 h-12 bg-slate-100 dark:bg-slate-800">
+        <TabsList className="grid w-full grid-cols-4 mb-8 h-12 bg-slate-100 dark:bg-slate-800">
           <TabsTrigger value="personal" className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700">Personal Info</TabsTrigger>
           <TabsTrigger value="documents" className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700">Documents Info</TabsTrigger>
           <TabsTrigger value="employment" className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700">Employment Info</TabsTrigger>
+          <TabsTrigger value="salary" className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700">Salary Info</TabsTrigger>
         </TabsList>
 
         <TabsContent value="personal" className="space-y-6">
@@ -259,20 +307,20 @@ export function EditEmployeeForm({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email Address <span className="text-red-500">*</span></Label>
-              <Input id="email" name="email" type="email" value={formData.email || ""} onChange={handleChange} required className="border-slate-200 dark:border-slate-700" />
+              <Label htmlFor="email">Email Address </Label>
+              <Input id="email" name="email" type="email" value={formData.email || ""} onChange={handleChange} className="border-slate-200 dark:border-slate-700" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="referenceName">Professional Reference Name <span className="text-red-500">*</span></Label>
-              <Input id="referenceName" name="referenceName" value={formData.referenceName || ""} onChange={handleChange} required className="border-slate-200 dark:border-slate-700" />
+              <Label htmlFor="referenceName">Professional Reference Name </Label>
+              <Input id="referenceName" name="referenceName" value={formData.referenceName || ""} onChange={handleChange} className="border-slate-200 dark:border-slate-700" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="referenceEmail">Reference Email Address <span className="text-red-500">*</span></Label>
-              <Input id="referenceEmail" name="referenceEmail" type="email" value={formData.referenceEmail || ""} onChange={handleChange} required className="border-slate-200 dark:border-slate-700" />
+              <Label htmlFor="referenceEmail">Reference Email Address </Label>
+              <Input id="referenceEmail" name="referenceEmail" type="email" value={formData.referenceEmail || ""} onChange={handleChange} className="border-slate-200 dark:border-slate-700" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="referenceNumber">Reference Contact (03XXXXXXXXX) <span className="text-red-500">*</span></Label>
-              <Input id="referenceNumber" name="referenceNumber" value={formData.referenceNumber || ""} onChange={handleChange} required placeholder="03xxxxxxxxx" className="border-slate-200 dark:border-slate-700" />
+              <Label htmlFor="referenceNumber">Reference Contact (03XXXXXXXXX) </Label>
+              <Input id="referenceNumber" name="referenceNumber" value={formData.referenceNumber || ""} onChange={handleChange} placeholder="03xxxxxxxxx" className="border-slate-200 dark:border-slate-700" />
             </div>
           </div>
           <div className="space-y-2">
@@ -282,56 +330,87 @@ export function EditEmployeeForm({
         </TabsContent>
 
         <TabsContent value="documents" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {documentFields.map((doc) => (
-              <div key={doc.name} className="flex flex-col gap-2 p-4 border rounded-xl bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 rounded-lg bg-sky-50 dark:bg-sky-900/20">
-                      <FileText className="h-4 w-4 text-sky-600 dark:text-sky-400" />
-                    </div>
-                    <Label className="text-sm font-semibold">{doc.label}</Label>
-                  </div>
-                  {formData[doc.name] && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20"
-                      onClick={() => handleRemoveFile(doc.name)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-
-                {formData[doc.name] ? (
-                  <div className="flex items-center gap-3 p-2 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-lg">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                    <span className="text-xs text-emerald-700 dark:text-emerald-300 truncate max-w-[200px]">File Uploaded Successfully</span>
-                    <a href={formData[doc.name]} target="_blank" rel="noreferrer" className="ml-auto text-xs font-medium text-sky-600 hover:underline">View</a>
-                  </div>
-                ) : (
-                  <UploadButton
-                    endpoint="employeeDocument"
-                    onClientUploadComplete={(res) => {
-                      if (res?.[0]) handleSelectChange(doc.name, res[0].url);
-                    }}
-                    onUploadError={(error: Error) => alert(`Upload Error: ${error.message}`)}
-                    appearance={{
-                      button: "bg-sky-600 hover:bg-sky-700 text-white text-xs h-9 w-full rounded-lg transition-all shadow-sm font-medium",
-                      allowedContent: "hidden"
-                    }}
-                    content={{
-                      button({ isUploading }) {
-                        if (isUploading) return <Loader2 className="h-4 w-4 animate-spin" />;
-                        return <div className="flex items-center gap-2"><Upload className="h-4 w-4" /> Upload {doc.label}</div>;
-                      }
-                    }}
-                  />
-                )}
+          {/* Upload Section */}
+          <div className="p-4 border rounded-xl bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <Select value={selectedDocType} onValueChange={setSelectedDocType}>
+                  <SelectTrigger className="h-10 border-slate-200 dark:border-slate-700">
+                    <SelectValue placeholder="Select document to upload..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {documentFields.filter(doc => !formData[doc.name]).map(doc => (
+                      <SelectItem key={doc.name} value={doc.name}>{doc.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            ))}
+              {selectedDocType ? (
+                <UploadButton
+                  endpoint="employeeDocument"
+                  onClientUploadComplete={(res) => {
+                    if (res?.[0]) {
+                      handleSelectChange(selectedDocType, res[0].url);
+                      setSelectedDocType("");
+                    }
+                  }}
+                  onUploadError={(error: Error) => alert(`Upload Error: ${error.message}`)}
+                  appearance={{
+                    button: "bg-sky-600 hover:bg-sky-700 text-white text-sm h-10 px-6 rounded-lg transition-all shadow-sm font-medium",
+                    allowedContent: "hidden"
+                  }}
+                  content={{
+                    button({ isUploading }) {
+                      if (isUploading) return <Loader2 className="h-4 w-4 animate-spin" />;
+                      return <div className="flex items-center gap-2"><Upload className="h-4 w-4" /> Upload</div>;
+                    }
+                  }}
+                />
+              ) : (
+                <Button type="button" disabled className="h-10 px-6 rounded-lg opacity-50 cursor-not-allowed">
+                  <Upload className="h-4 w-4 mr-2" /> Upload
+                </Button>
+              )}
+            </div>
           </div>
+
+          {/* Uploaded Files List */}
+          {documentFields.some(doc => formData[doc.name]) && (
+            <div className="p-4 border rounded-xl bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 shadow-sm">
+              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <FileText className="h-4 w-4 text-emerald-600" /> Uploaded Documents
+              </h3>
+              <div className="space-y-1.5">
+                {documentFields.filter(doc => formData[doc.name]).map(doc => (
+                  <div key={doc.name} className="flex items-center justify-between px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                      <span className="text-sm">{doc.label}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <a href={formData[doc.name]} target="_blank" rel="noreferrer" className="text-xs font-medium text-sky-600 hover:underline px-2 py-1">View</a>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20"
+                        onClick={() => handleRemoveFile(doc.name)}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!documentFields.some(doc => formData[doc.name]) && (
+            <div className="text-center py-8 text-slate-400 dark:text-slate-500 text-sm">
+              No documents uploaded yet. Select a document type above to begin.
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="employment" className="space-y-6">
@@ -392,14 +471,89 @@ export function EditEmployeeForm({
             {renderDateField("Probation & Confirmation Date", "probationConfirmationDate")}
           </div>
         </TabsContent>
+
+        <TabsContent value="salary" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="basicSalary">Basic Salary <span className="text-red-500">*</span></Label>
+              <Input id="basicSalary" name="basicSalary" type="text" inputMode="decimal" value={formData.basicSalary ?? ""} onChange={handleChange} required placeholder="0" className="border-slate-200 dark:border-slate-700" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="attendanceAllowance">Attendance Allowance <span className="text-red-500">*</span></Label>
+              <Input id="attendanceAllowance" name="attendanceAllowance" type="text" inputMode="decimal" value={formData.attendanceAllowance ?? ""} onChange={handleChange} required placeholder="0" className="border-slate-200 dark:border-slate-700" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="dailyAllowance">Daily Allowance <span className="text-red-500">*</span></Label>
+              <Input id="dailyAllowance" name="dailyAllowance" type="text" inputMode="decimal" value={formData.dailyAllowance ?? ""} onChange={handleChange} required placeholder="0" className="border-slate-200 dark:border-slate-700" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="fuelAllowance">Fuel Allowance <span className="text-red-500">*</span></Label>
+              <Input id="fuelAllowance" name="fuelAllowance" type="text" inputMode="decimal" value={formData.fuelAllowance ?? ""} onChange={handleChange} required placeholder="0" className="border-slate-200 dark:border-slate-700" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="conveyanceAllowance">Conveyance Allowance <span className="text-red-500">*</span></Label>
+              <Input id="conveyanceAllowance" name="conveyanceAllowance" type="text" inputMode="decimal" value={formData.conveyanceAllowance ?? ""} onChange={handleChange} required placeholder="0" className="border-slate-200 dark:border-slate-700" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="maintainence">Maintainence <span className="text-red-500">*</span></Label>
+              <Input id="maintainence" name="maintainence" type="text" inputMode="decimal" value={formData.maintainence ?? ""} onChange={handleChange} required placeholder="0" className="border-slate-200 dark:border-slate-700" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="comission">Comission <span className="text-red-500">*</span></Label>
+              <Input id="comission" name="comission" type="text" inputMode="decimal" value={formData.comission ?? ""} onChange={handleChange} required placeholder="0" className="border-slate-200 dark:border-slate-700" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="eachKpiIncentives">Each KPI Incentives <span className="text-red-500">*</span></Label>
+              <Input id="eachKpiIncentives" name="eachKpiIncentives" type="text" inputMode="decimal" value={formData.eachKpiIncentives ?? ""} onChange={handleChange} required placeholder="0" className="border-slate-200 dark:border-slate-700" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="incentives">Incentives <span className="text-red-500">*</span></Label>
+              <Input id="incentives" name="incentives" type="text" inputMode="decimal" value={formData.incentives ?? ""} onChange={handleChange} required placeholder="0" className="border-slate-200 dark:border-slate-700" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="categoryIncentive">Category Incentive <span className="text-red-500">*</span></Label>
+              <Input id="categoryIncentive" name="categoryIncentive" type="text" inputMode="decimal" value={formData.categoryIncentive ?? ""} onChange={handleChange} required placeholder="0" className="border-slate-200 dark:border-slate-700" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="taxDeduction">Tax Deduction <span className="text-red-500">*</span></Label>
+              <Select value={formData.taxDeduction || ""} onValueChange={(v) => handleSelectChange("taxDeduction", v)}>
+                <SelectTrigger className="border-slate-200 dark:border-slate-700"><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Yes">Yes</SelectItem>
+                  <SelectItem value="No">No</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="eobiDeduction">EOBI Deduction <span className="text-red-500">*</span></Label>
+              <Select value={formData.eobiDeduction || ""} onValueChange={(v) => handleSelectChange("eobiDeduction", v)}>
+                <SelectTrigger className="border-slate-200 dark:border-slate-700"><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Yes">Yes</SelectItem>
+                  <SelectItem value="No">No</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="socialSecurityDeduction">Social Security Deduction <span className="text-red-500">*</span></Label>
+              <Select value={formData.socialSecurityDeduction || ""} onValueChange={(v) => handleSelectChange("socialSecurityDeduction", v)}>
+                <SelectTrigger className="border-slate-200 dark:border-slate-700"><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Yes">Yes</SelectItem>
+                  <SelectItem value="No">No</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </TabsContent>
       </Tabs>
 
       <div className="flex justify-end gap-3 pt-6 border-t border-slate-100 dark:border-slate-700">
         <Button type="button" variant="outline" onClick={onCancel} className="h-11 px-8 rounded-xl border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
           Cancel
         </Button>
-        <Button type="submit" className="bg-sky-600 hover:bg-sky-700 h-11 px-10 rounded-xl font-bold text-white shadow-lg shadow-sky-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]">
-          Apply Changes
+        <Button type="submit" disabled={isSubmitting} className="bg-sky-600 hover:bg-sky-700 h-11 px-10 rounded-xl font-bold text-white shadow-lg shadow-sky-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
+          {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving...</> : "Apply Changes"}
         </Button>
       </div>
     </form>
