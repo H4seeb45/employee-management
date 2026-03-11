@@ -133,7 +133,6 @@ export default function EmployeeDirectory() {
   const getEmployeeName = (employee: any) => employee?.employeeName || "Employee";
 
   const filteredData = employees.filter((employee: any) => {
-    if(searchText.length === 0) return true;
     const matchesSearch =
       employee.employeeName?.toLowerCase().includes(searchText.toLowerCase()) ||
       employee.position?.toLowerCase().includes(searchText.toLowerCase()) ||
