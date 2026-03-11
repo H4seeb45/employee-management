@@ -95,7 +95,7 @@ export default function EmployeeDirectory() {
   const fetchEmployees = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/employees");
+      const res = await fetch("/api/employees",{cache:"no-store"});
       const data = await res.json();
       if (res.ok) {
         setEmployees(data.employees || []);
@@ -133,6 +133,7 @@ export default function EmployeeDirectory() {
   const getEmployeeName = (employee: any) => employee?.employeeName || "Employee";
 
   const filteredData = employees.filter((employee: any) => {
+    if(searchText.length === 0) return true;
     const matchesSearch =
       employee.employeeName?.toLowerCase().includes(searchText.toLowerCase()) ||
       employee.position?.toLowerCase().includes(searchText.toLowerCase()) ||

@@ -55,9 +55,22 @@ export async function GET(request: NextRequest) {
       where: { ...where, month: selectedMonth, year: selectedYear }
     });
 
+// const diagnostics = await prisma.expenseSheet.findMany({
+//     where: { locationId: 'cmkef6vzv0005f4ubsuvc9vmq' },
+//     select: {
+//         status: true,
+//         createdAt: true
+//     }
+// });
+
+// console.log('Actual Data in DB:', diagnostics);
+// console.log("startOfMonth",startOfMonth);
+// console.log("endOfMonth",endOfMonth);
+// console.log("locationId",locationId);
+// console.log("where",where);
     const currentExpensesRaw = await prisma.expenseSheet.findMany({
         where: {
-            ...where,
+            locationId: locationId as string,
             createdAt: { gte: startOfMonth, lt: endOfMonth },
             status: "DISBURSED",
         },

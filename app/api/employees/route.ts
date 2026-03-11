@@ -22,19 +22,18 @@ export async function GET(request: NextRequest) {
   if (status && status !== "all") where.status = status;
   
   // Only apply location filter if it's specified or if user is NOT a super admin
-  if (locationId) {
-    where.locationId = locationId;
-  }
+  // if (locationId) {
+  //   where.locationId = locationId;
+  // }
 
   try {
     const employees = await prisma.employee.findMany({
-      where,
       include: {
         location: true,
       },
       orderBy: { createdAt: "desc" },
     });
-
+  console.log(employees.length)
     return NextResponse.json({ employees });
   } catch (error) {
     console.error("Error fetching employees:", error);
