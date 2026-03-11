@@ -266,7 +266,9 @@ export async function POST(request: NextRequest) {
   // let effectiveExpenseType = category === "Fixed Asset" ? "FIXED_ASSET" : expenseType;
   let effectiveExpenseType = expenseType;
   let effectiveExpenseTypeId = expenseTypeId;
-
+  let expenseTypeFound:any={};
+  // console.log("effectiveExpenseType",expenseType);
+  // console.log("effectiveExpenseTypeId",expenseTypeId)
   // Resolve name from ID if needed for budget checks
   if (effectiveExpenseTypeId && !effectiveExpenseType) {
     const type = await prisma.expenseType.findUnique({
@@ -274,6 +276,7 @@ export async function POST(request: NextRequest) {
     });
     if (type) {
       effectiveExpenseType = type.expenseCode;
+      expenseTypeFound = type;
     } else {
       // Fallback: if not found in dynamic types, the ID might be a static type string
       effectiveExpenseType = effectiveExpenseTypeId;
@@ -344,26 +347,29 @@ export async function POST(request: NextRequest) {
   const categories = budget.categories as Record<string, number> | null;
   const categoryLimit = categories ? categories[effectiveExpenseType] : null;
 
+  // console.log("categoryLimit",categoryLimit)
   if (categoryLimit !== null && categoryLimit !== undefined) {
     const categorySpent = await prisma.expenseSheet.aggregate({
       where: {
         locationId: user.locationId,
         OR: [
           // { expenseTypeEnum: effectiveExpenseType as any },
-          { expenseType: { name: effectiveExpenseType } }
+          { expenseTypeId: effectiveExpenseTypeId }
         ],
         createdAt: { gte: start, lt: end },
         status: { not: "REJECTED" },
       },
       _sum: { amount: true },
     });
-
+    // console.log("categorySpent",categorySpent)
     const usedInCategory = categorySpent._sum.amount ?? 0;
+    // console.log("usedInCategory",usedInCategory)
+
     if (usedInCategory + amount > categoryLimit) {
       const remainingInCategory = categoryLimit - usedInCategory;
       return NextResponse.json(
         { 
-          message: `Category limit exceeded for ${effectiveExpenseType}. Remaining category budget: ${remainingInCategory.toLocaleString("en-PK", { style: "currency", currency: "PKR" })} (Limit: ${categoryLimit.toLocaleString("en-PK", { style: "currency", currency: "PKR" })})` 
+          message: `Category limit exceeded for ${expenseTypeFound?.name}. Remaining category budget: ${remainingInCategory.toLocaleString("en-PK", { style: "currency", currency: "PKR" })} (Limit: ${categoryLimit.toLocaleString("en-PK", { style: "currency", currency: "PKR" })})` 
         },
         { status: 400 }
       );
