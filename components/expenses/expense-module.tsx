@@ -1075,7 +1075,7 @@ export function ExpenseModule({
                 </div>
                 <div className="flex items-center gap-2">
                   {/* Importing expenses and mapping expense types for data reconceliation */}
-                  {/* <Button
+                  <Button
                     variant="outline"
                     size="sm"
                     onClick={handleExportForMapping}
@@ -1083,8 +1083,8 @@ export function ExpenseModule({
                   >
                     <Download className="h-4 w-4 mr-2" />
                     Export Mapping
-                  </Button> */}
-                  {/* <div className="relative">
+                  </Button>
+                  <div className="relative">
                     <Button
                       variant="outline"
                       size="sm"
@@ -1099,7 +1099,7 @@ export function ExpenseModule({
                       onChange={handleImportTypeMapping}
                       className="absolute inset-0 opacity-0 cursor-pointer"
                     />
-                  </div> */}
+                  </div>
                   <Button
                     variant="outline"
                     size="sm"

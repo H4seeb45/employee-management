@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { LoginForm } from "@/components/login-form/loginform";
 import { useLayout } from "@/components/layout/layout-provider";
+import { getRedirectPath } from "@/lib/utils";
 
 function LoginPage() {
   const router = useRouter();
@@ -21,11 +22,8 @@ function LoginPage() {
     // Auto-redirect if already logged in
     if (!userLoading && user) {
       const roles = user.roles ?? [];
-      const isAdmin = roles.includes("Admin") || roles.includes("Super Admin");
-      const isBusinessManager = roles.includes("Business Manager");
-      const isCashierOnly =
-        roles.includes("Cashier") && !isAdmin && !isBusinessManager;
-      router.push(isCashierOnly ? "/dashboard/expenses" : "/dashboard");
+      
+      router.push(getRedirectPath(roles));
     }
   }, [user, userLoading]);
 

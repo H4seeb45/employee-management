@@ -27,15 +27,16 @@ import { motion, AnimatePresence } from "framer-motion";
 const sidebarItems = [
   { name: "Dashboard", href: "/dashboard", icon: BarChart3 },
   { name: "Employees", href: "/dashboard/employees", icon: Users, adminOnly: true, },
-  { name: "Attendance", href: "/dashboard/attendance", icon: Calendar, adminOnly: true },
-  {
-    name: "Leave Management",
-    href: "/dashboard/leave-management",
-    icon: ClipboardList,
-    adminOnly: true,
-  },
-  { name: "Payroll", href: "/dashboard/payroll", icon: Briefcase, adminOnly: true, },
-  { name: "Loans", href: "/dashboard/loans", icon: Banknote, adminOnly: true, },
+  // { name: "Attendance", href: "/dashboard/attendance", icon: Calendar, adminOnly: true },
+  // {
+  //   name: "Leave Management",
+  //   href: "/dashboard/leave-management",
+  //   icon: ClipboardList,
+  //   adminOnly: true,
+  // },
+  // { name: "Payroll", href: "/dashboard/payroll", icon: Briefcase, adminOnly: true, },
+  { name: "Advances", href: "/dashboard/advances", icon: Banknote },
+  { name: "Loans", href: "/dashboard/loans", icon: Banknote },
   {
     name: "Expenses",
     href: "/dashboard/expenses",
@@ -67,7 +68,7 @@ const sidebarItems = [
     icon: PieChart,
     requiredRoles: ["Admin", "Super Admin", "Business Manager", "Accountant"],
   },
-  { name: "Settings", href: "/dashboard/settings", icon: Settings, adminOnly: true },
+  // { name: "Settings", href: "/dashboard/settings", icon: Settings, adminOnly: true },
 ];
 
 export function AppSidebar() {
@@ -104,6 +105,7 @@ export function AppSidebar() {
   const isSuperAdmin = roles.includes("Super Admin");
   const isCashierOnly =
     roles.includes("Cashier") && !isAdmin && !isBusinessManager && !isSuperAdmin;
+  const employeeOnly = roles.includes("Employee") && !isAdmin && !isBusinessManager && !isSuperAdmin;
   const roleLabel = roles.length > 0 ? roles.join(", ") : "No role";
   const avatarLetter = email?.[0]?.toUpperCase() || "U";
   return (
@@ -180,7 +182,8 @@ export function AppSidebar() {
             {!isSessionLoading &&
               sidebarItems
                 .filter((item) => {
-                  if (isCashierOnly) return item.href === "/dashboard/expenses";
+                  if ((isCashierOnly || employeeOnly) && item.href === "/dashboard") return false;
+
                   if (item.adminOnly && !isAdmin) return false;
                   if (!item.requiredRoles || item.requiredRoles.length === 0)
                     return true;

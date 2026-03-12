@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, isAdminUser, isSuperAdminUser } from "@/lib/auth";
-import { differenceInYears } from "date-fns";
+import { differenceInMonths } from "date-fns";
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       whereClause = { employee: { locationId: user.locationId } };
     }
 
-    const list = await prisma.loan.findMany({
+    const list = await prisma.advance.findMany({
       include: { employee: true },
       where: whereClause,
       orderBy: { issuedAt: "desc" }
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error(error);
     return NextResponse.json(
-      { error: "Failed to fetch loans" },
+      { error: "Failed to fetch advances" },
       { status: 500 }
     );
   }
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
     // Allow employees to create for themselves, otherwise must have right location access
     if (!isAdmin) {
       if (employeeRecord && employeeId !== employeeRecord.id) {
-         return NextResponse.json({ error: "You can only request loans for yourself." }, { status: 403 });
+         return NextResponse.json({ error: "You can only request advances for yourself." }, { status: 403 });
       } else if (!employeeRecord && employee.locationId !== user.locationId) {
          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
@@ -87,38 +87,43 @@ export async function POST(req: NextRequest) {
       ? body.principalAmount
       : parseFloat(body.principalAmount) || 0;
 
-    // Rule 1: Loan for an employee can only be applied after one year of joining date.
+    // Rule 1: Advance for an employee can be applied after three months of joining date.
     if (!employee.joinDate) {
       return NextResponse.json({ error: "Employee join date is not set" }, { status: 400 });
     }
-    const yearsSinceJoin = differenceInYears(new Date(), new Date(employee.joinDate));
-    if (yearsSinceJoin < 1) {
-      return NextResponse.json({ error: "Loan can only be applied after one year of joining date." }, { status: 400 });
+    const monthsSinceJoin = differenceInMonths(new Date(), new Date(employee.joinDate));
+    if (monthsSinceJoin < 3) {
+      return NextResponse.json({ error: "Advance can only be applied after three months of joining date." }, { status: 400 });
     }
 
-    // Rule 2: Max two base salaries can be given when applying for Loan
+    // Rule 2: Advance can be max 25% of the basic employee salary.
     if (!employee.basicSalary || employee.basicSalary <= 0) {
       return NextResponse.json({ error: "Employee basic salary data is not available." }, { status: 400 });
     }
-    const maxLoan = employee.basicSalary * 2;
-    if (principalAmount > maxLoan) {
-      return NextResponse.json({ error: `Requested loan exceeds maximum limit of two base salaries (${maxLoan}).` }, { status: 400 });
+    const maxAdvance = employee.basicSalary * 0.25;
+    if (principalAmount > maxAdvance) {
+      return NextResponse.json({ error: `Requested advance exceeds maximum limit of 25% of basic salary (${maxAdvance}).` }, { status: 400 });
     }
 
-    // Rule 3: Only one loan per year
-    const currentYear = new Date().getFullYear();
-    const existingLoanThisYear = await prisma.loan.findFirst({
+    // Rule 3: Only one advance per month
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // 1-indexed
+    const startOfMonth = new Date(`${currentYear}-${currentMonth.toString().padStart(2, '0')}-01T00:00:00.000Z`);
+    const endOfMonth = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999);
+
+    const existingAdvanceThisMonth = await prisma.advance.findFirst({
       where: {
         employeeId,
         issuedAt: {
-          gte: new Date(`${currentYear}-01-01T00:00:00.000Z`),
-          lte: new Date(`${currentYear}-12-31T23:59:59.999Z`)
+          gte: startOfMonth,
+          lte: endOfMonth
         }
       }
     });
 
-    if (existingLoanThisYear) {
-      return NextResponse.json({ error: `An employee can only apply for one loan per year.` }, { status: 400 });
+    if (existingAdvanceThisMonth) {
+      return NextResponse.json({ error: `An employee can only apply for one advance per month.` }, { status: 400 });
     }
 
     const data: any = {
@@ -139,12 +144,12 @@ export async function POST(req: NextRequest) {
       notes: body.notes ?? null,
     };
 
-    const created = await prisma.loan.create({ data });
+    const created = await prisma.advance.create({ data });
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
     console.error(error);
     return NextResponse.json(
-      { error: "Failed to create loan" },
+      { error: "Failed to create advance" },
       { status: 500 }
     );
   }

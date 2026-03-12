@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
     const employees = await prisma.employee.findMany({
       include: {
         location: true,
+        user: true,
       },
       orderBy: { createdAt: "desc" },
     });

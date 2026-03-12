@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -40,6 +41,8 @@ import {
   Briefcase,
   Building2,
   Loader2,
+  FileUp,
+  Key,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -85,6 +88,10 @@ export default function EmployeeDirectory() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [credentialsDialog, setCredentialsDialog] = useState<{ open: boolean; email?: string; password?: string; message?: string }>({ open: false });
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -227,6 +234,28 @@ export default function EmployeeDirectory() {
     setDeleteDialogOpen(true);
   };
 
+  const handleGenerateCredentials = async (employee: any) => {
+    try {
+      const res = await fetch(`/api/employees/${employee.id}/credentials`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setCredentialsDialog({
+          open: true,
+          email: data.email,
+          password: data.password,
+          message: "Credentials successfully generated."
+        });
+        fetchEmployees();
+      } else {
+        toast({ title: "Generation Error", description: data.message || "Failed to generate credentials.", variant: "destructive" });
+      }
+    } catch (error) {
+       toast({ title: "Error", description: "An unexpected error occurred.", variant: "destructive" });
+    }
+  };
+
   const exportToCSV = () => {
     const headers = ["ID", "Name", "Position", "Department", "Email", "Phone", "Join Date", "Status"];
     const csvContent = [
@@ -256,6 +285,154 @@ export default function EmployeeDirectory() {
     document.body.removeChild(link);
 
     toast({ title: "Export Successful", description: `${filteredData.length} records exported.` });
+  };
+
+  const handleDownloadTemplate = async () => {
+    const headers = [
+      "Employee Name", "CNIC Number", "CNIC Issue Date (YYYY-MM-DD)", "CNIC Expiry Date (YYYY-MM-DD)",
+      "Mobile Number", "Father's Name", "Emergency Contact Name", "Emergency Contact Number",
+      "Date of Birth (YYYY-MM-DD)", "Blood Group", "Marital Status", "Gender",
+      "Email Address", "Professional Reference Name", "Reference Email Address", "Reference Contact",
+      "Address", "Location ID", "Employee ID", "Department",
+      "Designation", "Employment Status", "Date of Joining (YYYY-MM-DD)",
+      "Date of Leaving (YYYY-MM-DD)", "Probation & Confirmation Date",
+      "Basic Salary", "Attendance Allowance", "Daily Allowance", "Fuel Allowance",
+      "Conveyance Allowance", "Maintainence", "Comission", "Each KPI Incentives",
+      "Incentives", "Category Incentive", "Tax Deduction (Yes/No)",
+      "EOBI Deduction (Yes/No)", "Social Security Deduction (Yes/No)"
+    ];
+
+    const exampleRow = [
+      "John Doe", "1234567890123", "2020-01-01", "2030-01-01",
+      "03001234567", "Richard Doe", "Jane Doe", "03007654321",
+      "1990-05-15", "O+", "Married", "Male",
+      "john@example.com", "Manager Name", "manager@example.com", "03111234567",
+      "123 Main St, City", "(Fill with Location ID from reference)", "EMP-001", "HR",
+      "HR Manager", "Active:Working", "2024-01-01",
+      "", "",
+      "50000", "5000", "2000", "3000",
+      "4000", "1000", "0", "0",
+      "0", "0", "Yes",
+      "No", "No"
+    ];
+
+    const wsData = [headers, exampleRow];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Employees Template");
+
+    try {
+      const res = await fetch("/api/locations");
+      const locData = await res.json();
+      if (locData.locations) {
+           const locHeaders = ["Location ID", "Location Name", "City"];
+           const locRows = locData.locations.map((l: any) => [l.id, l.name, l.city]);
+           const wsLoc = XLSX.utils.aoa_to_sheet([locHeaders, ...locRows]);
+           XLSX.utils.book_append_sheet(wb, wsLoc, "Locations Reference");
+      }
+    } catch (e) {}
+
+    XLSX.writeFile(wb, "Employee_Import_Template.xlsx");
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setImporting(true);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: "array" });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: false }) as any[];
+
+        if (jsonData.length === 0) {
+          toast({ title: "Error", description: "The template is empty.", variant: "destructive" });
+          setImporting(false);
+          return;
+        }
+
+        const parseDate = (val: string) => {
+          if (!val) return null;
+          const d = new Date(val);
+          return isNaN(d.getTime()) ? null : d.toISOString();
+        };
+
+        const mappedData = jsonData.map((row) => ({
+           employeeName: String(row["Employee Name"] || ""),
+           cnicNumber: String(row["CNIC Number"] || "").replace(/\D/g, ""),
+           cnicIssueDate: parseDate(row["CNIC Issue Date (YYYY-MM-DD)"]),
+           cnicExpiryDate: parseDate(row["CNIC Expiry Date (YYYY-MM-DD)"]),
+           phone: String(row["Mobile Number"] || "").replace(/\D/g, ""),
+           fatherName: String(row["Father's Name"] || ""),
+           emergencyContactName: String(row["Emergency Contact Name"] || ""),
+           emergencyContactNumber: String(row["Emergency Contact Number"] || "").replace(/\D/g, ""),
+           birthDate: parseDate(row["Date of Birth (YYYY-MM-DD)"]),
+           bloodGroup: String(row["Blood Group"] || ""),
+           maritalStatus: String(row["Marital Status"] || ""),
+           gender: String(row["Gender"] || ""),
+           email: String(row["Email Address"] || ""),
+           referenceName: String(row["Professional Reference Name"] || ""),
+           referenceEmail: String(row["Reference Email Address"] || ""),
+           referenceNumber: String(row["Reference Contact"] || "").replace(/\D/g, ""),
+           address: String(row["Address"] || ""),
+
+           locationId: String(row["Location ID"] || ""),
+           employeeId: String(row["Employee ID"] || ""),
+           department: String(row["Department"] || ""),
+           position: String(row["Designation"] || ""),
+           status: String(row["Employment Status"] || "Active:Working"),
+           joinDate: parseDate(row["Date of Joining (YYYY-MM-DD)"]),
+           leaveDate: parseDate(row["Date of Leaving (YYYY-MM-DD)"]),
+           probationConfirmationDate: parseDate(row["Probation & Confirmation Date"]),
+
+           basicSalary: parseFloat(String(row["Basic Salary"])) || 0,
+           attendanceAllowance: parseFloat(String(row["Attendance Allowance"])) || 0,
+           dailyAllowance: parseFloat(String(row["Daily Allowance"])) || 0,
+           fuelAllowance: parseFloat(String(row["Fuel Allowance"])) || 0,
+           conveyanceAllowance: parseFloat(String(row["Conveyance Allowance"])) || 0,
+           maintainence: parseFloat(String(row["Maintainence"])) || 0,
+           comission: parseFloat(String(row["Comission"])) || 0,
+           eachKpiIncentives: parseFloat(String(row["Each KPI Incentives"])) || 0,
+           incentives: parseFloat(String(row["Incentives"])) || 0,
+           categoryIncentive: parseFloat(String(row["Category Incentive"])) || 0,
+           taxDeduction: String(row["Tax Deduction (Yes/No)"] || "No"),
+           eobiDeduction: String(row["EOBI Deduction (Yes/No)"] || "No"),
+           socialSecurityDeduction: String(row["Social Security Deduction (Yes/No)"] || "No"),
+        }));
+
+        const res = await fetch("/api/employees/batch", {
+           method: "POST",
+           headers: { "Content-Type": "application/json" },
+           body: JSON.stringify({ employees: mappedData }),
+        });
+
+        const result = await res.json();
+        if (res.ok && result.success) {
+           toast({ 
+             title: "Import Complete", 
+             description: `Successfully imported ${result.count} employees. ${result.errors?.length ? `Failed: ${result.errors.length}.` : ''}` 
+           });
+           setImportDialogOpen(false);
+           fetchEmployees();
+           if (result.errors?.length > 0) {
+              console.error("Import Errors:", result.errors);
+              toast({ title: "Some Imports Failed", description: "Check browser console for error details.", variant: "destructive" });
+           }
+        } else {
+           toast({ title: "Import Error", description: result.message || "Failed to import employees.", variant: "destructive" });
+        }
+      } catch (error) {
+        toast({ title: "Error", description: "Failed to parse the Excel file.", variant: "destructive" });
+      } finally {
+        setImporting(false);
+        if (event.target) event.target.value = "";
+      }
+    };
+    reader.readAsArrayBuffer(file);
   };
 
   const totalEmployees = employees.length;
@@ -370,6 +547,10 @@ export default function EmployeeDirectory() {
         </div>
 
         <div className="flex gap-2">
+          <Button variant="outline" className="flex items-center gap-2 bg-transparent border-emerald-600 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20" onClick={() => setImportDialogOpen(true)}>
+            <FileUp className="h-4 w-4" />
+            <span className="hidden sm:inline">Import</span>
+          </Button>
           <Button variant="outline" className="flex items-center gap-2 bg-transparent" onClick={exportToCSV}>
             <Download className="h-4 w-4" />
             <span className="hidden sm:inline">Export</span>
@@ -431,6 +612,9 @@ export default function EmployeeDirectory() {
                       </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-600" onClick={() => openEditDialog(employee)}>
                         <Pencil className="h-4 w-4" /><span className="sr-only">Edit</span>
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-600" onClick={() => handleGenerateCredentials(employee)} title="Generate Login Credentials">
+                        <Key className="h-4 w-4" /><span className="sr-only">Generate Credentials</span>
                       </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600" onClick={() => openDeleteDialog(employee)}>
                         <Trash2 className="h-4 w-4" /><span className="sr-only">Delete</span>
@@ -526,6 +710,55 @@ export default function EmployeeDirectory() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteEmployee} className="bg-orange-600 hover:bg-orange-700 text-white">Inactivate</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader><DialogTitle>Import Employees</DialogTitle></DialogHeader>
+          <div className="flex flex-col gap-4 py-4">
+            <div className="text-sm text-slate-500 bg-slate-50 dark:bg-slate-800 p-3 rounded-md">
+              <p className="mb-2"><strong>Step 1:</strong> Download the empty template and fill it out. Review the "Locations Reference" sheet to match the correct Location ID if you are a Super Admin.</p>
+              <p><strong>Step 2:</strong> Upload the completed file here to bulk import records. Dates should be in YYYY-MM-DD format.</p>
+            </div>
+            
+            <Button variant="outline" onClick={handleDownloadTemplate} className="w-full">
+              <Download className="h-4 w-4 mr-2" /> Download Excel Template
+            </Button>
+            
+            <input 
+              type="file" 
+              accept=".xlsx,.xls,.csv" 
+              className="hidden" 
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+            />
+            <Button 
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" 
+              onClick={() => fileInputRef.current?.click()}
+              disabled={importing}
+            >
+              {importing ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Importing Data...</> : <><FileUp className="h-4 w-4 mr-2" /> Upload Completed File</>}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={credentialsDialog.open} onOpenChange={(open) => setCredentialsDialog({ ...credentialsDialog, open })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Employee Login Credentials</AlertDialogTitle>
+            <AlertDialogDescription>
+              {credentialsDialog.message}
+              <div className="mt-4 space-y-2 p-3 bg-slate-100 dark:bg-slate-900 rounded-md">
+                 <p className="text-slate-800 dark:text-slate-200"><strong>Email:</strong> {credentialsDialog.email}</p>
+                 <p className="text-slate-800 dark:text-slate-200"><strong>Password:</strong> {credentialsDialog.password}</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Close</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

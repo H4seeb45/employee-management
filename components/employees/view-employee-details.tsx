@@ -94,11 +94,12 @@ export function ViewEmployeeDetails({ employee }: ViewEmployeeDetailsProps) {
       </div>
 
       <Tabs defaultValue="personal" className="w-full">
-        <TabsList className="grid grid-cols-4 w-full h-12">
+        <TabsList className="grid grid-cols-5 w-full h-12">
           <TabsTrigger value="personal" className="font-semibold">Personal Info</TabsTrigger>
           <TabsTrigger value="employment" className="font-semibold">Employment Info</TabsTrigger>
           <TabsTrigger value="salary" className="font-semibold">Salary Info</TabsTrigger>
           <TabsTrigger value="documents" className="font-semibold">Documents Info</TabsTrigger>
+          <TabsTrigger value="security" className="font-semibold">Security</TabsTrigger>
         </TabsList>
 
         <TabsContent value="personal" className="space-y-4 mt-6">
@@ -177,6 +178,27 @@ export function ViewEmployeeDetails({ employee }: ViewEmployeeDetailsProps) {
               <DocRow label="Driving License" url={employee.drivingLicenseUrl} />
               <DocRow label="Police Certificate" url={employee.policeCertUrl} />
               <DocRow label="Clearance Letter" url={employee.clearanceLetterUrl} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="security" className="space-y-4 mt-6">
+          <Card className="border-slate-200 dark:border-slate-800">
+            <CardContent className="p-6">
+              {employee.user ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <InfoRow label="Login Email" value={employee.user.email} />
+                  <InfoRow label="Account Status" value="Active" />
+                  <div className="text-sm text-slate-500 mt-2 font-medium">
+                    Initial password was set to: {employee.employeeId}123!
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center p-8 text-slate-500">
+                  <p>No login credentials have been generated for this employee yet.</p>
+                  <p className="text-sm mt-1">Use the "Key" icon on the employee table to generate them.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

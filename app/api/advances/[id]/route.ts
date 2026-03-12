@@ -23,9 +23,9 @@ export async function PATCH(
        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const loan = await prisma.loan.findUnique({ where: { id } });
-    if (!loan) {
-      return NextResponse.json({ error: "Loan not found" }, { status: 404 });
+    const advance = await prisma.advance.findUnique({ where: { id } });
+    if (!advance) {
+      return NextResponse.json({ error: "Advance not found" }, { status: 404 });
     }
 
     let updateData: any = {};
@@ -33,27 +33,27 @@ export async function PATCH(
     if (status) {
       if (status === "Approved" || status === "Rejected") {
         if (!isAdmin) {
-           return NextResponse.json({ error: "Only admins can approve or reject loans." }, { status: 403 });
+           return NextResponse.json({ error: "Only admins can approve or reject advances." }, { status: 403 });
         }
       }
 
       if (status === "Disbursed") {
         if (!isCashier && !isAdmin) {
-           return NextResponse.json({ error: "Only cashiers or admins can disburse loans." }, { status: 403 });
+           return NextResponse.json({ error: "Only cashiers or admins can disburse advances." }, { status: 403 });
         }
-        if (loan.status !== "Approved" && loan.status !== "Disbursed") {
-           return NextResponse.json({ error: "Loan must be approved before disbursal." }, { status: 400 });
+        if (advance.status !== "Approved" && advance.status !== "Disbursed") {
+           return NextResponse.json({ error: "Advance must be approved before disbursal." }, { status: 400 });
         }
       }
       updateData.status = status;
     }
 
     if (principalAmount !== undefined || dueAt !== undefined || notes !== undefined) {
-      if (loan.status !== "Submitted") {
-         return NextResponse.json({ error: "Only submitted loans can be edited." }, { status: 400 });
+      if (advance.status !== "Submitted") {
+         return NextResponse.json({ error: "Only submitted advances can be edited." }, { status: 400 });
       }
       if (!isAdmin && !isBusinessManager) {
-         return NextResponse.json({ error: "Only admins or business managers can edit loans." }, { status: 403 });
+         return NextResponse.json({ error: "Only admins or business managers can edit advances." }, { status: 403 });
       }
       
       if (principalAmount !== undefined) {
@@ -65,10 +65,10 @@ export async function PATCH(
     }
 
     if (Object.keys(updateData).length === 0) {
-      return NextResponse.json(loan);
+      return NextResponse.json(advance);
     }
 
-    const updated = await prisma.loan.update({
+    const updated = await prisma.advance.update({
       where: { id },
       data: updateData
     });
@@ -76,6 +76,6 @@ export async function PATCH(
     return NextResponse.json(updated);
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ error: "Failed to update loan status" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to update advance status" }, { status: 500 });
   }
 }

@@ -22,17 +22,25 @@ export function RoleGuard({ children }: { children: React.ReactNode }) {
   const isBusinessManager = roles.includes("Business Manager");
   const isCashierOnly =
     roles.includes("Cashier") && !isAdmin && !isBusinessManager;
+  const employeeOnly = roles.includes("Employee") && !isAdmin && !isBusinessManager;
 
-  if (isCashierOnly && !pathname.startsWith("/dashboard/expenses")) {
-    return (
-      <Alert variant="destructive">
+  const PermissionDenied = ()=>{
+    return <Alert variant="destructive">
         <AlertTitle>Permission denied</AlertTitle>
         <AlertDescription>
           You do not have access to this module. Please use the Expenses section
           or contact an administrator.
         </AlertDescription>
       </Alert>
-    );
+  }
+
+  const accessingLoansOrAdvances = pathname.startsWith("/dashboard/advances") || pathname.startsWith("/dashboard/loans") 
+  if (isCashierOnly && !pathname.startsWith("/dashboard/expenses") && !accessingLoansOrAdvances) {
+    return PermissionDenied();
+  }
+
+  if (employeeOnly && !accessingLoansOrAdvances) {
+    return PermissionDenied();
   }
 
   return <>{children}</>;

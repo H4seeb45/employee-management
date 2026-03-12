@@ -35,11 +35,6 @@ model Employee {
   taxDeduction              String?
   eobiDeduction             String?
   socialSecurityDeduction   String?
-  skills                    Json?
-  education                 Json?
-  documents                 Json?
-  reviews                   Json?
-  achievements              Json?
   clearanceLetterUrl        String?
   cnicCopyUrl               String?
   cnicExpiryDate            DateTime?
@@ -67,12 +62,14 @@ model Employee {
   updatedAt                 DateTime        @updatedAt
   utilityBillUrl            String?
   referenceEmail            String?
+  userId                    String?         @unique
   attendances               Attendance[]
+  user                      User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
   location                  Location?       @relation(fields: [locationId], references: [id])
   leaveRequests             LeaveRequest[]
   loans                     Loan[]
+  advances                  Advance[]
   payrolls                  Payroll[]
-  ProjectMembers            ProjectMember[]
 }
 
 model User {
@@ -93,6 +90,7 @@ model User {
   location               Location       @relation(fields: [locationId], references: [id])
   roles                  UserRole[]
   authorizedLocations    Location[]     @relation("UserAuthorizedLocations")
+  employee               Employee?
 }
 
 model Role {
@@ -231,25 +229,6 @@ model LeaveRequest {
   employee     Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
 
-model Project {
-  id        String          @id @default(cuid())
-  name      String
-  client    String?
-  startDate DateTime?
-  deadline  DateTime?
-  progress  Int?
-  status    String?
-  members   ProjectMember[]
-}
-
-model ProjectMember {
-  id         String   @id @default(cuid())
-  projectId  String
-  employeeId String
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-}
-
 model Payroll {
   id            String    @id @default(cuid())
   employeeId    String
@@ -264,6 +243,20 @@ model Payroll {
 }
 
 model Loan {
+  id                 String    @id @default(cuid())
+  employeeId         String
+  principalAmount    Float
+  issuedAt           DateTime?
+  dueAt              DateTime?
+  balance            Float?
+  installments       Int?
+  monthlyInstallment Float?
+  status             String?
+  notes              String?
+  employee           Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model Advance {
   id                 String    @id @default(cuid())
   employeeId         String
   principalAmount    Float

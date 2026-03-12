@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { Eye, EyeOff, Mail, Lock, AlertCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useLayout } from "../layout/layout-provider";
+import { getRedirectPath } from "@/lib/utils";
 
 export function LoginForm({ className }: { className?: string }) {
   const router = useRouter();
@@ -28,14 +29,6 @@ export function LoginForm({ className }: { className?: string }) {
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  const getRedirectPath = (roles: string[] = []) => {
-    const isAdmin = roles.includes("Admin") || roles.includes("Super Admin");
-    const isBusinessManager = roles.includes("Business Manager");
-    const isCashierOnly =
-      roles.includes("Cashier") && !isAdmin && !isBusinessManager;
-    return isCashierOnly ? "/dashboard/expenses" : "/dashboard";
-  };
 
   // Validation
   const emailError = emailTouched && !email ? "Email is required" : 
