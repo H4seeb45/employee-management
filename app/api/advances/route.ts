@@ -115,6 +115,7 @@ export async function POST(req: NextRequest) {
     const existingAdvanceThisMonth = await prisma.advance.findFirst({
       where: {
         employeeId,
+        status: { not: "Rejected" },
         issuedAt: {
           gte: startOfMonth,
           lte: endOfMonth

@@ -1,7 +1,7 @@
 "use client";
 
-import { Loader2, Plus, Download, MoreHorizontal, FileText, Check, X, HandCoins, Pencil } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Loader2, Plus, Download, MoreHorizontal, FileText, Check, X, HandCoins, Pencil, FileUp } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,8 +55,11 @@ export default function AdvancesPage() {
   // form state
   const [employeeId, setEmployeeId] = useState("");
   const [principalAmount, setPrincipalAmount] = useState<string>("");
-  const [dueAt, setDueAt] = useState<string>("");
   const [notes, setNotes] = useState("");
+
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [dateFilter, setDateFilter] = useState<string>("");
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -67,9 +70,9 @@ export default function AdvancesPage() {
   const isBusinessManager = currentUser?.roles?.includes("Business Manager");
   
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [selectedAdvance, setSelectedAdvance] = useState<any>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [editPrincipal, setEditPrincipal] = useState<string>("");
-  const [editDueAt, setEditDueAt] = useState<string>("");
   const [editNotes, setEditNotes] = useState<string>("");
   const [savingEdit, setSavingEdit] = useState(false);
   const fetchRecords = async () => {
@@ -104,7 +107,6 @@ export default function AdvancesPage() {
         employeeId,
         principalAmount: parseFloat(principalAmount) || 0,
         balance: parseFloat(principalAmount) || 0,
-        dueAt: dueAt ? new Date(dueAt).toISOString() : null,
         issuedAt: new Date().toISOString(), // defaulting issuedAt to now
         notes,
       };
@@ -117,7 +119,6 @@ export default function AdvancesPage() {
       if (res.ok) {
         setAdvances((prev) => [created, ...prev]);
         setPrincipalAmount("");
-        setDueAt("");
         setNotes("");
         setEmployeeId("");
         setIsDialogOpen(false);
@@ -154,11 +155,15 @@ export default function AdvancesPage() {
   };
 
   const openEdit = (adv: any) => {
+    setSelectedAdvance(adv);
     setEditId(adv.id);
     setEditPrincipal(adv.principalAmount?.toString() || "");
-    setEditDueAt(adv.dueAt ? new Date(adv.dueAt).toISOString().split('T')[0] : "");
     setEditNotes(adv.notes || "");
     setIsEditOpen(true);
+  };
+
+  const getEmployeeHistory = (empId: string, currentId: string) => {
+    return advances.filter(a => a.employeeId === empId && a.id !== currentId);
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
@@ -170,7 +175,6 @@ export default function AdvancesPage() {
         principalAmount: parseFloat(editPrincipal) || 0,
         notes: editNotes,
       };
-      if (editDueAt) payload.dueAt = new Date(editDueAt).toISOString();
       
       const res = await fetch(`/api/advances/${editId}`, {
         method: "PATCH",
@@ -204,14 +208,13 @@ export default function AdvancesPage() {
       return;
     }
 
-    const headers = ["Employee ID", "Employee Name", "Principal Amount", "Balance", "Issued Date", "Due Date", "Notes", "Status"];
+    const headers = ["Employee ID", "Employee Name", "Principal Amount", "Balance", "Issued Date", "Notes", "Status"];
     const rows = filteredAdvances.map(adv => [
       adv.employee?.employeeId || "-",
       adv.employee?.employeeName || "Unknown Employee",
       adv.principalAmount || 0,
       adv.balance || 0,
       formatDate(adv.issuedAt),
-      formatDate(adv.dueAt),
       adv.notes || "",
       adv.status || "Submitted"
     ]);
@@ -225,14 +228,98 @@ export default function AdvancesPage() {
     toast({ title: "Export Successful", description: "Advances export is downloading." });
   };
 
+  const handleDownloadTemplate = () => {
+    const headers = ["Employee ID", "Principal Amount", "Issued Date (YYYY-MM-DD)", "Status", "Notes"];
+    const exampleRow = ["EMP-001", "10000", "2024-01-01", "Approved", "Family event"];
+    
+    const ws = XLSX.utils.aoa_to_sheet([headers, exampleRow]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Advances Template");
+    XLSX.writeFile(wb, "Advances_Import_Template.xlsx");
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setImporting(true);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: "array" });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: false }) as any[];
+
+        if (jsonData.length === 0) {
+          toast({ title: "Error", description: "The template is empty.", variant: "destructive" });
+          setImporting(false);
+          return;
+        }
+
+        const mappedData = jsonData.map((row) => ({
+          employeeIdReadable: String(row["Employee ID"] || ""),
+          principalAmount: parseFloat(row["Principal Amount"]) || 0,
+          issuedAt: row["Issued Date (YYYY-MM-DD)"] || null,
+          status: row["Status"] || "Approved",
+          notes: row["Notes"] || "",
+        }));
+
+        const res = await fetch("/api/advances/batch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ advances: mappedData }),
+        });
+
+        const result = await res.json();
+        if (res.ok && result.success) {
+          toast({ 
+            title: "Import Complete", 
+            description: `Successfully imported ${result.count} advances. ${result.errors?.length ? `Failed: ${result.errors.length}.` : ''}` 
+          });
+          setImportDialogOpen(false);
+          fetchRecords();
+        } else {
+          toast({ title: "Import Error", description: result.message || "Failed to import advances.", variant: "destructive" });
+        }
+      } catch (error) {
+        toast({ title: "Error", description: "Failed to parse the Excel file.", variant: "destructive" });
+      } finally {
+        setImporting(false);
+        if (event.target) event.target.value = "";
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Advances Management</h1>
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Advances Management</h1>
           <p className="text-slate-500">Record and manage short-term employee advances.</p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 bg-white dark:bg-slate-800 p-1.5 px-3 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm mr-2">
+            <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Filter Month:</Label>
+            <Input 
+              type="month" 
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="h-8 w-[150px] border-0 focus-visible:ring-0 bg-transparent p-0"
+            />
+            {dateFilter && (
+              <Button variant="ghost" size="sm" onClick={() => setDateFilter("")} className="h-6 w-6 p-0 text-slate-400 hover:text-slate-600">
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         <div className="flex gap-2">
+          {isAdmin && (
+            <Button variant="outline" className="flex items-center gap-2 bg-transparent border-purple-600 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20" onClick={() => setImportDialogOpen(true)}>
+              <FileUp className="h-4 w-4" /> Import
+            </Button>
+          )}
           <Button variant="outline" className="bg-transparent border-emerald-600 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-500 dark:text-emerald-500" onClick={exportToExcel}>
             <Download className="mr-2 h-4 w-4" /> Export Excel
           </Button>
@@ -276,20 +363,14 @@ export default function AdvancesPage() {
                     required
                   />
                 </div>
+
                 <div className="space-y-2">
-                  <Label>Due Date</Label>
-                  <Input
-                    type="date"
-                    value={dueAt}
-                    onChange={(e) => setDueAt(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Notes (Optional)</Label>
+                  <Label>Notes</Label>
                   <Input
                     placeholder="e.g. Medical emergency..."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
+                    required
                   />
                 </div>
                 <DialogFooter>
@@ -302,67 +383,187 @@ export default function AdvancesPage() {
           </Dialog>}
 
           <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Edit Advance Record</DialogTitle>
-                <DialogDescription>Modify the submitted advance details.</DialogDescription>
+                <DialogTitle>{(isAdmin || isBusinessManager) && selectedAdvance?.status === "Submitted" ? "Review & Edit Advance" : "Edit Advance Record"}</DialogTitle>
+                <DialogDescription>Review employee's previous history and modify details if needed.</DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleEditSubmit} className="space-y-4 pt-4">
-                <div className="space-y-2">
-                  <Label>Advance Amount (PKR)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={editPrincipal}
-                    onChange={(e) => setEditPrincipal(e.target.value)}
-                    required
-                  />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                <form onSubmit={handleEditSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Employee</Label>
+                    <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded-md border text-sm font-medium">
+                      {selectedAdvance?.employee?.employeeName || "Unknown"}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Advance Amount (PKR)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={editPrincipal}
+                      onChange={(e) => setEditPrincipal(e.target.value)}
+                      required
+                      disabled={selectedAdvance?.status !== "Submitted"}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Notes</Label>
+                    <Input
+                      placeholder="e.g. Medical emergency..."
+                      value={editNotes}
+                      onChange={(e) => setEditNotes(e.target.value)}
+                      required
+                      disabled={selectedAdvance?.status !== "Submitted"}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    {selectedAdvance?.status === "Submitted" && (isAdmin || isBusinessManager) && (
+                      <Button type="submit" disabled={savingEdit} className="flex-1 bg-amber-600 hover:bg-amber-700">
+                        {savingEdit ? <Loader2 className="h-4 w-4 animate-spin"/> : "Update Record"}
+                      </Button>
+                    )}
+                    {selectedAdvance?.status === "Submitted" && isAdmin && (
+                      <Button 
+                        type="button" 
+                        variant="default" 
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                        onClick={async () => {
+                          await handleStatusUpdate(selectedAdvance.id, "Approved");
+                          setIsEditOpen(false);
+                        }}
+                      >
+                        Approve
+                      </Button>
+                    )}
+                  </div>
+                </form>
+
+                <div className="space-y-4 border-l pl-6">
+                  <h3 className="font-semibold text-sm flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-slate-400" />
+                    Employee History
+                  </h3>
+                  <div className="space-y-3">
+                    {getEmployeeHistory(selectedAdvance?.employeeId, selectedAdvance?.id).length > 0 ? (
+                      getEmployeeHistory(selectedAdvance?.employeeId, selectedAdvance?.id).slice(0, 5).map((prevAdv: any) => (
+                        <div key={prevAdv.id} className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-100 dark:border-slate-700 text-xs">
+                          <div className="flex justify-between font-medium mb-1">
+                            <span>{formatDate(prevAdv.issuedAt)}</span>
+                            <span className={
+                              prevAdv.status === 'Approved' ? 'text-emerald-600' :
+                              prevAdv.status === 'Rejected' ? 'text-red-600' : 'text-amber-600'
+                            }>{prevAdv.status || "Submitted"}</span>
+                          </div>
+                          <div className="flex justify-between text-slate-500">
+                            <span>Principal: {new Intl.NumberFormat('en-PK').format(prevAdv.principalAmount)}</span>
+                            <span>Bal: {new Intl.NumberFormat('en-PK').format(prevAdv.balance)}</span>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-slate-500 italic">No previous records found.</p>
+                    )}
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Due Date</Label>
-                  <Input
-                    type="date"
-                    value={editDueAt}
-                    onChange={(e) => setEditDueAt(e.target.value)}
-                  />
+              </div>
+            </DialogContent>
+          </Dialog>
+          
+          <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader><DialogTitle>Bulk Import Advances</DialogTitle></DialogHeader>
+              <div className="flex flex-col gap-4 py-4">
+                <div className="text-sm text-slate-500 bg-slate-50 dark:bg-slate-800 p-3 rounded-md">
+                  <p className="mb-2"><strong>Step 1:</strong> Download the template and fill it out.</p>
+                  <p><strong>Step 2:</strong> Upload the completed file to bulk import records. Statuses: Submitted, Approved, Rejected, Disbursed.</p>
                 </div>
-                <div className="space-y-2">
-                  <Label>Notes (Optional)</Label>
-                  <Input
-                    placeholder="e.g. Medical emergency..."
-                    value={editNotes}
-                    onChange={(e) => setEditNotes(e.target.value)}
-                  />
-                </div>
-                <DialogFooter>
-                  <Button type="submit" disabled={savingEdit} className="w-full bg-amber-600 hover:bg-amber-700">
-                    {savingEdit ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Updating...</> : "Update Record"}
-                  </Button>
-                </DialogFooter>
-              </form>
+                <Button variant="outline" onClick={handleDownloadTemplate} className="w-full">
+                  <Download className="h-4 w-4 mr-2" /> Download Template
+                </Button>
+                <input 
+                  type="file" 
+                  accept=".xlsx,.xls,.csv" 
+                  className="hidden" 
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                />
+                <Button 
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white" 
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={importing}
+                >
+                  {importing ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Importing...</> : <><FileUp className="h-4 w-4 mr-2" /> Upload Excel File</>}
+                </Button>
+              </div>
             </DialogContent>
           </Dialog>
         </div>
       </div>
 
+      {isEmployee && advances.filter(a => a.status !== "Rejected" && a.issuedAt?.startsWith(new Date().toISOString().slice(0, 7))).length > 0 && (() => {
+        const latestAdv = advances.filter(a => a.status !== "Rejected" && a.issuedAt?.startsWith(new Date().toISOString().slice(0, 7)))[0];
+        return (
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card className="bg-purple-50 dark:bg-purple-900/10 border-purple-200 dark:border-purple-800">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-purple-600 dark:text-purple-400">Advance Amount (This Month)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR' }).format(latestAdv.principalAmount)}</div>
+                <p className="text-xs text-purple-600/80 dark:text-purple-400/80 mt-1">Status: {latestAdv.status || "Submitted"}</p>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
+
+      {(isAdmin || isBusinessManager) && (
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card className="bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-amber-600 dark:text-amber-400">Pending Approvals</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{filteredAdvances.filter(a => a.status === "Submitted" || !a.status).length}</div>
+              <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-1">Awaiting review</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-purple-50 dark:bg-purple-900/10 border-purple-200 dark:border-purple-800">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-purple-600 dark:text-purple-400">Loan Issued</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR' }).format(
+                  filteredAdvances.filter(a => a.status === "Approved" || a.status === "Disbursed")
+                    .reduce((sum, a) => sum + (a.principalAmount || 0), 0)
+                )}
+              </div>
+              <p className="text-xs text-purple-600/80 dark:text-purple-400/80 mt-1">Direct salary deductions</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-sky-50 dark:bg-sky-900/10 border-sky-200 dark:border-sky-800">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-sky-600 dark:text-sky-400">Total Active Balance</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR' }).format(
+                  filteredAdvances.filter(a => a.status !== "Rejected").reduce((sum, a) => sum + (a.balance || 0), 0)
+                )}
+              </div>
+              <p className="text-xs text-sky-600/80 dark:text-sky-400/80 mt-1">Total outstanding advances</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <Card className="border-slate-200 dark:border-slate-700 shadow-sm rounded-2xl overflow-hidden bg-white dark:bg-[#1E293B]">
         <CardHeader className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <CardTitle className="text-lg font-semibold text-slate-800 dark:text-white">Advances History</CardTitle>
-          <div className="flex items-center gap-2">
-            <Label className="text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">Filter by Month:</Label>
-            <Input 
-              type="month" 
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="w-auto dark:bg-slate-800"
-            />
-            {dateFilter && (
-              <Button variant="ghost" size="sm" onClick={() => setDateFilter("")} className="text-slate-500 dark:text-slate-400">
-                Clear
-              </Button>
-            )}
-          </div>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
@@ -381,7 +582,6 @@ export default function AdvancesPage() {
                   <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Principal</TableHead>
                   <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Balance</TableHead>
                   <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Issued</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Due At</TableHead>
                   <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Notes</TableHead>
                   <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Status</TableHead>
                   <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 text-right">Actions</TableHead>
@@ -402,9 +602,7 @@ export default function AdvancesPage() {
                     <TableCell className="text-slate-500 dark:text-slate-400 text-sm">
                       {formatDate(adv.issuedAt)}
                     </TableCell>
-                    <TableCell className="text-slate-500 dark:text-slate-400 text-sm">
-                      {formatDate(adv.dueAt)}
-                    </TableCell>
+
                     <TableCell className="text-slate-500 dark:text-slate-400 text-sm truncate max-w-[150px]">
                       {adv.notes || "-"}
                     </TableCell>
@@ -422,7 +620,7 @@ export default function AdvancesPage() {
                        <div className="flex justify-end gap-1 flex-wrap">
                          {(adv.status === "Submitted" || !adv.status) && isAdmin && (
                             <>
-                              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30" onClick={() => handleStatusUpdate(adv.id, "Approved")} title="Approve">
+                              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30" onClick={() => openEdit(adv)} title="Review & Approve">
                                 <Check className="h-4 w-4" /><span className="sr-only">Approve</span>
                               </Button>
                               <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30" onClick={() => handleStatusUpdate(adv.id, "Rejected")} title="Reject">

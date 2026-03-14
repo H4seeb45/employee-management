@@ -110,6 +110,7 @@ export async function POST(req: NextRequest) {
     const existingLoanThisYear = await prisma.loan.findFirst({
       where: {
         employeeId,
+        status: { not: "Rejected" },
         issuedAt: {
           gte: new Date(`${currentYear}-01-01T00:00:00.000Z`),
           lte: new Date(`${currentYear}-12-31T23:59:59.999Z`)
