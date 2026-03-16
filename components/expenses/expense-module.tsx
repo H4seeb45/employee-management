@@ -1834,7 +1834,7 @@ export function ExpenseModule({
                                   <SelectContent>
                                     {[
                                       "Office Chairs", "Laptops", "Computer", "Office Tables", "Mobile Phones", 
-                                      "Printer", "Car", "Vehicles", "Bike", "Warehouse", "Fans", "Lights"
+                                      "Printer", "Car", "Vehicles", "Bike", "Warehouse", "Fans", "Lights", "Cool Box"
                                     ].map((option) => (
                                       <SelectItem key={option} value={option}>{option}</SelectItem>
                                     ))}

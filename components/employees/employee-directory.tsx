@@ -616,9 +616,9 @@ export default function EmployeeDirectory() {
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-600" onClick={() => handleGenerateCredentials(employee)} title="Generate Login Credentials">
                         <Key className="h-4 w-4" /><span className="sr-only">Generate Credentials</span>
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600" onClick={() => openDeleteDialog(employee)}>
+                      {/* <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600" onClick={() => openDeleteDialog(employee)}>
                         <Trash2 className="h-4 w-4" /><span className="sr-only">Delete</span>
-                      </Button>
+                      </Button> */}
                     </div>
                   </TableCell>
                 </TableRow>

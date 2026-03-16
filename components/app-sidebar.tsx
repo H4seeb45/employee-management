@@ -26,7 +26,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const sidebarItems = [
   { name: "Dashboard", href: "/dashboard", icon: BarChart3 },
-  { name: "Employees", href: "/dashboard/employees", icon: Users, adminOnly: true, },
+  { name: "Employees", href: "/dashboard/employees", icon: Users, requiredRoles: ["Business Manager", "Data Manager"] },
   // { name: "Attendance", href: "/dashboard/attendance", icon: Calendar, adminOnly: true },
   // {
   //   name: "Leave Management",
@@ -35,8 +35,8 @@ const sidebarItems = [
   //   adminOnly: true,
   // },
   // { name: "Payroll", href: "/dashboard/payroll", icon: Briefcase, adminOnly: true, },
-  { name: "Advances", href: "/dashboard/advances", icon: Banknote },
-  { name: "Loans", href: "/dashboard/loans", icon: Banknote },
+  { name: "Advances", href: "/dashboard/advances", icon: Banknote, requiredRoles: ["Employee"] },
+  { name: "Loans", href: "/dashboard/loans", icon: Banknote, requiredRoles: ["Employee"] },
   {
     name: "Expenses",
     href: "/dashboard/expenses",
@@ -102,6 +102,7 @@ export function AppSidebar() {
   const email = user?.email ?? null;
   const isAdmin = roles.includes("Admin") || roles.includes("Super Admin");
   const isBusinessManager = roles.includes("Business Manager");
+  const isDataManager = roles.includes("Data Manager");
   const isSuperAdmin = roles.includes("Super Admin");
   const isCashierOnly =
     roles.includes("Cashier") && !isAdmin && !isBusinessManager && !isSuperAdmin;
@@ -182,7 +183,7 @@ export function AppSidebar() {
             {!isSessionLoading &&
               sidebarItems
                 .filter((item) => {
-                  if ((isCashierOnly || employeeOnly) && item.href === "/dashboard") return false;
+                  if ((isCashierOnly || employeeOnly || isDataManager) && item.href === "/dashboard") return false;
 
                   if (item.adminOnly && !isAdmin) return false;
                   if (!item.requiredRoles || item.requiredRoles.length === 0)

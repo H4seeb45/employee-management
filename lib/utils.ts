@@ -14,6 +14,7 @@ export function isLocalHost() {
 export const getRedirectPath = (roles: string[] = []) => {
     const isAdmin = roles.includes("Admin") || roles.includes("Super Admin");
     const isBusinessManager = roles.includes("Business Manager");
+    const isDataManager = roles.includes("Data Manager");
     const isCashierOnly =
       roles.includes("Cashier") && !isAdmin && !isBusinessManager;
     const employeeOnly = roles.includes("Employee") && !isAdmin && !isBusinessManager;
@@ -21,5 +22,6 @@ export const getRedirectPath = (roles: string[] = []) => {
 
     if(isCashierOnly) path = "/dashboard/expenses";
     if(employeeOnly) path = "/dashboard/advances";
+    if(isDataManager) path = "/dashboard/employees";
     return path || "/dashboard";
 };

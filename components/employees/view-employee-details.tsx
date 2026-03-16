@@ -1,9 +1,13 @@
 "use client";
 
+import { useState, useEffect, useRef } from "react";
+import { useReactToPrint } from "react-to-print";
+import { EmployeePrintDetails } from "./employee-print-details";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import {
   Award,
   FileText,
@@ -16,14 +20,29 @@ import {
   User,
   ExternalLink,
   DollarSign,
+  Download,
+  Printer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
 
 interface ViewEmployeeDetailsProps {
   employee: any;
 }
 
+
 export function ViewEmployeeDetails({ employee }: ViewEmployeeDetailsProps) {
+  const [isClient, setIsClient] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
+
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: `Employee-Profile-${employee?.employeeName}`,
+  });
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
   const getDepartmentColor = (department: string) => {
     const dept = department?.toUpperCase();
     switch (dept) {
@@ -79,8 +98,23 @@ export function ViewEmployeeDetails({ employee }: ViewEmployeeDetailsProps) {
         </div>
 
         <div className="flex-grow">
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{employee.employeeName}</h2>
-          <p className="text-slate-500 font-medium">{employee.position} • {employee.employeeId}</p>
+          <div className="flex justify-between items-start">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{employee.employeeName}</h2>
+              <p className="text-slate-500 font-medium">{employee.position} • {employee.employeeId}</p>
+            </div>
+            {isClient && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => handlePrint()}
+                className="flex items-center gap-2"
+              >
+                <Printer className="h-4 w-4" />
+                Print Details
+              </Button>
+            )}
+          </div>
 
           <div className="flex flex-wrap gap-2 mt-2">
             <Badge variant="outline" className={cn("px-3 py-1", getDepartmentColor(employee.department))}>
@@ -130,7 +164,7 @@ export function ViewEmployeeDetails({ employee }: ViewEmployeeDetailsProps) {
         <TabsContent value="employment" className="space-y-4 mt-6">
           <Card className="border-slate-200 dark:border-slate-800">
             <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <InfoRow label="Setup Name" value={employee.setupName} />
+              <InfoRow label="Setup Name" value={employee.location.name} />
               <InfoRow label="Employee ID" value={employee.employeeId} />
               <InfoRow label="Department" value={employee.department} />
               <InfoRow label="Designation" value={employee.position} />
@@ -203,6 +237,11 @@ export function ViewEmployeeDetails({ employee }: ViewEmployeeDetailsProps) {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Hidden printable component */}
+      <div className="hidden">
+        <EmployeePrintDetails ref={printRef} employee={employee} />
+      </div>
     </div>
   );
 }

@@ -22,6 +22,7 @@ export function RoleGuard({ children }: { children: React.ReactNode }) {
   const isBusinessManager = roles.includes("Business Manager");
   const isCashierOnly =
     roles.includes("Cashier") && !isAdmin && !isBusinessManager;
+  const isDataManagerOnly = roles.includes("Data Manager") && !isAdmin && !isBusinessManager;
   const employeeOnly = roles.includes("Employee") && !isAdmin && !isBusinessManager;
 
   const PermissionDenied = ()=>{
@@ -40,6 +41,10 @@ export function RoleGuard({ children }: { children: React.ReactNode }) {
   }
 
   if (employeeOnly && !accessingLoansOrAdvances) {
+    return PermissionDenied();
+  }
+
+  if (isDataManagerOnly && !pathname.startsWith("/dashboard/employees")) {
     return PermissionDenied();
   }
 
