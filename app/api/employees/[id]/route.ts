@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser, isAdminUser } from "@/lib/auth";
+import { getCurrentUser, hasRole, isAdminUser } from "@/lib/auth";
 import { utapi, extractFileKey } from "@/lib/uploadthing-server";
 
 export async function GET(
@@ -42,7 +42,7 @@ export async function PATCH(
     return NextResponse.json({ message: "Unauthorized." }, { status: 401 });
   }
 
-  if (!isAdminUser(user)) {
+  if (!isAdminUser(user) && !hasRole(user, "Business Manager") && !hasRole(user, "Data Manager")) {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 

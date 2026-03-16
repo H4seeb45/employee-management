@@ -15,7 +15,7 @@ export const uploadRouter = {
   })
     .middleware(async ({ req }) => {
       const user = await getCurrentUser(req);
-      if (!user || !hasRole(user, "Business Manager")) {
+      if (!user || (!isAdminUser(user) && !hasRole(user, "Business Manager") && !hasRole(user, "Data Manager"))) {
         throw new UploadThingError("Unauthorized");
       }
       return { userId: user.id, locationId: user.locationId };
@@ -39,7 +39,7 @@ export const uploadRouter = {
   })
     .middleware(async ({ req }) => {
       const user = await getCurrentUser(req);
-      if (!user || (!isAdminUser(user) && !hasRole(user, "Business Manager"))) {
+      if (!user || (!isAdminUser(user) && !hasRole(user, "Business Manager") && !hasRole(user, "Data Manager"))) {
         throw new UploadThingError("Unauthorized");
       }
       return { userId: user.id, locationId: user.locationId };

@@ -1,13 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser, isAdminUser, hashPassword } from "@/lib/auth";
+import { getCurrentUser, isAdminUser, hashPassword, hasRole } from "@/lib/auth";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   const user = await getCurrentUser(request);
-  if (!user || !isAdminUser(user)) {
+  if (!user || (!isAdminUser(user) && !hasRole(user, "Business Manager") && !hasRole(user, "Data Manager"))) {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 

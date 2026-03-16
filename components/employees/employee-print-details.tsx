@@ -2,6 +2,7 @@
 
 import React, { forwardRef } from "react";
 import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface EmployeePrintDetailsProps {
   employee: any;
@@ -28,6 +29,17 @@ export const EmployeePrintDetails = forwardRef<HTMLDivElement, EmployeePrintDeta
       <div ref={ref} className="p-10 text-slate-900 bg-white print:p-8" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
         {/* Header */}
         <div className="flex justify-between items-start mb-8 border-b-2 border-slate-900 pb-6">
+          <div className="flex-shrink-0">
+          <Avatar className="h-24 w-24 border-2 border-slate-100 dark:border-slate-800 shadow-sm">
+            <AvatarImage
+              src={employee.avatar || "/placeholder.svg"}
+              alt={employee.employeeName}
+            />
+            {/* <AvatarFallback className="text-2xl font-bold bg-sky-100 text-sky-700">
+              {employee.employeeName?.charAt(0)}
+            </AvatarFallback> */}
+          </Avatar>
+        </div>
           <h1 className="text-3xl font-black uppercase mb-1">Sadiq Traders</h1>
           <div>
             <h1 className="text-3xl font-black uppercase mb-1">{employee.location.name} - Employee Profile</h1>
