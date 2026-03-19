@@ -1562,7 +1562,7 @@ export function ExpenseModule({
                             value={expenseType}
                             onValueChange={setExpenseType}
                             options={dynamicExpenseTypes
-                              .filter((type) => type.name !== "Fixed Asset")
+                              .filter((type) => type.code !== "FIXED_ASSET")
                               .map((type) => ({ value: type.id, label: type.name }))
                             }
                             placeholder="Select expense type"
@@ -1833,7 +1833,7 @@ export function ExpenseModule({
                                   </SelectTrigger>
                                   <SelectContent>
                                     {[
-                                      "Office Chairs", "Laptops", "Computer", "Office Tables", "Mobile Phones", 
+                                      "Office Chairs", "Laptops", "Computer", "Office Tables", "Mobile Phones", "Insect Killer",
                                       "Printer", "Car", "Vehicles", "Bike", "Warehouse", "Fans", "Lights", "Cool Box", "Shell & Glass", "Shell", "Glass", "Pallets", "Pressure Washer"
                                     ].map((option) => (
                                       <SelectItem key={option} value={option}>{option}</SelectItem>
