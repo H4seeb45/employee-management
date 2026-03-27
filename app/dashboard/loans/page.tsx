@@ -77,7 +77,7 @@ export default function LoansPage() {
   const [editInstallments, setEditInstallments] = useState<string>("");
   const [editNotes, setEditNotes] = useState<string>("");
   const [savingEdit, setSavingEdit] = useState(false);
-
+  const [searchQuery, setSearchQuery] = useState("");
   const fetchRecords = async () => {
     try {
       const [loanData, employeeData, authData] = await Promise.all([
@@ -209,9 +209,25 @@ export default function LoansPage() {
   };
 
   const filteredLoans = loans.filter((l) => {
-    if (!dateFilter) return true;
-    if (!l.issuedAt) return false;
-    return l.issuedAt.startsWith(dateFilter);
+    // 1. Month Filter
+    if (dateFilter) {
+      if (!l.issuedAt || !l.issuedAt.startsWith(dateFilter)) return false;
+    }
+
+    // 2. Search Filter (Admin/BM only) - matches EMP ID, Name, or Position
+    if ((isAdmin || isBusinessManager) && searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const emp = l.employee;
+      const idStr = String(emp?.employeeId || "").toLowerCase();
+      const nameStr = String(emp?.employeeName || "").toLowerCase();
+      const posStr = String(emp?.position || "").toLowerCase();
+
+      if (!idStr.includes(q) && !nameStr.includes(q) && !posStr.includes(q)) {
+        return false;
+      }
+    }
+
+    return true;
   });
 
   const exportToExcel = () => {
@@ -242,7 +258,7 @@ export default function LoansPage() {
   };
 
   const handleDownloadTemplate = () => {
-    const headers = ["Employee ID", "Principal Amount", "Installments", "Issued Date (YYYY-MM-DD)", "Balance", "Status", "Notes"];
+    const headers = ["Employee ID", "Principal Amount", "Installments", "Issued Date (YYYY-MM-DD)", "Balance", "Status", "Reason"];
     const exampleRow = ["EMP-001", "50000", "12", "2024-01-01", "50000", "Approved", "Emergency loan"];
     
     const ws = XLSX.utils.aoa_to_sheet([headers, exampleRow]);
@@ -329,6 +345,22 @@ export default function LoansPage() {
               </Button>
             )}
           </div>
+
+          {(isAdmin || isBusinessManager) && (
+            <div className="flex items-center gap-2 bg-white dark:bg-slate-800 p-1.5 px-3 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm grow sm:max-w-xs">
+              <Input 
+                placeholder="Search EMP ID, Name, Designation..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-8 border-0 focus-visible:ring-0 bg-transparent p-2 placeholder:text-slate-400 text-sm"
+              />
+              {searchQuery && (
+                <Button variant="ghost" size="sm" onClick={() => setSearchQuery("")} className="h-6 w-6 p-0 text-slate-400 hover:text-slate-600">
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          )}
         <div className="flex gap-2">
           {isAdmin && (
             <Button variant="outline" className="flex items-center gap-2 bg-transparent border-sky-600 text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-900/20" onClick={() => setImportDialogOpen(true)}>
@@ -367,8 +399,31 @@ export default function LoansPage() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {employeeId && (
+                  <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-slate-500">EMP ID</Label>
+                      <Input 
+                        value={employees.find(e => e.id === employeeId)?.employeeId || "-"} 
+                        readOnly
+                        disabled 
+                        className="h-9 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-slate-500">Designation</Label>
+                      <Input 
+                        value={employees.find(e => e.id === employeeId)?.position || "N/A"} 
+                        readOnly
+                        disabled 
+                        className="h-9 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-sm"
+                      />
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-2">
-                  <Label>Principal Amount (PKR)</Label>
+                  <Label>Amount (PKR)</Label>
                   <Input
                     type="number"
                     step="0.01"
@@ -390,7 +445,7 @@ export default function LoansPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Notes</Label>
+                  <Label>Reason</Label>
                   <Input
                     placeholder="e.g. Housing purchase..."
                     value={notes}
@@ -446,11 +501,12 @@ export default function LoansPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Notes (Optional)</Label>
+                    <Label>Reason</Label>
                     <Input
                       placeholder="e.g. Housing purchase..."
                       value={editNotes}
                       onChange={(e) => setEditNotes(e.target.value)}
+                      required
                       disabled={selectedLoan?.status !== "Submitted"}
                     />
                   </div>
@@ -465,9 +521,13 @@ export default function LoansPage() {
                         type="button" 
                         variant="default" 
                         className="flex-1 bg-emerald-600 hover:bg-emerald-700"
-                        onClick={async () => {
+                        disabled={savingEdit}
+                        onClick={
+                          async () => {
+                          setSavingEdit(true);
                           await handleStatusUpdate(selectedLoan.id, "Approved");
                           setIsEditOpen(false);
+                          setSavingEdit(false);
                         }}
                       >
                         Approve
@@ -630,38 +690,85 @@ export default function LoansPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50/50 hover:bg-slate-50/50 dark:bg-slate-800/50 dark:hover:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
-                  <TableHead className="w-[250px] uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Employee</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Principal</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Balance</TableHead>
+                  <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Date</TableHead>
+                  {isAdmin && (
+                    <>
+                      <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">EMP ID</TableHead>
+                    </>
+                  )}
+                  <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">EMP Name</TableHead>
+                  {isAdmin && (
+                    <>
+                      <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Designation</TableHead>
+                    </>
+                  )}
+                  <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Loan Requested</TableHead>
                   <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Installments</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Issued</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Notes</TableHead>
+                  {isAdmin && (
+                    <>
+                      <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Advance Balance</TableHead>
+                      <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Loan Balance</TableHead>
+                      <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Reason</TableHead>
+                    </>
+                  )}
+                  {!isAdmin && (
+                    <>
+                      <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Balance</TableHead>
+                      <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Reason</TableHead>
+                    </>
+                  )}
                   <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Status</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 text-right">Actions</TableHead>
+                  {isAdmin && <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredLoans.map((l) => (
                   <TableRow key={l.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-200 dark:border-slate-800">
-                    <TableCell className="font-medium text-slate-700 dark:text-slate-200">
-                      {l.employee?.employeeName ?? l.employeeId}
-                    </TableCell>
-                    <TableCell className="font-bold text-slate-700 dark:text-slate-200">
-                      {new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR' }).format(l.principalAmount)}
-                    </TableCell>
-                    <TableCell className="font-semibold text-amber-600 dark:text-amber-500">
-                      {new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR' }).format(l.balance)}
-                    </TableCell>
-                    <TableCell className="text-slate-700 dark:text-slate-200">
-                      {l.installments || 0}
-                    </TableCell>
                     <TableCell className="text-slate-500 dark:text-slate-400 text-sm">
                       {formatDate(l.issuedAt)}
                     </TableCell>
-
-                    <TableCell className="text-slate-500 dark:text-slate-400 text-sm truncate max-w-[150px]">
-                      {l.notes || "-"}
+                    {isAdmin && (
+                      <TableCell className="font-medium text-slate-700 dark:text-slate-200">
+                        {l.employee?.employeeId ?? "-"}
+                      </TableCell>
+                    )}
+                    <TableCell className="font-medium text-slate-700 dark:text-slate-200">
+                      {l.employee?.employeeName ?? l.employeeId}
                     </TableCell>
+                    {isAdmin && (
+                      <TableCell className="text-slate-500 dark:text-slate-400 text-sm">
+                        {l.employee?.position ?? "-"}
+                      </TableCell>
+                    )}
+                    <TableCell className="font-bold text-slate-700 dark:text-slate-200">
+                      {new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR' }).format(l.principalAmount)}
+                    </TableCell>
+                    <TableCell className="text-slate-700 dark:text-slate-200 font-medium">
+                      {l.installments || 0}
+                    </TableCell>
+                    {isAdmin && (
+                      <>
+                        <TableCell className="font-semibold text-amber-600 dark:text-amber-500">
+                          {new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR' }).format(l.totalAdvanceBalance ?? 0)}
+                        </TableCell>
+                        <TableCell className="font-semibold text-rose-600 dark:text-rose-500">
+                          {new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR' }).format(l.totalLoanBalance ?? 0)}
+                        </TableCell>
+                        <TableCell className="text-slate-500 dark:text-slate-400 text-sm truncate max-w-[150px]">
+                          {l.notes || "-"}
+                        </TableCell>
+                      </>
+                    )}
+                    {!isAdmin && (
+                      <>
+                        <TableCell className="font-semibold text-amber-600 dark:text-amber-500">
+                          {new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR' }).format(l.balance)}
+                        </TableCell>
+                        <TableCell className="text-slate-500 dark:text-slate-400 text-sm truncate max-w-[150px]">
+                          {l.notes || "-"}
+                        </TableCell>
+                      </>
+                    )}
                     <TableCell>
                       <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border ${
                         l.status === 'Approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800/50' :

@@ -15,7 +15,17 @@ export const EmployeePrintDetails = forwardRef<HTMLDivElement, EmployeePrintDeta
     const LabelValue = ({ label, value }: { label: string; value: any }) => (
       <div className="flex flex-col mb-4">
         <span className="text-[10px] uppercase text-gray-500 font-bold tracking-wider mb-1">{label}</span>
-        <span className="text-sm font-semibold border-b border-gray-100 pb-1">{value || "---"}</span>
+        <span className="text-sm font-semibold border-b border-gray-100 pb-1 uppercase">{value || "---"}</span>
+      </div>
+    );
+
+    const FinancialRow = ({ label, value, detail }: { label: string; value: any; detail?: string }) => (
+      <div className="flex flex-col mb-4">
+        <span className="text-[10px] uppercase text-gray-500 font-bold tracking-wider mb-1">{label}</span>
+        <div className="border-b border-gray-100 pb-1">
+          <span className="text-sm font-semibold uppercase">{value || "---"}</span>
+          {detail && <p className="text-[9px] text-gray-400 mt-0.5 italic uppercase">{detail}</p>}
+        </div>
       </div>
     );
 
@@ -43,9 +53,9 @@ export const EmployeePrintDetails = forwardRef<HTMLDivElement, EmployeePrintDeta
           <h1 className="text-3xl font-black uppercase mb-1">Sadiq Traders</h1>
           <div>
             <h1 className="text-3xl font-black uppercase mb-1">{employee.location.name} - Employee Profile</h1>
-            <p className="text-slate-500 font-medium">Generated on {new Date().toLocaleDateString()}</p>
+            <p className="text-slate-500 font-medium uppercase">Generated on {new Date().toLocaleDateString()}</p>
           </div>
-          <div className="text-right">
+          <div className="text-right uppercase">
             <h2 className="text-xl font-bold">{employee.employeeName}</h2>
             <p className="text-slate-600 font-semibold">{employee.position} ({employee.employeeId})</p>
             <p className="text-slate-500">{employee.department} Office</p>
@@ -81,70 +91,76 @@ export const EmployeePrintDetails = forwardRef<HTMLDivElement, EmployeePrintDeta
           <LabelValue label="Reference Name" value={employee.referenceName} />
           <LabelValue label="Emergency Contact" value={employee.emergencyContactName} />
           <LabelValue label="Emergency Number" value={employee.emergencyContactNumber} />
+          <LabelValue label="Annual Leaves" value={employee.annualLeaves != null ? `${employee.annualLeaves} Days` : "0 Days"} />
+          <LabelValue label="Notice Period" value={employee.noticePeriod != null ? `${employee.noticePeriod} Days` : "0 Days"} />
         </div>
 
         {/* Financial Section */}
         <SectionTitle title="Salary & Compensation" />
         <div className="grid grid-cols-3 gap-x-8 gap-y-2">
-          <LabelValue label="Basic Salary" value={employee.basicSalary ? `Rs. ${Number(employee.basicSalary).toLocaleString()}` : null} />
-          <LabelValue label="Attendance Allowance" value={employee.attendanceAllowance ? `Rs. ${Number(employee.attendanceAllowance).toLocaleString()}` : null} />
-          <LabelValue label="Daily Allowance" value={employee.dailyAllowance ? `Rs. ${Number(employee.dailyAllowance).toLocaleString()}` : null} />
-          <LabelValue label="Fuel Allowance" value={employee.fuelAllowance ? `Rs. ${Number(employee.fuelAllowance).toLocaleString()}` : null} />
-          <LabelValue label="Conveyance Allowance" value={employee.conveyanceAllowance ? `Rs. ${Number(employee.conveyanceAllowance).toLocaleString()}` : null} />
-          <LabelValue label="Maintainence" value={employee.maintainence ? `Rs. ${Number(employee.maintainence).toLocaleString()}` : null} />
-          <LabelValue label="Commission" value={employee.comission ? `Rs. ${Number(employee.comission).toLocaleString()}` : null} />
-          <LabelValue label="KPI Incentives" value={employee.eachKpiIncentives ? `Rs. ${Number(employee.eachKpiIncentives).toLocaleString()}` : null} />
-          <LabelValue label="Incentives" value={employee.incentives ? `Rs. ${Number(employee.incentives).toLocaleString()}` : null} />
-          <LabelValue label="Category Incentive" value={employee.categoryIncentive ? `Rs. ${Number(employee.categoryIncentive).toLocaleString()}` : null} />
+          <FinancialRow label="Basic Salary" value={employee.basicSalary ? `Rs. ${Number(employee.basicSalary).toLocaleString()}` : null} detail={employee.salaryAllowanceDetails?.basicSalary} />
+          <FinancialRow label="Attendance Allowance" value={employee.attendanceAllowance ? `Rs. ${Number(employee.attendanceAllowance).toLocaleString()}` : null} detail={employee.salaryAllowanceDetails?.attendanceAllowance} />
+          <FinancialRow label="Daily Allowance" value={employee.dailyAllowance ? `Rs. ${Number(employee.dailyAllowance).toLocaleString()}` : null} detail={employee.salaryAllowanceDetails?.dailyAllowance} />
+          <FinancialRow label="Fuel Allowance" value={employee.fuelAllowance ? `Rs. ${Number(employee.fuelAllowance).toLocaleString()}` : null} detail={employee.salaryAllowanceDetails?.fuelAllowance} />
+          <FinancialRow label="Conveyance Allowance" value={employee.conveyanceAllowance ? `Rs. ${Number(employee.conveyanceAllowance).toLocaleString()}` : null} detail={employee.salaryAllowanceDetails?.conveyanceAllowance} />
+          <FinancialRow label="Maintainence" value={employee.maintainence ? `Rs. ${Number(employee.maintainence).toLocaleString()}` : null} detail={employee.salaryAllowanceDetails?.maintainence} />
+          <FinancialRow label="Commission" value={employee.comission ? `Rs. ${Number(employee.comission).toLocaleString()}` : null} detail={employee.salaryAllowanceDetails?.comission} />
+          <FinancialRow label="KPI Incentives" value={employee.eachKpiIncentives ? `Rs. ${Number(employee.eachKpiIncentives).toLocaleString()}` : null} detail={employee.salaryAllowanceDetails?.eachKpiIncentives} />
+          <FinancialRow label="Incentives" value={employee.incentives ? `Rs. ${Number(employee.incentives).toLocaleString()}` : null} detail={employee.salaryAllowanceDetails?.incentives} />
+          <FinancialRow label="Category Incentive" value={employee.categoryIncentive ? `Rs. ${Number(employee.categoryIncentive).toLocaleString()}` : null} detail={employee.salaryAllowanceDetails?.categoryIncentive} />
           <LabelValue label="Tax Deduction" value={employee.taxDeduction} />
           <LabelValue label="EOBI Deduction" value={employee.eobiDeduction} />
           <LabelValue label="Social Security" value={employee.socialSecurityDeduction} />
+          
+          <LabelValue label="Loader Allowance" value={employee.loaderAllowance != null ? `Rs. ${Number(employee.loaderAllowance).toLocaleString()}` : "Rs. 0"} />
+          <LabelValue label="Advance Eligibility" value={employee.advanceEligibilityAmount != null ? `Rs. ${Number(employee.advanceEligibilityAmount).toLocaleString()}` : "Rs. 0"} />
+          <LabelValue label="Loan Eligibility" value={employee.loanEligibilityAmount != null ? `Rs. ${Number(employee.loanEligibilityAmount).toLocaleString()}` : "Rs. 0"} />
         </div>
 
         {/* Documents Checklist Section */}
         <SectionTitle title="Documents Information" />
         <div className="grid grid-cols-4 gap-4 text-[10px]">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 uppercase">
             <div className={`w-3 h-3 border ${employee.cnicCopyUrl ? 'bg-slate-900' : ''}`} />
             <span>CNIC Copy</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 uppercase">
             <div className={`w-3 h-3 border ${employee.eduDocsUrl ? 'bg-slate-900' : ''}`} />
             <span>Edu. Docs</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 uppercase">
             <div className={`w-3 h-3 border ${employee.cvUrl ? 'bg-slate-900' : ''}`} />
             <span>CV / Resume</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 uppercase">
             <div className={`w-3 h-3 border ${employee.guaranteeChequeUrl ? 'bg-slate-900' : ''}`} />
             <span>Guarantee Cheque</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 uppercase">
             <div className={`w-3 h-3 border ${employee.guarantorChequeUrl ? 'bg-slate-900' : ''}`} />
             <span>Guarantor Cheque</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 uppercase">
             <div className={`w-3 h-3 border ${employee.guarantorCnicUrl ? 'bg-slate-900' : ''}`} />
             <span>Guarantor CNIC</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 uppercase">
             <div className={`w-3 h-3 border ${employee.stampPaperUrl ? 'bg-slate-900' : ''}`} />
             <span>Stamp Paper</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 uppercase">
             <div className={`w-3 h-3 border ${employee.utilityBillUrl ? 'bg-slate-900' : ''}`} />
             <span>Utility Bill</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 uppercase">
             <div className={`w-3 h-3 border ${employee.drivingLicenseUrl ? 'bg-slate-900' : ''}`} />
             <span>Driving License</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 uppercase">
             <div className={`w-3 h-3 border ${employee.policeCertUrl ? 'bg-slate-900' : ''}`} />
             <span>Police Cert.</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 uppercase">
             <div className={`w-3 h-3 border ${employee.clearanceLetterUrl ? 'bg-slate-900' : ''}`} />
             <span>Clearance Letter</span>
           </div>

@@ -171,9 +171,10 @@ export function ViewEmployeeDetails({ employee }: ViewEmployeeDetailsProps) {
               <InfoRow label="Status" value={employee.status} />
               <InfoRow label="Joining Date" value={employee.joinDate ? new Date(employee.joinDate).toLocaleDateString() : null} />
               <InfoRow label="Leaving Date" value={employee.leaveDate ? new Date(employee.leaveDate).toLocaleDateString() : null} />
-              <InfoRow label="Location" value={employee.location?.name} />
+              {/* <InfoRow label="Location" value={employee.location?.name} /> */}
               <InfoRow label="Probation Confirmation" value={employee.probationConfirmationDate ? new Date(employee.probationConfirmationDate).toLocaleDateString() : null} />
-              <InfoRow label="Salary" value={employee.salary} />
+              <InfoRow label="Annual Leaves" value={employee.annualLeaves != null ? `${employee.annualLeaves} Days` : "0 Days"} />
+              <InfoRow label="Notice Period" value={employee.noticePeriod != null ? `${employee.noticePeriod} Days` : "0 Days"} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -181,19 +182,40 @@ export function ViewEmployeeDetails({ employee }: ViewEmployeeDetailsProps) {
         <TabsContent value="salary" className="space-y-4 mt-6">
           <Card className="border-slate-200 dark:border-slate-800">
             <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <InfoRow label="Basic Salary" value={employee.basicSalary != null ? `Rs. ${Number(employee.basicSalary).toLocaleString()}` : null} />
-              <InfoRow label="Attendance Allowance" value={employee.attendanceAllowance != null ? `Rs. ${Number(employee.attendanceAllowance).toLocaleString()}` : null} />
-              <InfoRow label="Daily Allowance" value={employee.dailyAllowance != null ? `Rs. ${Number(employee.dailyAllowance).toLocaleString()}` : null} />
-              <InfoRow label="Fuel Allowance" value={employee.fuelAllowance != null ? `Rs. ${Number(employee.fuelAllowance).toLocaleString()}` : null} />
-              <InfoRow label="Conveyance Allowance" value={employee.conveyanceAllowance != null ? `Rs. ${Number(employee.conveyanceAllowance).toLocaleString()}` : null} />
-              <InfoRow label="Maintainence" value={employee.maintainence != null ? `Rs. ${Number(employee.maintainence).toLocaleString()}` : null} />
-              <InfoRow label="Comission" value={employee.comission != null ? `Rs. ${Number(employee.comission).toLocaleString()}` : null} />
-              <InfoRow label="Each KPI Incentives" value={employee.eachKpiIncentives != null ? `Rs. ${Number(employee.eachKpiIncentives).toLocaleString()}` : null} />
-              <InfoRow label="Incentives" value={employee.incentives != null ? `Rs. ${Number(employee.incentives).toLocaleString()}` : null} />
-              <InfoRow label="Category Incentive" value={employee.categoryIncentive != null ? `Rs. ${Number(employee.categoryIncentive).toLocaleString()}` : null} />
+              {[
+                { id: "basicSalary", label: "Basic Salary" },
+                { id: "attendanceAllowance", label: "Attendance Allowance" },
+                { id: "dailyAllowance", label: "Daily Allowance" },
+                { id: "fuelAllowance", label: "Fuel Allowance" },
+                { id: "conveyanceAllowance", label: "Conveyance Allowance" },
+                { id: "maintainence", label: "Maintainence" },
+                { id: "comission", label: "Comission" },
+                { id: "eachKpiIncentives", label: "Each KPI Incentives" },
+                { id: "incentives", label: "Incentives" },
+                { id: "categoryIncentive", label: "Category Incentive" },
+              ].map(field => (
+                <div key={field.id} className="space-y-2 p-3 rounded-lg border border-slate-100 dark:border-slate-800/50 bg-slate-50/30 dark:bg-slate-900/20">
+                  <InfoRow label={field.label} value={employee[field.id] != null ? `Rs. ${Number(employee[field.id]).toLocaleString()}` : "---"} />
+                  {employee.salaryAllowanceDetails?.[field.id] && (
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800 mt-2">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Additional Details</span>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 italic leading-relaxed">{employee.salaryAllowanceDetails[field.id]}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+              
+              <div className="col-span-full pt-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Deductions & Eligibility</h3>
+              </div>
+              
               <InfoRow label="Tax Deduction" value={employee.taxDeduction} />
               <InfoRow label="EOBI Deduction" value={employee.eobiDeduction} />
               <InfoRow label="Social Security Deduction" value={employee.socialSecurityDeduction} />
+              
+              <InfoRow label="Loader Allowance" value={employee.loaderAllowance != null ? `Rs. ${Number(employee.loaderAllowance).toLocaleString()}` : "Rs. 0"} />
+              <InfoRow label="Advance Amount Eligibility" value={employee.advanceEligibilityAmount != null ? `Rs. ${Number(employee.advanceEligibilityAmount).toLocaleString()}` : "Rs. 0"} />
+              <InfoRow label="Loan Amount Eligibility" value={employee.loanEligibilityAmount != null ? `Rs. ${Number(employee.loanEligibilityAmount).toLocaleString()}` : "Rs. 0"} />
             </CardContent>
           </Card>
         </TabsContent>

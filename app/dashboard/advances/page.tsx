@@ -75,6 +75,7 @@ export default function AdvancesPage() {
   const [editPrincipal, setEditPrincipal] = useState<string>("");
   const [editNotes, setEditNotes] = useState<string>("");
   const [savingEdit, setSavingEdit] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const fetchRecords = async () => {
     try {
       const [advanceData, employeeData, authData] = await Promise.all([
@@ -197,9 +198,25 @@ export default function AdvancesPage() {
   };
 
   const filteredAdvances = advances.filter((adv) => {
-    if (!dateFilter) return true;
-    if (!adv.issuedAt) return false;
-    return adv.issuedAt.startsWith(dateFilter);
+    // 1. Month Filter
+    if (dateFilter) {
+      if (!adv.issuedAt || !adv.issuedAt.startsWith(dateFilter)) return false;
+    }
+
+    // 2. Search Filter (Admin/BM only) - matches EMP ID, Name, or Position
+    if ((isAdmin || isBusinessManager) && searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const emp = adv.employee;
+      const idStr = String(emp?.employeeId || "").toLowerCase();
+      const nameStr = String(emp?.employeeName || "").toLowerCase();
+      const posStr = String(emp?.position || "").toLowerCase();
+
+      if (!idStr.includes(q) && !nameStr.includes(q) && !posStr.includes(q)) {
+        return false;
+      }
+    }
+
+    return true;
   });
 
   const exportToExcel = () => {
@@ -314,6 +331,22 @@ export default function AdvancesPage() {
               </Button>
             )}
           </div>
+
+          {(isAdmin || isBusinessManager) && (
+            <div className="flex items-center gap-2 bg-white dark:bg-slate-800 p-1.5 px-3 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm grow sm:max-w-xs">
+              <Input 
+                placeholder="Search EMP ID, Name, Designation..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-8 border-0 focus-visible:ring-0 bg-transparent p-2 placeholder:text-slate-400 text-sm"
+              />
+              {searchQuery && (
+                <Button variant="ghost" size="sm" onClick={() => setSearchQuery("")} className="h-6 w-6 p-0 text-slate-400 hover:text-slate-600">
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          )}
         <div className="flex gap-2">
           {isAdmin && (
             <Button variant="outline" className="flex items-center gap-2 bg-transparent border-purple-600 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20" onClick={() => setImportDialogOpen(true)}>
@@ -352,6 +385,29 @@ export default function AdvancesPage() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {employeeId && (
+                  <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-slate-500">EMP ID</Label>
+                      <Input 
+                        value={employees.find(e => e.id === employeeId)?.employeeId || "-"} 
+                        readOnly
+                        disabled 
+                        className="h-9 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-slate-500">Designation</Label>
+                      <Input 
+                        value={employees.find(e => e.id === employeeId)?.position || "N/A"} 
+                        readOnly
+                        disabled 
+                        className="h-9 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-sm"
+                      />
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label>Advances Amount (PKR)</Label>
                   <Input
@@ -430,9 +486,12 @@ export default function AdvancesPage() {
                         type="button" 
                         variant="default" 
                         className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                        disabled={savingEdit}
                         onClick={async () => {
+                          setSavingEdit(true);
                           await handleStatusUpdate(selectedAdvance.id, "Approved");
                           setIsEditOpen(false);
+                          setSavingEdit(false);
                         }}
                       >
                         Approve
@@ -578,34 +637,78 @@ export default function AdvancesPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50/50 hover:bg-slate-50/50 dark:bg-slate-800/50 dark:hover:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
-                  <TableHead className="w-[250px] uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Employee</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Principal</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Balance</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Issued</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Notes</TableHead>
+                  <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Date</TableHead>
+                  {isAdmin && (
+                    <>
+                      <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">EMP ID</TableHead>
+                    </>
+                  )}
+                  <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">EMP Name</TableHead>
+                  {isAdmin && (
+                    <>
+                      <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Designation</TableHead>
+                    </>
+                  )}
+                  <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Advance Requested</TableHead>
+                  {isAdmin && (
+                    <>
+                      <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Advance Balance</TableHead>
+                      <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Loan Balance</TableHead>
+                    </>
+                  )}
+                  {!isAdmin && (
+                    <>
+                      <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Balance</TableHead>
+                      <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Notes</TableHead>
+                    </>
+                  )}
                   <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Status</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 text-right">Actions</TableHead>
+                  
+                  {isAdmin && (<TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 text-right">Actions</TableHead>)}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredAdvances.map((adv) => (
                   <TableRow key={adv.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-200 dark:border-slate-800">
-                    <TableCell className="font-medium text-slate-700 dark:text-slate-200">
-                      {adv.employee?.employeeName ?? adv.employeeId}
-                    </TableCell>
-                    <TableCell className="font-bold text-slate-700 dark:text-slate-200">
-                      {new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR' }).format(adv.principalAmount)}
-                    </TableCell>
-                    <TableCell className="font-semibold text-amber-600 dark:text-amber-500">
-                      {new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR' }).format(adv.balance)}
-                    </TableCell>
                     <TableCell className="text-slate-500 dark:text-slate-400 text-sm">
                       {formatDate(adv.issuedAt)}
                     </TableCell>
-
-                    <TableCell className="text-slate-500 dark:text-slate-400 text-sm truncate max-w-[150px]">
-                      {adv.notes || "-"}
+                    {isAdmin && (
+                      <TableCell className="font-medium text-slate-700 dark:text-slate-200">
+                        {adv.employee?.employeeId ?? "-"}
+                      </TableCell>
+                    )}
+                    <TableCell className="font-medium text-slate-700 dark:text-slate-200">
+                      {adv.employee?.employeeName ?? adv.employeeId}
                     </TableCell>
+                    {isAdmin && (
+                      <TableCell className="text-slate-500 dark:text-slate-400 text-sm">
+                        {adv.employee?.position ?? "-"}
+                      </TableCell>
+                    )}
+                    <TableCell className="font-bold text-slate-700 dark:text-slate-200">
+                      {new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR' }).format(adv.principalAmount)}
+                    </TableCell>
+                    {isAdmin && (
+                      <>
+                        <TableCell className="font-semibold text-amber-600 dark:text-amber-500">
+                           {new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR' }).format(adv.totalAdvanceBalance ?? 0)}
+                        </TableCell>
+                        <TableCell className="font-semibold text-rose-600 dark:text-rose-500">
+                           {new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR' }).format(adv.loanBalance ?? 0)}
+                        </TableCell>
+                      </>
+                    )}
+                    {!isAdmin && (
+                      <>
+                        <TableCell className="font-semibold text-amber-600 dark:text-amber-500">
+                          {new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR' }).format(adv.balance)}
+                        </TableCell>
+                        <TableCell className="text-slate-500 dark:text-slate-400 text-sm truncate max-w-[150px]">
+                          {adv.notes || "-"}
+                        </TableCell>
+                      </>
+                    )}
                     <TableCell>
                       <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border ${
                         adv.status === 'Approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800/50' :

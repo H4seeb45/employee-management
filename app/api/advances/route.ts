@@ -34,11 +34,30 @@ export async function GET(request: NextRequest) {
     }
 
     const list = await prisma.advance.findMany({
-      include: { employee: true },
+      include: { 
+        employee: {
+          include: {
+             loans: { where: { status: { not: "Rejected" } }, select: { balance: true } },
+             advances: { where: { status: { not: "Rejected" } }, select: { balance: true } }
+          }
+        } 
+      },
       where: whereClause,
       orderBy: { issuedAt: "desc" }
     });
-    return NextResponse.json(list);
+
+    const enrichedList = list.map(adv => {
+      const loanBalance = adv.employee?.loans.reduce((sum, l) => sum + (l.balance || 0), 0) || 0;
+      const totalAdvanceBalance = adv.employee?.advances.reduce((sum, a) => sum + (a.balance || 0), 0) || 0;
+      
+      return {
+        ...adv,
+        loanBalance,
+        totalAdvanceBalance
+      };
+    });
+
+    return NextResponse.json(enrichedList);
   } catch (error) {
     console.error(error);
     return NextResponse.json(
@@ -72,7 +91,7 @@ export async function POST(req: NextRequest) {
       
     const employee = await prisma.employee.findUnique({
       where: { id: employeeId },
-      select: { locationId: true, joinDate: true, basicSalary: true },
+      select: { locationId: true, joinDate: true, basicSalary: true, advanceEligibilityAmount: true },
     });
 
     if (!employee) {
@@ -94,44 +113,75 @@ export async function POST(req: NextRequest) {
       ? body.principalAmount
       : parseFloat(body.principalAmount) || 0;
 
-    // Rule 1: Advance for an employee can be applied after three months of joining date.
-    if (!employee.joinDate) {
-      return NextResponse.json({ error: "Employee join date is not set" }, { status: 400 });
-    }
-    const monthsSinceJoin = differenceInMonths(new Date(), new Date(employee.joinDate));
-    if (monthsSinceJoin < 3) {
-      return NextResponse.json({ error: "Advance can only be applied after three months of joining date." }, { status: 400 });
-    }
+    const eligibilityLimit = employee.advanceEligibilityAmount;
 
-    // Rule 2: Advance can be max 25% of the basic employee salary.
-    if (!employee.basicSalary || employee.basicSalary <= 0) {
-      return NextResponse.json({ error: "Employee basic salary data is not available." }, { status: 400 });
-    }
-    const maxAdvance = employee.basicSalary * 0.25;
-    if (principalAmount > maxAdvance) {
-      return NextResponse.json({ error: `Requested advance exceeds maximum limit of 25% of basic salary (${maxAdvance}).` }, { status: 400 });
-    }
+    if (eligibilityLimit && eligibilityLimit > 0) {
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1; // 1-indexed
+      const startOfMonth = new Date(`${currentYear}-${currentMonth.toString().padStart(2, '0')}-01T00:00:00.000Z`);
+      const endOfMonth = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999);
 
-    // Rule 3: Only one advance per month
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1; // 1-indexed
-    const startOfMonth = new Date(`${currentYear}-${currentMonth.toString().padStart(2, '0')}-01T00:00:00.000Z`);
-    const endOfMonth = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999);
-
-    const existingAdvanceThisMonth = await prisma.advance.findFirst({
-      where: {
-        employeeId,
-        status: { not: "Rejected" },
-        issuedAt: {
-          gte: startOfMonth,
-          lte: endOfMonth
+      const existingAdvancesSum = await prisma.advance.aggregate({
+        _sum: { principalAmount: true },
+        where: {
+          employeeId,
+          status: { not: "Rejected" },
+          issuedAt: {
+            gte: startOfMonth,
+            lte: endOfMonth
+          }
         }
-      }
-    });
+      });
 
-    if (existingAdvanceThisMonth) {
-      return NextResponse.json({ error: `An employee can only apply for one advance per month.` }, { status: 400 });
+      const totalAdvancedThisMonth = existingAdvancesSum._sum.principalAmount || 0;
+      const proposedTotal = totalAdvancedThisMonth + principalAmount;
+
+      if (proposedTotal > eligibilityLimit) {
+        return NextResponse.json({ 
+          error: `Requested advance of ${principalAmount} would exceed the remaining eligibility limit for this month. (Already advanced: ${totalAdvancedThisMonth}, Max limit: ${eligibilityLimit})` 
+        }, { status: 400 });
+      }
+    } else {
+      // Rule 1: Advance for an employee can be applied after three months of joining date.
+      if (!employee.joinDate) {
+        return NextResponse.json({ error: "Employee join date is not set" }, { status: 400 });
+      }
+      const monthsSinceJoin = differenceInMonths(new Date(), new Date(employee.joinDate));
+      if (monthsSinceJoin < 3) {
+        return NextResponse.json({ error: "Advance can only be applied after three months of joining date." }, { status: 400 });
+      }
+
+      // Rule 2: Advance can be max 25% of the basic employee salary.
+      if (!employee.basicSalary || employee.basicSalary <= 0) {
+        return NextResponse.json({ error: "Employee basic salary data is not available." }, { status: 400 });
+      }
+      const maxAdvance = employee.basicSalary * 0.25;
+      if (principalAmount > maxAdvance) {
+        return NextResponse.json({ error: `Requested advance exceeds maximum limit of 25% of basic salary (${maxAdvance}).` }, { status: 400 });
+      }
+
+      // Rule 3: Only one advance per month
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1; // 1-indexed
+      const startOfMonth = new Date(`${currentYear}-${currentMonth.toString().padStart(2, '0')}-01T00:00:00.000Z`);
+      const endOfMonth = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999);
+
+      const existingAdvanceThisMonth = await prisma.advance.findFirst({
+        where: {
+          employeeId,
+          status: { not: "Rejected" },
+          issuedAt: {
+            gte: startOfMonth,
+            lte: endOfMonth
+          }
+        }
+      });
+
+      if (existingAdvanceThisMonth) {
+        return NextResponse.json({ error: `An employee can only apply for one advance per month.` }, { status: 400 });
+      }
     }
 
     const data: any = {

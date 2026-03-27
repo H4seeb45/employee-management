@@ -34,11 +34,30 @@ export async function GET(request: NextRequest) {
     }
 
     const list = await prisma.loan.findMany({
-      include: { employee: true },
+      include: { 
+        employee: {
+          include: {
+            loans: { where: { status: { not: "Rejected" } }, select: { balance: true } },
+            advances: { where: { status: { not: "Rejected" } }, select: { balance: true } }
+          }
+        } 
+      },
       where: whereClause,
       orderBy: { issuedAt: "desc" }
     });
-    return NextResponse.json(list);
+
+    const enrichedList = list.map(loan => {
+      const totalLoanBalance = loan.employee?.loans.reduce((sum, l) => sum + (l.balance || 0), 0) || 0;
+      const totalAdvanceBalance = loan.employee?.advances.reduce((sum, a) => sum + (a.balance || 0), 0) || 0;
+      
+      return {
+        ...loan,
+        totalLoanBalance,
+        totalAdvanceBalance
+      };
+    });
+
+    return NextResponse.json(enrichedList);
   } catch (error) {
     console.error(error);
     return NextResponse.json(
@@ -72,7 +91,7 @@ export async function POST(req: NextRequest) {
       
     const employee = await prisma.employee.findUnique({
       where: { id: employeeId },
-      select: { locationId: true, joinDate: true, basicSalary: true },
+      select: { locationId: true, joinDate: true, basicSalary: true, loanEligibilityAmount: true },
     });
 
     if (!employee) {
@@ -94,39 +113,65 @@ export async function POST(req: NextRequest) {
       ? body.principalAmount
       : parseFloat(body.principalAmount) || 0;
 
-    // Rule 1: Loan for an employee can only be applied after one year of joining date.
-    if (!employee.joinDate) {
-      return NextResponse.json({ error: "Employee join date is not set" }, { status: 400 });
-    }
-    const yearsSinceJoin = differenceInYears(new Date(), new Date(employee.joinDate));
-    if (yearsSinceJoin < 1) {
-      return NextResponse.json({ error: "Loan can only be applied after one year of joining date." }, { status: 400 });
-    }
+    const eligibilityLimit = employee.loanEligibilityAmount;
 
-    // Rule 2: Max two base salaries can be given when applying for Loan
-    if (!employee.basicSalary || employee.basicSalary <= 0) {
-      return NextResponse.json({ error: "Employee basic salary data is not available." }, { status: 400 });
-    }
-    const maxLoan = employee.basicSalary * 2;
-    if (principalAmount > maxLoan) {
-      return NextResponse.json({ error: `Requested loan exceeds maximum limit of two base salaries (${maxLoan}).` }, { status: 400 });
-    }
-
-    // Rule 3: Only one loan per year
-    const currentYear = new Date().getFullYear();
-    const existingLoanThisYear = await prisma.loan.findFirst({
-      where: {
-        employeeId,
-        status: { not: "Rejected" },
-        issuedAt: {
-          gte: new Date(`${currentYear}-01-01T00:00:00.000Z`),
-          lte: new Date(`${currentYear}-12-31T23:59:59.999Z`)
+    if (eligibilityLimit && eligibilityLimit > 0) {
+      const currentYear = new Date().getFullYear();
+      const existingLoansSum = await prisma.loan.aggregate({
+        _sum: { principalAmount: true },
+        where: {
+          employeeId,
+          status: { not: "Rejected" },
+          issuedAt: {
+            gte: new Date(`${currentYear}-01-01T00:00:00.000Z`),
+            lte: new Date(`${currentYear}-12-31T23:59:59.999Z`)
+          }
         }
-      }
-    });
+      });
 
-    if (existingLoanThisYear) {
-      return NextResponse.json({ error: `An employee can only apply for one loan per year.` }, { status: 400 });
+      const totalLentThisYear = existingLoansSum._sum.principalAmount || 0;
+      const proposedTotal = totalLentThisYear + principalAmount;
+
+      if (proposedTotal > eligibilityLimit) {
+        return NextResponse.json({ 
+          error: `Requested loan of ${principalAmount} would exceed the remaining eligibility limit. (Already lent this year: ${totalLentThisYear}, Max limit: ${eligibilityLimit})` 
+        }, { status: 400 });
+      }
+    } else {
+      // Rule 1: Loan for an employee can only be applied after one year of joining date.
+      if (!employee.joinDate) {
+        return NextResponse.json({ error: "Employee join date is not set" }, { status: 400 });
+      }
+      const yearsSinceJoin = differenceInYears(new Date(), new Date(employee.joinDate));
+      if (yearsSinceJoin < 1) {
+        return NextResponse.json({ error: "Loan can only be applied after one year of joining date." }, { status: 400 });
+      }
+
+      // Rule 2: Max two base salaries can be given when applying for Loan
+      if (!employee.basicSalary || employee.basicSalary <= 0) {
+        return NextResponse.json({ error: "Employee basic salary data is not available." }, { status: 400 });
+      }
+      const maxLoan = employee.basicSalary * 2;
+      if (principalAmount > maxLoan) {
+        return NextResponse.json({ error: `Requested loan exceeds maximum limit of two base salaries (${maxLoan}).` }, { status: 400 });
+      }
+
+      // Rule 3: Only one loan per year
+      const currentYear = new Date().getFullYear();
+      const existingLoanThisYear = await prisma.loan.findFirst({
+        where: {
+          employeeId,
+          status: { not: "Rejected" },
+          issuedAt: {
+            gte: new Date(`${currentYear}-01-01T00:00:00.000Z`),
+            lte: new Date(`${currentYear}-12-31T23:59:59.999Z`)
+          }
+        }
+      });
+
+      if (existingLoanThisYear) {
+        return NextResponse.json({ error: `An employee can only apply for one loan per year.` }, { status: 400 });
+      }
     }
 
     const data: any = {

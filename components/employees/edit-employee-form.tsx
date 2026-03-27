@@ -37,6 +37,7 @@ export function EditEmployeeForm({
   const [formData, setFormData] = useState<any>({
     ...employee,
     joinDate: employee.joinDate || new Date().toISOString(),
+    salaryAllowanceDetails: employee.salaryAllowanceDetails || {},
   });
 
   useEffect(() => {
@@ -50,6 +51,7 @@ export function EditEmployeeForm({
     setFormData({
       ...employee,
       joinDate: employee.joinDate || new Date().toISOString(),
+      salaryAllowanceDetails: employee.salaryAllowanceDetails || {},
     });
   }, [employee]);
 
@@ -80,11 +82,23 @@ export function EditEmployeeForm({
       return;
     }
 
+    if (name.endsWith("_details")) {
+      const fieldName = name.replace("_details", "");
+      setFormData((prev: any) => ({
+        ...prev,
+        salaryAllowanceDetails: {
+          ...(prev.salaryAllowanceDetails || {}),
+          [fieldName]: value
+        }
+      }));
+      return;
+    }
+
     setFormData((prev: any) => ({ ...prev, [name]: value }));
   };
 
-  const handleSelectChange = (name: string, value: string) => {
-    if (name === "locationId") {
+  const handleSelectChange = (name: string, value: string | number) => {
+    if (name === "locationId" && typeof value === "string") {
       const loc = locations.find(l => l.id === value);
       setFormData((prev: any) => ({ ...prev, locationId: value, setupName: loc ? `${loc.name} (${loc.city})` : "" }));
     } else {
@@ -188,12 +202,22 @@ export function EditEmployeeForm({
     const salaryNumericFields = [
       "basicSalary", "attendanceAllowance", "dailyAllowance", "fuelAllowance",
       "conveyanceAllowance", "maintainence", "comission", "eachKpiIncentives",
-      "incentives", "categoryIncentive"
+      "incentives", "categoryIncentive", "advanceEligibilityAmount", 
+      "loanEligibilityAmount", "loaderAllowance", "annualLeaves", "noticePeriod"
     ];
+    const intFields = ["annualLeaves", "noticePeriod"];
     const submissionData = { ...formData };
     for (const field of salaryNumericFields) {
+      if(submissionData[field] === ""){
+        submissionData[field] = 0;
+        continue;
+      }
       if (submissionData[field] !== undefined && submissionData[field] !== "" && submissionData[field] !== null) {
-        submissionData[field] = parseFloat(submissionData[field]);
+        if (intFields.includes(field)) {
+          submissionData[field] = parseInt(submissionData[field]);
+        } else {
+          submissionData[field] = parseFloat(submissionData[field]);
+        }
       }
     }
 
@@ -469,50 +493,67 @@ export function EditEmployeeForm({
             {renderDateField("Date of Joining", "joinDate", true)}
             {renderDateField("Date of Leaving", "leaveDate")}
             {renderDateField("Probation & Confirmation Date", "probationConfirmationDate")}
+            <div className="space-y-2">
+              <Label htmlFor="annualLeaves">Annual Leaves</Label>
+              <Input id="annualLeaves" name="annualLeaves" type="number" value={formData.annualLeaves || ""} onChange={handleChange} placeholder="e.g. 15" className="border-slate-200 dark:border-slate-700" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="noticePeriod">Notice Period (Days)</Label>
+              <Select value={String(formData.noticePeriod || 0)} onValueChange={(v) => handleSelectChange("noticePeriod", parseInt(v))}>
+                <SelectTrigger className="border-slate-200 dark:border-slate-700"><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  {[0, 30, 60, 90].map(days => <SelectItem key={days} value={String(days)}>{days} Days</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </TabsContent>
 
         <TabsContent value="salary" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-2 col-span-1 md:col-span-2 lg:col-span-3 pb-2 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Salary & Allowances</h3>
+            </div>
+            
+            {[
+              { id: "basicSalary", label: "Basic Salary" },
+              { id: "attendanceAllowance", label: "Attendance Allowance" },
+              { id: "dailyAllowance", label: "Daily Allowance" },
+              { id: "fuelAllowance", label: "Fuel Allowance" },
+              { id: "conveyanceAllowance", label: "Conveyance Allowance" },
+              { id: "maintainence", label: "Maintainence" },
+              { id: "comission", label: "Comission" },
+              { id: "eachKpiIncentives", label: "Each KPI Incentives" },
+              { id: "incentives", label: "Incentives" },
+              { id: "categoryIncentive", label: "Category Incentive" },
+            ].map(field => (
+              <div key={field.id} className="grid grid-cols-1 md:grid-cols-2 gap-4 col-span-1 md:col-span-2 lg:col-span-3 bg-slate-50/50 dark:bg-slate-800/30 p-3 rounded-lg border border-slate-100 dark:border-slate-800/50">
+                <div className="space-y-2">
+                  <Label htmlFor={field.id}>{field.label} <span className="text-red-500">*</span></Label>
+                  <Input id={field.id} name={field.id} type="text" inputMode="decimal" value={formData[field.id] ?? ""} onChange={handleChange} required placeholder="Amount" className="border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor={`${field.id}_details`}>{field.label} Details</Label>
+                  <Input id={`${field.id}_details`} name={`${field.id}_details`} value={(formData.salaryAllowanceDetails && formData.salaryAllowanceDetails[field.id]) || ""} onChange={handleChange} placeholder="Enter details..." className="border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800" />
+                </div>
+              </div>
+            ))}
+
+            <div className="space-y-2 col-span-1 md:col-span-2 lg:col-span-3 pt-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Deductions & Eligibility</h3>
+            </div>
+
             <div className="space-y-2">
-              <Label htmlFor="basicSalary">Basic Salary <span className="text-red-500">*</span></Label>
-              <Input id="basicSalary" name="basicSalary" type="text" inputMode="decimal" value={formData.basicSalary ?? ""} onChange={handleChange} required placeholder="0" className="border-slate-200 dark:border-slate-700" />
+              <Label htmlFor="loaderAllowance">Loader Allowance</Label>
+              <Input id="loaderAllowance" name="loaderAllowance" type="text" inputMode="decimal" value={formData.loaderAllowance ?? ""} onChange={handleChange} placeholder="0" className="border-slate-200 dark:border-slate-700" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="attendanceAllowance">Attendance Allowance <span className="text-red-500">*</span></Label>
-              <Input id="attendanceAllowance" name="attendanceAllowance" type="text" inputMode="decimal" value={formData.attendanceAllowance ?? ""} onChange={handleChange} required placeholder="0" className="border-slate-200 dark:border-slate-700" />
+              <Label htmlFor="advanceEligibilityAmount">Advance Amount Eligibility</Label>
+              <Input id="advanceEligibilityAmount" name="advanceEligibilityAmount" type="text" inputMode="decimal" value={formData.advanceEligibilityAmount ?? ""} onChange={handleChange} placeholder="0" className="border-slate-200 dark:border-slate-700" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="dailyAllowance">Daily Allowance <span className="text-red-500">*</span></Label>
-              <Input id="dailyAllowance" name="dailyAllowance" type="text" inputMode="decimal" value={formData.dailyAllowance ?? ""} onChange={handleChange} required placeholder="0" className="border-slate-200 dark:border-slate-700" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="fuelAllowance">Fuel Allowance <span className="text-red-500">*</span></Label>
-              <Input id="fuelAllowance" name="fuelAllowance" type="text" inputMode="decimal" value={formData.fuelAllowance ?? ""} onChange={handleChange} required placeholder="0" className="border-slate-200 dark:border-slate-700" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="conveyanceAllowance">Conveyance Allowance <span className="text-red-500">*</span></Label>
-              <Input id="conveyanceAllowance" name="conveyanceAllowance" type="text" inputMode="decimal" value={formData.conveyanceAllowance ?? ""} onChange={handleChange} required placeholder="0" className="border-slate-200 dark:border-slate-700" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="maintainence">Maintainence <span className="text-red-500">*</span></Label>
-              <Input id="maintainence" name="maintainence" type="text" inputMode="decimal" value={formData.maintainence ?? ""} onChange={handleChange} required placeholder="0" className="border-slate-200 dark:border-slate-700" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="comission">Comission <span className="text-red-500">*</span></Label>
-              <Input id="comission" name="comission" type="text" inputMode="decimal" value={formData.comission ?? ""} onChange={handleChange} required placeholder="0" className="border-slate-200 dark:border-slate-700" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="eachKpiIncentives">Each KPI Incentives <span className="text-red-500">*</span></Label>
-              <Input id="eachKpiIncentives" name="eachKpiIncentives" type="text" inputMode="decimal" value={formData.eachKpiIncentives ?? ""} onChange={handleChange} required placeholder="0" className="border-slate-200 dark:border-slate-700" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="incentives">Incentives <span className="text-red-500">*</span></Label>
-              <Input id="incentives" name="incentives" type="text" inputMode="decimal" value={formData.incentives ?? ""} onChange={handleChange} required placeholder="0" className="border-slate-200 dark:border-slate-700" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="categoryIncentive">Category Incentive <span className="text-red-500">*</span></Label>
-              <Input id="categoryIncentive" name="categoryIncentive" type="text" inputMode="decimal" value={formData.categoryIncentive ?? ""} onChange={handleChange} required placeholder="0" className="border-slate-200 dark:border-slate-700" />
+              <Label htmlFor="loanEligibilityAmount">Loan Amount Eligibility</Label>
+              <Input id="loanEligibilityAmount" name="loanEligibilityAmount" type="text" inputMode="decimal" value={formData.loanEligibilityAmount ?? ""} onChange={handleChange} placeholder="0" className="border-slate-200 dark:border-slate-700" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="taxDeduction">Tax Deduction <span className="text-red-500">*</span></Label>

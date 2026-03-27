@@ -63,6 +63,12 @@ model Employee {
   utilityBillUrl            String?
   referenceEmail            String?
   userId                    String?         @unique
+  advanceEligibilityAmount  Float?
+  loanEligibilityAmount     Float?
+  loaderAllowance           Float?
+  annualLeaves              Int?
+  noticePeriod              Int?            @default(0)
+  salaryAllowanceDetails    Json?
   attendances               Attendance[]
   user                      User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
   location                  Location?       @relation(fields: [locationId], references: [id])
