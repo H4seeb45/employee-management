@@ -7,34 +7,49 @@ export async function GET(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ message: "Unauthorized." }, { status: 401 });
   }
-
   const { searchParams } = new URL(request.url);
   const employeeId = searchParams.get("employeeId");
   const name = searchParams.get("name");
   const department = searchParams.get("department");
   const status = searchParams.get("status");
-  const locationId = searchParams.get("locationId") || (isSuperAdminUser(user) ? null : user.locationId);
+  const isSuperAdmin = isSuperAdminUser(user);
+  const isAdmin = isAdminUser(user);
+  
+  const authorizedIds = [
+    user.locationId,
+    ...(user.authorizedLocations?.map((l: any) => l.id) || []),
+  ].filter(Boolean);
 
+  const queryLocationId = searchParams.get("locationId");
+  
   const where: any = {};
   if (employeeId) where.employeeId = { contains: employeeId, mode: "insensitive" };
   if (name) where.employeeName = { contains: name, mode: "insensitive" };
   if (department && department !== "all") where.department = department;
   if (status && status !== "all") where.status = status;
   
-  // Only apply location filter if it's specified or if user is NOT a super admin
-  // if (locationId) {
-  //   where.locationId = locationId;
-  // }
+  if (isSuperAdmin) {
+    if (queryLocationId && queryLocationId !== "all") {
+       where.locationId = queryLocationId;
+    }
+  } else {
+    // For non-superadmins (including BM and Admin), restrict to authorized locations
+    if (queryLocationId && queryLocationId !== "all" && authorizedIds.includes(queryLocationId)) {
+        where.locationId = queryLocationId;
+    } else {
+        where.locationId = { in: authorizedIds };
+    }
+  }
 
   try {
     const employees = await prisma.employee.findMany({
+      where,
       include: {
         location: true,
         user: true,
       },
       orderBy: { createdAt: "desc" },
     });
-  console.log(employees.length)
     return NextResponse.json({ employees });
   } catch (error) {
     console.error("Error fetching employees:", error);

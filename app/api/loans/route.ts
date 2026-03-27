@@ -15,11 +15,18 @@ export async function GET(request: NextRequest) {
     const locationId = isSuperAdmin ? searchParams.get("locationId") : null;
     let whereClause: any = {};
     const employeeRecord = await prisma.employee.findUnique({ where: { userId: user.id } });
+    const isBM = user.roles?.some((ur: any) => ur.role.name === "Business Manager");
+    const authorizedIds = [
+      user.locationId,
+      ...(user.authorizedLocations?.map((l: any) => l.id) || []),
+    ].filter(Boolean);
 
-    if (isAdmin) {
+    if (isSuperAdmin) {
       if (locationId) {
         whereClause = { employee: { locationId } };
       }
+    } else if (isBM || isAdmin) {
+      whereClause = { employee: { locationId: { in: authorizedIds } } };
     } else if (employeeRecord) {
       whereClause = { employeeId: employeeRecord.id };
     } else {

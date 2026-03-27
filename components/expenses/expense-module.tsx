@@ -163,8 +163,8 @@ export function ExpenseModule({
   const [typeHistory, setTypeHistory] = useState<ExpenseSheet[]>([]);
   const [loadingTypeHistory, setLoadingTypeHistory] = useState(false);
   const [category, setCategory] = useState("Expense");
-  const [fixedAssets, setFixedAssets] = useState<{ name: string; amount: string; vehicleNo?: string; routeNo?: string }[]>([
-    { name: "", amount: "", vehicleNo: "", routeNo: "" }
+  const [fixedAssets, setFixedAssets] = useState<{ name: string; amount: string; details?: string; vehicleNo?: string; routeNo?: string }[]>([
+    { name: "", amount: "", details: "", vehicleNo: "", routeNo: "" }
   ]);
   const [tollsTaxesItems, setTollsTaxesItems] = useState<{ vehicleNo: string, routeNo: string, amount: string }[]>([
     { vehicleNo: "", routeNo: "", amount: "" }
@@ -663,7 +663,8 @@ export function ExpenseModule({
           name: a.name, 
           amount: parseFloat(a.amount) || 0,
           vehicleNo: a.vehicleNo,
-          routeNo: a.routeNo
+          routeNo: a.routeNo,
+          details: a.details
         }))
       : expenseType === "TOLLS_TAXES"
       ? tollsTaxesItems.map(i => ({ 
@@ -711,7 +712,7 @@ export function ExpenseModule({
         setSelectedRoute("");
         setSelectedVehicle("");
         setCategory("Expense");
-        setFixedAssets([{ name: "", amount: "" }]);
+        setFixedAssets([{ name: "", amount: "", details: "", vehicleNo: "", routeNo: "" }]);
         setTollsTaxesItems([{ vehicleNo: "", routeNo: "", amount: "" }]);
         setSuccess("Expense created successfully!");
         setError(null);
@@ -815,6 +816,7 @@ export function ExpenseModule({
     pending: stats.statusCounts["PENDING"] || 0,
     approved: stats.statusCounts["APPROVED"] || 0,
     disbursed: stats.statusCounts["DISBURSED"] || 0,
+    rejected: stats.statusCounts["REJECTED"] || 0,
     totalAmount: Object.values(stats.typeTotals).reduce((sum, amount) => sum + amount, 0),
   };
 
@@ -867,8 +869,17 @@ export function ExpenseModule({
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1E293B]">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <Card 
+          className={cn(
+            "border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1E293B] cursor-pointer transition-all hover:ring-2 hover:ring-blue-500/50",
+            filterStatus === "all" && "ring-2 ring-blue-500"
+          )}
+          onClick={() => {
+            setFilterStatus("all");
+            setTempFilterStatus("all");
+          }}
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -884,7 +895,16 @@ export function ExpenseModule({
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1E293B]">
+        <Card 
+          className={cn(
+            "border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1E293B] cursor-pointer transition-all hover:ring-2 hover:ring-amber-500/50",
+            filterStatus === "PENDING" && "ring-2 ring-amber-500"
+          )}
+          onClick={() => {
+            setFilterStatus("PENDING");
+            setTempFilterStatus("PENDING");
+          }}
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -902,7 +922,16 @@ export function ExpenseModule({
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1E293B]">
+        <Card 
+          className={cn(
+            "border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1E293B] cursor-pointer transition-all hover:ring-2 hover:ring-emerald-500/50",
+            filterStatus === "APPROVED" && "ring-2 ring-emerald-500"
+          )}
+          onClick={() => {
+            setFilterStatus("APPROVED");
+            setTempFilterStatus("APPROVED");
+          }}
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -920,7 +949,16 @@ export function ExpenseModule({
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1E293B]">
+        <Card 
+          className={cn(
+            "border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1E293B] cursor-pointer transition-all hover:ring-2 hover:ring-blue-500/50",
+            filterStatus === "DISBURSED" && "ring-2 ring-blue-500"
+          )}
+          onClick={() => {
+            setFilterStatus("DISBURSED");
+            setTempFilterStatus("DISBURSED");
+          }}
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -933,6 +971,33 @@ export function ExpenseModule({
               </div>
               <div className="p-3 rounded-xl bg-blue-100 dark:bg-blue-900/30">
                 <Banknote className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card 
+          className={cn(
+            "border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1E293B] cursor-pointer transition-all hover:ring-2 hover:ring-rose-500/50",
+            filterStatus === "REJECTED" && "ring-2 ring-rose-500"
+          )}
+          onClick={() => {
+            setFilterStatus("REJECTED");
+            setTempFilterStatus("REJECTED");
+          }}
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                  Rejected
+                </p>
+                <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">
+                  {loadingStats ? "..." : summaryStats.rejected}
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-rose-100 dark:bg-rose-900/30">
+                <XCircle className="h-5 w-5 text-rose-600 dark:text-rose-400" />
               </div>
             </div>
           </CardContent>
@@ -951,9 +1016,9 @@ export function ExpenseModule({
                   }).format(summaryStats.totalAmount)}
                 </p>
               </div>
-              <div className="p-3 rounded-xl bg-white/20">
+              {/* <div className="p-3 rounded-xl bg-white/20">
                 <TrendingUp className="h-5 w-5" />
-              </div>
+              </div> */}
             </div>
           </CardContent>
         </Card>
@@ -1807,7 +1872,7 @@ export function ExpenseModule({
                             type="button" 
                             variant="outline" 
                             size="sm"
-                            onClick={() => setFixedAssets([...fixedAssets, { name: "", amount: "", vehicleNo: "", routeNo: "" }])}
+                            onClick={() => setFixedAssets([...fixedAssets, { name: "", amount: "", details: "", vehicleNo: "", routeNo: "" }])}
                             className="h-8"
                           >
                             <Plus className="h-3 w-3 mr-1" /> Add Asset
@@ -1836,7 +1901,7 @@ export function ExpenseModule({
                                       "Office Chairs", "Laptops", "Computer", "Office Tables", "Mobile Phones", "Insect Killer",
                                       "Printer", "Car", "Vehicles", "Bike", "Warehouse", "Fans", "Lights", "Cool Box", "Shell & Glass",
                                       "Shell", "Glass", "Pallets", "Pressure Washer", "Hand Lifter", "Deep Freezer", "Office Furniture",
-                                      "Air Conditioner", "Cash Machine", "Cash Locker", "Cash Locker", "Generator", "Note Detector Machine",
+                                      "Air Conditioner", "Cash Machine", "Cash Locker", "Generator", "Note Detector Machine",
                                       "Telephone", "Office Accessories", "Fan", "Refrigerator", "Office Accessories"
                                     ].map((option) => (
                                       <SelectItem key={option} value={option}>{option}</SelectItem>
@@ -1855,6 +1920,20 @@ export function ExpenseModule({
                                     setFixedAssets(newAssets);
                                   }}
                                   placeholder="0.00"
+                                  className="h-9"
+                                />
+                              </div>
+                              <div className="flex-1 space-y-1">
+                                <Label className="text-xs text-slate-500">Details</Label>
+                                <Input 
+                                  type="text"
+                                  value={asset.details}
+                                  onChange={(e) => {
+                                    const newAssets = [...fixedAssets];
+                                    newAssets[index].details = e.target.value;
+                                    setFixedAssets(newAssets);
+                                  }}
+                                  placeholder="Asset Details"
                                   className="h-9"
                                 />
                               </div>
@@ -2124,6 +2203,7 @@ export function ExpenseModule({
                         setAttachments([]);
                         setSelectedRoute("");
                         setSelectedVehicle("");
+                        setFixedAssets([{ name: "", amount: "", details: "", vehicleNo: "", routeNo: "" }]);
                       }}
                       className="border-slate-300 dark:border-slate-600"
                     >
@@ -2265,10 +2345,16 @@ export function ExpenseModule({
                   <Label className="text-xs text-blue-700 dark:text-blue-400 mb-2 font-bold uppercase tracking-wider">Fixed Asset Breakdown</Label>
                   <div className="space-y-2 mt-2">
                     {(selectedExpense.items as any[]).map((item, idx) => (
-                      // border-b
-                      <div key={idx} className="flex justify-between items-center text-sm border-blue-100 dark:border-blue-900/40 last:border-0 pb-1.5 pt-1">
-                        <span className="text-slate-700 dark:text-slate-300 font-medium">{item.name}</span>
-                        <span className="font-bold text-slate-900 dark:text-slate-100">Rs. {Number(item.amount).toLocaleString()}</span>
+                      <div key={idx} className="flex flex-col border-blue-100 dark:border-blue-900/40 last:border-0 pb-1.5 pt-1">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-slate-700 dark:text-slate-300 font-medium">{item.name}</span>
+                          <span className="font-bold text-slate-900 dark:text-slate-100">Rs. {Number(item.amount).toLocaleString()}</span>
+                        </div>
+                        {item.details && (
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 italic">
+                            {item.details}
+                          </span>
+                        )}
                       </div>
                     ))}
                     <div className="flex justify-between items-center text-sm font-black pt-2 border-t border-blue-200 dark:border-blue-700">

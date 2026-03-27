@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
         where: {
             locationId: locationId as string,
             createdAt: { gte: startOfMonth, lt: endOfMonth },
-            status: "DISBURSED",
+            status: { in: ["APPROVED", "DISBURSED"] },
         },
         include: { expenseType: true },
     });
