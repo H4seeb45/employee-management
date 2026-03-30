@@ -261,6 +261,7 @@ export async function POST(request: NextRequest) {
   const attachments = Array.isArray(body?.attachments) ? body.attachments : [];
   const routeId = body?.routeId?.toString() ?? null;
   const vehicleId = body?.vehicleId?.toString() ?? null;
+  const customDate = body?.date ? new Date(body.date) : new Date();
 
   // If Fixed Asset, the type is implicitly FIXED_ASSET (old enum) or a dynamic type named "Fixed Asset"
   // let effectiveExpenseType = category === "Fixed Asset" ? "FIXED_ASSET" : expenseType;
@@ -320,10 +321,9 @@ export async function POST(request: NextRequest) {
   }
 
   // Budget Check
-  const now = new Date();
-  const currentMonth = now.getMonth() + 1;
-  const currentYear = now.getFullYear();
-
+  const currentMonth = customDate.getMonth() + 1;
+  const currentYear = customDate.getFullYear();
+  
   const budget = await prisma.budget.findUnique({
     where: { 
       locationId_month_year: {
@@ -341,7 +341,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { start, end } = getMonthRange();
+  const { start, end } = getMonthRange(customDate);
   
   // 1. Check Category-Specific Limit
   const categories = budget.categories as Record<string, number> | null;
@@ -422,6 +422,7 @@ export async function POST(request: NextRequest) {
           fileSize: file.fileSize,
         })),
       },
+      createdAt: customDate,
     },
     include: { attachments: true, location: true, route: true, vehicle: true, expenseType: true },
   });

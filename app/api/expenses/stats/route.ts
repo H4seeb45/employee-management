@@ -177,7 +177,10 @@ export async function GET(request: NextRequest) {
       _count: { _all: true },
     }),
     prisma.expenseSheet.findMany({
-      where,
+      where: {
+        ...where,
+        status: where.status || { not: "REJECTED" }
+      },
       select: { expenseTypeEnum: true, expenseType: { select: { name: true } }, amount: true, items: true }
     } as any),
     prisma.expenseSheet.findMany({

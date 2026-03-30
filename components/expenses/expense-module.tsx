@@ -178,6 +178,7 @@ export function ExpenseModule({
   }[]>([{ amount: "", vehicleNo: "", routeNo: "", description: "" }]);
 
   // Dialog states
+  const [transactionDate, setTransactionDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [selectedExpense, setSelectedExpense] = useState<ExpenseSheet | null>(null);
   const [expenseToPrint, setExpenseToPrint] = useState<ExpenseSheet | null>(null); // Separate state for printing
   const [showFilters, setShowFilters] = useState(false);
@@ -541,6 +542,64 @@ export function ExpenseModule({
     reader.readAsBinaryString(file);
   };
 
+  const handleExportToExcel = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (locationId) params.append("locationId", locationId);
+      if (searchQuery) params.append("searchId", searchQuery);
+      if (filterStatus !== "all") params.append("status", filterStatus);
+      if (filterType !== "all") params.append("expenseType", filterType);
+      if (filterFromDate) params.append("fromDate", filterFromDate);
+      if (filterToDate) params.append("toDate", filterToDate);
+      if (filterRoute !== "all") params.append("routeId", filterRoute);
+      if (filterVehicle !== "all") params.append("vehicleId", filterVehicle);
+      if (filterMinAmount) params.append("minAmount", filterMinAmount);
+      if (filterMaxAmount) params.append("maxAmount", filterMaxAmount);
+      params.append("all", "true");
+
+      const res = await fetch(`/api/expenses?${params.toString()}`);
+      if (!res.ok) throw new Error("Failed to fetch records for export");
+      
+      const data = await res.json();
+      const allExpenses = data.expenses || [];
+
+      if (allExpenses.length === 0) {
+        alert("No expenses to export.");
+        return;
+      }
+
+      const exportData = allExpenses.map((e: any) => ({
+        "ID": e.id,
+        "Date": new Date(e.createdAt).toLocaleDateString(),
+        "Category": e.category || "Expense",
+        "Expense Type": e.expenseType?.name || "None",
+        "Location": e.location?.name || "",
+        "Details": e.details || "",
+        "Route": getRouteDisplay(e),
+        "Vehicle": getVehicleDisplay(e),
+        "Amount": e.amount,
+        "Status": e.status,
+        "Disburse Type": e.disburseType || "Cash",
+        "Disbursed Amount": e.disbursedAmount || 0,
+        "Bank Name": e.bankName || "",
+        "Cheque Date": e.chequeDate ? new Date(e.chequeDate).toLocaleDateString() : "",
+        "Account Title": e.accountTitle || "",
+        "Account No": e.accountNo || "",
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Expenses");
+      XLSX.writeFile(wb, `Expenses_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
+    } catch (err) {
+      console.error("Export error:", err);
+      alert("Failed to export expenses.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchExpenses = async () => {
     setLoading(true);
     try {
@@ -699,6 +758,7 @@ export function ExpenseModule({
           attachments,
           routeId: !isBulk && selectedRoute || undefined,
           vehicleId: !isBulk && selectedVehicle || undefined,
+          date: transactionDate,
         }),
       });
 
@@ -712,6 +772,7 @@ export function ExpenseModule({
         setSelectedRoute("");
         setSelectedVehicle("");
         setCategory("Expense");
+        setTransactionDate(new Date().toLocaleDateString('en-CA'));
         setFixedAssets([{ name: "", amount: "", details: "", vehicleNo: "", routeNo: "" }]);
         setTollsTaxesItems([{ vehicleNo: "", routeNo: "", amount: "" }]);
         setSuccess("Expense created successfully!");
@@ -1140,7 +1201,7 @@ export function ExpenseModule({
                 </div>
                 <div className="flex items-center gap-2">
                   {/* Importing expenses and mapping expense types for data reconceliation */}
-                  <Button
+                  {/* <Button
                     variant="outline"
                     size="sm"
                     onClick={handleExportForMapping}
@@ -1148,8 +1209,8 @@ export function ExpenseModule({
                   >
                     <Download className="h-4 w-4 mr-2" />
                     Export Mapping
-                  </Button>
-                  <div className="relative">
+                  </Button> */}
+                  {/* <div className="relative">
                     <Button
                       variant="outline"
                       size="sm"
@@ -1164,7 +1225,17 @@ export function ExpenseModule({
                       onChange={handleImportTypeMapping}
                       className="absolute inset-0 opacity-0 cursor-pointer"
                     />
-                  </div>
+                  </div> */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportToExcel}
+                    className="border-slate-300 dark:border-slate-600 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                    disabled={loading}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Export to Excel
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
@@ -1617,6 +1688,29 @@ export function ExpenseModule({
                       </Select>
                     </div>
 
+                    <div className="space-y-2">
+                      <Label className="text-slate-700 dark:text-slate-300">Transaction Date {new Date().getDate() === 1 &&<span className="text-rose-500">*</span>}</Label>
+                      {new Date().getDate() === 1 ? (
+                        <Select value={transactionDate} onValueChange={setTransactionDate}>
+                          <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                            <SelectValue placeholder="Select date" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={new Date().toLocaleDateString('en-CA')}>
+                              Today ({new Date().toLocaleDateString()})
+                            </SelectItem>
+                            <SelectItem value={new Date(new Date().getFullYear(), new Date().getMonth(), 0).toLocaleDateString('en-CA')}>
+                              Yesterday ({new Date(new Date().getFullYear(), new Date().getMonth(), 0).toLocaleDateString()}) - Previous Month
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <div className="px-3 py-2 h-10 flex items-center rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-sm">
+                          {new Date().toLocaleDateString()}
+                        </div>
+                      )}
+                    </div>
+
                     {category === "Expense" ? (
                       <>
                         <div className="space-y-2">
@@ -1902,7 +1996,7 @@ export function ExpenseModule({
                                       "Printer", "Car", "Vehicles", "Bike", "Warehouse", "Fans", "Lights", "Cool Box", "Shell & Glass",
                                       "Shell", "Glass", "Pallets", "Pressure Washer", "Hand Lifter", "Deep Freezer", "Office Furniture",
                                       "Air Conditioner", "Cash Machine", "Cash Locker", "Generator", "Note Detector Machine",
-                                      "Telephone", "Office Accessories", "Fan", "Refrigerator", "Office Accessories"
+                                      "Telephone", "Office Accessories", "Fan", "Refrigerator"
                                     ].map((option) => (
                                       <SelectItem key={option} value={option}>{option}</SelectItem>
                                     ))}
