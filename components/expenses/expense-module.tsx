@@ -1721,7 +1721,7 @@ export function ExpenseModule({
                             value={expenseType}
                             onValueChange={setExpenseType}
                             options={dynamicExpenseTypes
-                              .filter((type) => type.code !== "FIXED_ASSET")
+                              .filter((type) => type.expenseCode !== "FIXED_ASSET")
                               .map((type) => ({ value: type.id, label: type.name }))
                             }
                             placeholder="Select expense type"
