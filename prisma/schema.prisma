@@ -43,6 +43,7 @@ model Employee {
   createdAt                 DateTime        @default(now())
   cvUrl                     String?
   drivingLicenseUrl         String?
+  licenseExpiryDate         DateTime?
   eduDocsUrl                String?
   emergencyContactName      String?
   emergencyContactNumber    String?
@@ -69,6 +70,7 @@ model Employee {
   annualLeaves              Int?
   noticePeriod              Int?            @default(0)
   salaryAllowanceDetails    Json?
+  otherDocuments            Json?
   attendances               Attendance[]
   user                      User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
   location                  Location?       @relation(fields: [locationId], references: [id])
@@ -175,6 +177,10 @@ model ExpenseSheet {
   items           Json?
   expenseTypeEnum OldExpenseType?
   expenseTypeId   String?
+  invoiceAmount   Float?
+  returnAmount    Float?
+  returnPercentage Float?
+  rentPercentage   Float?
   attachments     ExpenseAttachment[]
   approvedBy      User?               @relation("ExpenseApprovedBy", fields: [approvedById], references: [id])
   createdBy       User                @relation("ExpenseCreatedBy", fields: [createdById], references: [id])

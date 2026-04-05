@@ -42,6 +42,10 @@ type ExpenseVoucherPrintProps = {
     items?: any;
     expenseTypeEnum?: string;
     expenseTypeId?: string;
+    invoiceAmount?: number;
+    returnAmount?: number;
+    returnPercentage?: number;
+    rentPercentage?: number;
   } | null;
   routes?: { id: string; routeNo: string; name: string }[];
   dynamicExpenseTypes?: any[];
@@ -206,6 +210,28 @@ export const ExpenseVoucherPrint = React.forwardRef<
             </div>
           ) : null}
         </div>
+
+        {/* Vehicle Hired Details (if applicable) */}
+        {expense.invoiceAmount != null && (
+          <div className="grid grid-cols-4 gap-4 mb-4 border border-gray-400 p-3 bg-gray-50 text-xs text-center font-bold">
+            <div className="flex flex-col gap-1 border-r border-gray-300">
+              <span className="text-gray-500 uppercase text-[9px] tracking-tighter">Invoice Amount</span>
+              <span className="text-lg">Rs. {expense.invoiceAmount.toLocaleString()}</span>
+            </div>
+            <div className="flex flex-col gap-1 border-r border-gray-300">
+              <span className="text-gray-500 uppercase text-[9px] tracking-tighter">Return Amount</span>
+              <span className="text-lg">Rs. {expense.returnAmount?.toLocaleString()}</span>
+            </div>
+            <div className="flex flex-col gap-1 border-r border-gray-300">
+              <span className="text-gray-500 uppercase text-[9px] tracking-tighter">Return %</span>
+              <span className="text-lg">{expense.returnPercentage?.toFixed(2)}%</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-gray-500 uppercase text-[9px] tracking-tighter">Rent %</span>
+              <span className="text-lg">{expense.rentPercentage?.toFixed(2)}%</span>
+            </div>
+          </div>
+        )}
 
         {/* Payment / Disbursement Details Section */}
         {(expense.disburseType || "Cash") === "Cash" && !expense.items && (

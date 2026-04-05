@@ -262,6 +262,11 @@ export async function POST(request: NextRequest) {
   const routeId = body?.routeId?.toString() ?? null;
   const vehicleId = body?.vehicleId?.toString() ?? null;
   const customDate = body?.date ? new Date(body.date) : new Date();
+  
+  const invoiceAmount = body?.invoiceAmount ? Number.parseFloat(body.invoiceAmount) : null;
+  const returnAmount = body?.returnAmount ? Number.parseFloat(body.returnAmount) : null;
+  const returnPercentage = body?.returnPercentage ? Number.parseFloat(body.returnPercentage) : null;
+  const rentPercentage = body?.rentPercentage ? Number.parseFloat(body.rentPercentage) : null;
 
   // If Fixed Asset, the type is implicitly FIXED_ASSET (old enum) or a dynamic type named "Fixed Asset"
   // let effectiveExpenseType = category === "Fixed Asset" ? "FIXED_ASSET" : expenseType;
@@ -423,6 +428,10 @@ export async function POST(request: NextRequest) {
         })),
       },
       createdAt: customDate,
+      invoiceAmount,
+      returnAmount,
+      returnPercentage,
+      rentPercentage,
     },
     include: { attachments: true, location: true, route: true, vehicle: true, expenseType: true },
   });

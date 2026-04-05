@@ -113,6 +113,10 @@ type ExpenseSheet = {
     description: string; 
     amount: string }[] | null;
   expenseTypeId: string;
+  invoiceAmount?: number;
+  returnAmount?: number;
+  returnPercentage?: number;
+  rentPercentage?: number;
 };
 
 // Required route/vehicle check
@@ -176,6 +180,10 @@ export function ExpenseModule({
     description: string; 
     amount: string 
   }[]>([{ amount: "", vehicleNo: "", routeNo: "", description: "" }]);
+  const [invoiceAmount, setInvoiceAmount] = useState("");
+  const [returnAmount, setReturnAmount] = useState("");
+  const [returnPercentage, setReturnPercentage] = useState(0);
+  const [rentPercentage, setRentPercentage] = useState(0);
 
   // Dialog states
   const [transactionDate, setTransactionDate] = useState(new Date().toLocaleDateString('en-CA'));
@@ -254,6 +262,35 @@ export function ExpenseModule({
     }
     return false;
   }
+
+  const isVehicleHiredType = (typeId: string) => {
+    const typeObj = dynamicExpenseTypes.find(t => t.id === typeId || t.expenseCode === typeId || t.name === typeId);
+    if (!typeObj) return false;
+    const codes = ["VEHICLE_HIRED", "Vehicle Rent - GT", "Vehicle Rent - WS", "VAN_RENT_EXPENSES"];
+    return codes.includes(typeObj.expenseCode) || codes.includes(typeObj.name);
+  };
+
+  const bulkAmount = bulkItems.reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0);
+  useEffect(() => {
+    const inv = parseFloat(invoiceAmount) || 0;
+    const ret = parseFloat(returnAmount) || 0;
+    const cur = entryMode === "bulk"
+                                 ? bulkAmount
+                                 : parseFloat(amount) || 0;
+    
+    if (inv > 0) {
+      setReturnPercentage((ret / inv) * 100);
+      const denominator = inv - ret;
+      if (denominator > 0) {
+        setRentPercentage((cur / denominator) * 100);
+      } else {
+        setRentPercentage(0);
+      }
+    } else {
+      setReturnPercentage(0);
+      setRentPercentage(0);
+    }
+  }, [invoiceAmount, returnAmount, amount, entryMode, bulkAmount]);
 
   // Fetch expenses - only when applied filters or page changes
   useEffect(() => {
@@ -665,6 +702,14 @@ export function ExpenseModule({
       setSaving(false);
       return;
     }
+
+    if (isVehicleHiredType(expenseType)) {
+      if (!invoiceAmount || !returnAmount) {
+        setError("Invoice Amount and Return Amount are required for vehicle hired expenses.");
+        setSaving(false);
+        return;
+      }
+    }
     
     if (needsRouteAndVehicle && entryMode === "single" && (!selectedRoute || !selectedVehicle)) {
       setError("Route and Vehicle are required for this expense type.");
@@ -759,6 +804,10 @@ export function ExpenseModule({
           routeId: !isBulk && selectedRoute || undefined,
           vehicleId: !isBulk && selectedVehicle || undefined,
           date: transactionDate,
+          invoiceAmount: isVehicleHiredType(expenseType) ? invoiceAmount : undefined,
+          returnAmount: isVehicleHiredType(expenseType) ? returnAmount : undefined,
+          returnPercentage: isVehicleHiredType(expenseType) ? returnPercentage : undefined,
+          rentPercentage: isVehicleHiredType(expenseType) ? rentPercentage : undefined,
         }),
       });
 
@@ -771,6 +820,8 @@ export function ExpenseModule({
         setAttachments([]);
         setSelectedRoute("");
         setSelectedVehicle("");
+        setInvoiceAmount("");
+        setReturnAmount("");
         setCategory("Expense");
         setTransactionDate(new Date().toLocaleDateString('en-CA'));
         setFixedAssets([{ name: "", amount: "", details: "", vehicleNo: "", routeNo: "" }]);
@@ -1630,6 +1681,7 @@ export function ExpenseModule({
                         </p>
                       </div>
                     )}
+
                     <div className="text-right">
                       <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Total Remaining</p>
                       <p className={`text-lg font-black ${budgetInfo.remainingBudget > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600'}`}>
@@ -2056,6 +2108,48 @@ export function ExpenseModule({
                         </div>
                       </div>
                     )}
+
+                    {/* Vehicle Hired Type for Rent % */}
+                    {isVehicleHiredType(expenseType) && (
+                      <div className="grid grid-cols-2 gap-4 p-4 bg-sky-50/50 dark:bg-sky-900/10 rounded-xl border border-sky-100 dark:border-sky-900/30">
+                        <div className="space-y-2">
+                          <Label htmlFor="invoiceAmount">Invoice Amount <span className="text-rose-500 font-bold">*</span></Label>
+                          <Input
+                            id="invoiceAmount"
+                            type="number"
+                            value={invoiceAmount}
+                            onChange={(e) => setInvoiceAmount(e.target.value)}
+                            placeholder="Enter invoice amount"
+                            className="bg-white"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="returnAmount">Return Amount <span className="text-rose-500 font-bold">*</span></Label>
+                          <Input
+                            id="returnAmount"
+                            type="number"
+                            value={returnAmount}
+                            onChange={(e) => setReturnAmount(e.target.value)}
+                            placeholder="Enter return amount"
+                            className="bg-white"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Return Percentage</Label>
+                          <div className="h-10 px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded-md text-sm flex items-center border border-slate-200 dark:border-slate-700">
+                            {returnPercentage.toFixed(2)}%
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Rent Percentage</Label>
+                          <div className="h-10 px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded-md text-sm flex items-center border border-slate-200 dark:border-slate-700">
+                            {rentPercentage.toFixed(2)}%
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Expense Type History */}
@@ -2431,6 +2525,36 @@ export function ExpenseModule({
                     {new Date(selectedExpense.updatedAt).toLocaleString()}
                   </p>
                 </div>
+                
+                {selectedExpense.invoiceAmount != null && (
+                  <>
+                    <div className="bg-sky-50/50 dark:bg-sky-900/10 p-2 rounded-lg border border-sky-100 dark:border-sky-900/30">
+                      <Label className="text-[10px] uppercase text-sky-600 dark:text-sky-400 font-bold">Invoice Amount</Label>
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">
+                        Rs. {selectedExpense.invoiceAmount.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="bg-sky-50/50 dark:bg-sky-900/10 p-2 rounded-lg border border-sky-100 dark:border-sky-900/30">
+                      <Label className="text-[10px] uppercase text-sky-600 dark:text-sky-400 font-bold">Return Amount</Label>
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">
+                        Rs. {selectedExpense.returnAmount?.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="bg-sky-50/50 dark:bg-sky-900/10 p-2 rounded-lg border border-sky-100 dark:border-sky-900/30">
+                      <Label className="text-[10px] uppercase text-sky-600 dark:text-sky-400 font-bold">Return %</Label>
+                      <p className="text-sm font-extrabold text-sky-700 dark:text-sky-300">
+                        {selectedExpense.returnPercentage?.toFixed(2)}%
+                      </p>
+                    </div>
+                    <div className="bg-sky-50/50 dark:bg-sky-900/10 p-2 rounded-lg border border-sky-100 dark:border-sky-900/30">
+                      <Label className="text-[10px] uppercase text-sky-600 dark:text-sky-400 font-bold">Rent %</Label>
+                      <p className="text-sm font-extrabold text-sky-700 dark:text-sky-300">
+                        {selectedExpense.rentPercentage?.toFixed(2)}%
+                      </p>
+                    </div>
+                  </>
+                )}
+                
               </div>
 
               {/* Fixed Asset Items */}

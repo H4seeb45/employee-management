@@ -33,6 +33,10 @@ export async function GET(request: NextRequest) {
       : {}
     : { locationId: user.locationId };
 
+  if (isAccountant && !isAdminUser(user)) {
+    where.disburseType = "Cheque / Online Transfer";
+  }
+
   // Status filter
   const status = searchParams.get("status");
   if (status && status !== "all") {
