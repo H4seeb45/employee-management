@@ -154,6 +154,7 @@ export function ViewEmployeeDetails({ employee }: ViewEmployeeDetailsProps) {
               <InfoRow label="Reference Name" value={employee.referenceName} />
               <InfoRow label="Reference Contact" value={employee.referenceNumber} />
               <InfoRow label="Reference Email" value={employee.referenceEmail} />
+              <InfoRow label="License Expiry Date" value={employee.licenseExpiryDate ? new Date(employee.licenseExpiryDate).toLocaleDateString() : null} />
               <div className="md:col-span-2 lg:col-span-3">
                 <InfoRow label="Home Address" value={employee.address} />
               </div>
@@ -193,6 +194,7 @@ export function ViewEmployeeDetails({ employee }: ViewEmployeeDetailsProps) {
                 { id: "eachKpiIncentives", label: "Each KPI Incentives" },
                 { id: "incentives", label: "Incentives" },
                 { id: "categoryIncentive", label: "Category Incentive" },
+                { id: "loaderAllowance", label: "Loader Allowance" },
               ].map(field => (
                 <div key={field.id} className="space-y-2 p-3 rounded-lg border border-slate-100 dark:border-slate-800/50 bg-slate-50/30 dark:bg-slate-900/20">
                   <InfoRow label={field.label} value={employee[field.id] != null ? `Rs. ${Number(employee[field.id]).toLocaleString()}` : "---"} />
@@ -213,7 +215,6 @@ export function ViewEmployeeDetails({ employee }: ViewEmployeeDetailsProps) {
               <InfoRow label="EOBI Deduction" value={employee.eobiDeduction} />
               <InfoRow label="Social Security Deduction" value={employee.socialSecurityDeduction} />
               
-              <InfoRow label="Loader Allowance" value={employee.loaderAllowance != null ? `Rs. ${Number(employee.loaderAllowance).toLocaleString()}` : "Rs. 0"} />
               <InfoRow label="Advance Amount Eligibility" value={employee.advanceEligibilityAmount != null ? `Rs. ${Number(employee.advanceEligibilityAmount).toLocaleString()}` : "Rs. 0"} />
               <InfoRow label="Loan Amount Eligibility" value={employee.loanEligibilityAmount != null ? `Rs. ${Number(employee.loanEligibilityAmount).toLocaleString()}` : "Rs. 0"} />
             </CardContent>
@@ -223,17 +224,23 @@ export function ViewEmployeeDetails({ employee }: ViewEmployeeDetailsProps) {
         <TabsContent value="documents" className="space-y-4 mt-6">
           <Card className="border-slate-200 dark:border-slate-800">
             <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <DocRow label="CNIC Copy" url={employee.cnicCopyUrl} />
+              <DocRow label="CNIC Copy Front" url={employee.cnicCopyUrl} />
+              <DocRow label="CNIC Copy Back" url={employee.cnicCopyBackUrl} />
               <DocRow label="Educational Documents" url={employee.eduDocsUrl} />
               <DocRow label="CV / Resume" url={employee.cvUrl} />
               <DocRow label="Guarantee Cheque" url={employee.guaranteeChequeUrl} />
               <DocRow label="Guarantor Cheque" url={employee.guarantorChequeUrl} />
-              <DocRow label="Guarantor CNIC" url={employee.guarantorCnicUrl} />
+              <DocRow label="Guarantor CNIC Front" url={employee.guarantorCnicUrl} />
+              <DocRow label="Guarantor CNIC Back" url={employee.guarantorCnicBackUrl} />
               <DocRow label="Stamp Paper" url={employee.stampPaperUrl} />
               <DocRow label="Utility Bill" url={employee.utilityBillUrl} />
-              <DocRow label="Driving License" url={employee.drivingLicenseUrl} />
+              <DocRow label="Driving License Front" url={employee.drivingLicenseUrl} />
+              <DocRow label="Driving License Back" url={employee.drivingLicenseBackUrl} />
               <DocRow label="Police Certificate" url={employee.policeCertUrl} />
               <DocRow label="Clearance Letter" url={employee.clearanceLetterUrl} />
+              {employee.otherDocuments?.map((doc: any, index: number) => (
+                <DocRow key={`custom-${index}`} label={doc.name} url={doc.url} />
+              ))}
             </CardContent>
           </Card>
         </TabsContent>

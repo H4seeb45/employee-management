@@ -76,6 +76,7 @@ export async function PATCH(
       joinDate,
       leaveDate,
       probationConfirmationDate,
+      licenseExpiryDate,
       ...updateData 
     } = body;
 
@@ -90,6 +91,7 @@ export async function PATCH(
         joinDate: joinDate ? new Date(joinDate) : undefined,
         leaveDate: leaveDate ? new Date(leaveDate) : undefined,
         probationConfirmationDate: probationConfirmationDate ? new Date(probationConfirmationDate) : undefined,
+        licenseExpiryDate: licenseExpiryDate ? new Date(licenseExpiryDate) : undefined,
       },
     });
 

@@ -1,0 +1,17 @@
+export const documentFields = [
+    { label: "Photograph", name: "avatar" },
+    { label: "CNIC Copy Front", name: "cnicCopyUrl" },
+    { label: "CNIC Copy Back", name: "cnicCopyBackUrl" },
+    { label: "Educational documents", name: "eduDocsUrl" },
+    { label: "CV", name: "cvUrl" },
+    { label: "Employee Guarantee Cheque", name: "guaranteeChequeUrl" },
+    { label: "Guarantor Cheque", name: "guarantorChequeUrl" },
+    { label: "Guarantor CNIC Copy Front", name: "guarantorCnicUrl" },
+    { label: "Guarantor CNIC Copy Back", name: "guarantorCnicBackUrl" },
+    { label: "Stamp Paper", name: "stampPaperUrl" },
+    { label: "Utility Bill Copy", name: "utilityBillUrl" },
+    { label: "Driving License Copy Front", name: "drivingLicenseUrl" },
+    { label: "Driving License Copy Back", name: "drivingLicenseBackUrl" },
+    { label: "Police Certificate", name: "policeCertUrl" },
+    { label: "Clearance/Experience Letter", name: "clearanceLetterUrl" },
+  ];

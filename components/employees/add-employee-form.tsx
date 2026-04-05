@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DEPARTMENTS, DESIGNATIONS_BY_DEPARTMENT, EMPLOYMENT_STATUSES } from "@/lib/constants";
 import { UploadButton } from "@/lib/uploadthing";
+import { documentFields } from "./documents";
 
 interface AddEmployeeFormProps {
   onSubmit: (data: any) => void;
@@ -26,6 +27,7 @@ export function AddEmployeeForm({ onSubmit, onCancel }: AddEmployeeFormProps) {
   const [locations, setLocations] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedDocType, setSelectedDocType] = useState("");
+  const [customDocName, setCustomDocName] = useState("");
   const [formData, setFormData] = useState<any>({
     employeeName: "",
     employeeId: "",
@@ -64,6 +66,8 @@ export function AddEmployeeForm({ onSubmit, onCancel }: AddEmployeeFormProps) {
     annualLeaves: "",
     noticePeriod: 0,
     salaryAllowanceDetails: {},
+    otherDocuments: [],
+    licenseExpiryDate: "",
   });
 
   useEffect(() => {
@@ -126,13 +130,23 @@ export function AddEmployeeForm({ onSubmit, onCancel }: AddEmployeeFormProps) {
     }
   };
 
-  const handleRemoveFile = async (name: string) => {
-    const fileUrl = formData[name];
+  const handleRemoveFile = async (name: string, isCustom = false) => {
+    let fileUrl = "";
+    
+    if (isCustom) {
+      const doc = formData.otherDocuments?.find((d: any) => d.name === name);
+      fileUrl = doc?.url;
+      setFormData((prev: any) => ({
+        ...prev,
+        otherDocuments: prev.otherDocuments.filter((d: any) => d.name !== name)
+      }));
+    } else {
+      fileUrl = formData[name];
+      setFormData((prev: any) => ({ ...prev, [name]: "" }));
+    }
+
     if (!fileUrl) return;
     
-    // Remove from state immediately for UI responsiveness
-    setFormData((prev: any) => ({ ...prev, [name]: "" }));
-
     try {
       await fetch("/api/uploadthing/delete", {
         method: "POST",
@@ -187,8 +201,7 @@ export function AddEmployeeForm({ onSubmit, onCancel }: AddEmployeeFormProps) {
     // "email", "referenceName", "referenceEmail", "referenceNumber",
     const requiredPersonalFields = [
       "employeeName", "cnicNumber", "cnicIssueDate", "cnicExpiryDate", 
-      "phone", "fatherName", "emergencyContactName", "emergencyContactNumber", 
-      "birthDate", "bloodGroup", "maritalStatus", "gender",  "address"
+      "phone", "fatherName"
     ];
 
     const missingFields = requiredPersonalFields.filter(field => !formData[field]);
@@ -261,20 +274,6 @@ export function AddEmployeeForm({ onSubmit, onCancel }: AddEmployeeFormProps) {
     );
   };
 
-  const documentFields = [
-    { label: "Photograph", name: "avatar" },
-    { label: "CNIC Copy", name: "cnicCopyUrl" },
-    { label: "Educational documents", name: "eduDocsUrl" },
-    { label: "CV", name: "cvUrl" },
-    { label: "Employee Guarantee Cheque", name: "guaranteeChequeUrl" },
-    { label: "Guarantor Cheque", name: "guarantorChequeUrl" },
-    { label: "Guarantor CNIC Copy", name: "guarantorCnicUrl" },
-    { label: "Stamp Paper", name: "stampPaperUrl" },
-    { label: "Utility Bill Copy", name: "utilityBillUrl" },
-    { label: "Driving License Copy", name: "drivingLicenseUrl" },
-    { label: "Police Certificate", name: "policeCertUrl" },
-    { label: "Clearance/Experience Letter", name: "clearanceLetterUrl" },
-  ];
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -307,16 +306,16 @@ export function AddEmployeeForm({ onSubmit, onCancel }: AddEmployeeFormProps) {
               <Input id="fatherName" name="fatherName" value={formData.fatherName} onChange={handleChange} required className="border-slate-200 dark:border-slate-700" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="emergencyContactName">Emergency Contact Name <span className="text-red-500">*</span></Label>
-              <Input id="emergencyContactName" name="emergencyContactName" value={formData.emergencyContactName} onChange={handleChange} required className="border-slate-200 dark:border-slate-700" />
+              <Label htmlFor="emergencyContactName">Emergency Contact Name </Label>
+              <Input id="emergencyContactName" name="emergencyContactName" value={formData.emergencyContactName} onChange={handleChange} className="border-slate-200 dark:border-slate-700" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="emergencyContactNumber">Emergency Contact (03XXXXXXXXX) <span className="text-red-500">*</span></Label>
-              <Input id="emergencyContactNumber" name="emergencyContactNumber" value={formData.emergencyContactNumber} onChange={handleChange} placeholder="03xxxxxxxxx" required className="border-slate-200 dark:border-slate-700" />
+              <Label htmlFor="emergencyContactNumber">Emergency Contact (03XXXXXXXXX) </Label>
+              <Input id="emergencyContactNumber" name="emergencyContactNumber" value={formData.emergencyContactNumber} onChange={handleChange} placeholder="03xxxxxxxxx" className="border-slate-200 dark:border-slate-700" />
             </div>
-            {renderDateField("Date of Birth (DOB)", "birthDate", true)}
+            {renderDateField("Date of Birth (DOB)", "birthDate")}
             <div className="space-y-2">
-              <Label htmlFor="bloodGroup">Blood Group <span className="text-red-500">*</span></Label>
+              <Label htmlFor="bloodGroup">Blood Group </Label>
               <Select value={formData.bloodGroup} onValueChange={(v) => handleSelectChange("bloodGroup", v)}>
                 <SelectTrigger className="border-slate-200 dark:border-slate-700"><SelectValue placeholder="Select" /></SelectTrigger>
                 <SelectContent>
@@ -325,7 +324,7 @@ export function AddEmployeeForm({ onSubmit, onCancel }: AddEmployeeFormProps) {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="maritalStatus">Marital Status <span className="text-red-500">*</span></Label>
+              <Label htmlFor="maritalStatus">Marital Status </Label>
               <Select value={formData.maritalStatus} onValueChange={(v) => handleSelectChange("maritalStatus", v)}>
                 <SelectTrigger className="border-slate-200 dark:border-slate-700"><SelectValue placeholder="Select" /></SelectTrigger>
                 <SelectContent>
@@ -334,7 +333,7 @@ export function AddEmployeeForm({ onSubmit, onCancel }: AddEmployeeFormProps) {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="gender">Gender <span className="text-red-500">*</span></Label>
+              <Label htmlFor="gender">Gender </Label>
               <Select value={formData.gender} onValueChange={(v) => handleSelectChange("gender", v)}>
                 <SelectTrigger className="border-slate-200 dark:border-slate-700"><SelectValue placeholder="Select" /></SelectTrigger>
                 <SelectContent>
@@ -360,10 +359,11 @@ export function AddEmployeeForm({ onSubmit, onCancel }: AddEmployeeFormProps) {
               <Label htmlFor="referenceNumber">Reference Contact (03XXXXXXXXX) </Label>
               <Input id="referenceNumber" name="referenceNumber" value={formData.referenceNumber} onChange={handleChange} placeholder="03xxxxxxxxx" className="border-slate-200 dark:border-slate-700" />
             </div>
+            {renderDateField("License Expiry Date", "licenseExpiryDate")}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="address">Address <span className="text-red-500">*</span></Label>
-            <Textarea id="address" name="address" value={formData.address} onChange={handleChange} rows={2} required className="border-slate-200 dark:border-slate-700" />
+            <Label htmlFor="address">Address </Label>
+            <Textarea id="address" name="address" value={formData.address} onChange={handleChange} rows={2} className="border-slate-200 dark:border-slate-700" />
           </div>
         </TabsContent>
 
@@ -380,15 +380,38 @@ export function AddEmployeeForm({ onSubmit, onCancel }: AddEmployeeFormProps) {
                     {documentFields.filter(doc => !formData[doc.name]).map(doc => (
                       <SelectItem key={doc.name} value={doc.name}>{doc.label}</SelectItem>
                     ))}
+                    <SelectItem value="other_custom">Other (Specify...)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+              {selectedDocType === "other_custom" && (
+                <div className="flex-1">
+                  <Input 
+                    placeholder="Document Name (e.g. Health Cert)" 
+                    value={customDocName}
+                    onChange={(e) => setCustomDocName(e.target.value)}
+                    className="h-10 border-slate-200 dark:border-slate-700"
+                  />
+                </div>
+              )}
               {selectedDocType ? (
                 <UploadButton
                   endpoint="employeeDocument"
                   onClientUploadComplete={(res) => {
                     if (res?.[0]) {
-                      handleSelectChange(selectedDocType, res[0].url);
+                      if (selectedDocType === "other_custom") {
+                        if (!customDocName) {
+                          alert("Please specify a document name");
+                          return;
+                        }
+                        setFormData((prev: any) => ({
+                          ...prev,
+                          otherDocuments: [...(prev.otherDocuments || []), { name: customDocName, url: res[0].url }]
+                        }));
+                        setCustomDocName("");
+                      } else {
+                        handleSelectChange(selectedDocType, res[0].url);
+                      }
                       setSelectedDocType("");
                     }
                   }}
@@ -413,7 +436,7 @@ export function AddEmployeeForm({ onSubmit, onCancel }: AddEmployeeFormProps) {
           </div>
 
           {/* Uploaded Files List */}
-          {documentFields.some(doc => formData[doc.name]) && (
+          {(documentFields.some(doc => formData[doc.name]) || (formData.otherDocuments && formData.otherDocuments.length > 0)) && (
             <div className="p-4 border rounded-xl bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 shadow-sm">
               <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
                 <FileText className="h-4 w-4 text-emerald-600" /> Uploaded Documents
@@ -439,12 +462,34 @@ export function AddEmployeeForm({ onSubmit, onCancel }: AddEmployeeFormProps) {
                     </div>
                   </div>
                 ))}
+                
+                {/* Custom Documents */}
+                {formData.otherDocuments?.map((doc: any, index: number) => (
+                  <div key={`custom-${index}`} className="flex items-center justify-between px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                      <span className="text-sm">{doc.name}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <a href={doc.url} target="_blank" rel="noreferrer" className="text-xs font-medium text-sky-600 hover:underline px-2 py-1">View</a>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20"
+                        onClick={() => handleRemoveFile(doc.name, true)}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
           {/* Empty state */}
-          {!documentFields.some(doc => formData[doc.name]) && (
+          {!documentFields.some(doc => formData[doc.name]) && (!formData.otherDocuments || formData.otherDocuments.length === 0) && (
             <div className="text-center py-8 text-slate-400 dark:text-slate-500 text-sm">
               No documents uploaded yet. Select a document type above to begin.
             </div>
@@ -540,6 +585,7 @@ export function AddEmployeeForm({ onSubmit, onCancel }: AddEmployeeFormProps) {
               { id: "eachKpiIncentives", label: "Each KPI Incentives" },
               { id: "incentives", label: "Incentives" },
               { id: "categoryIncentive", label: "Category Incentive" },
+              { id: "loaderAllowance", label: "Loader Allowance" },
             ].map(field => (
               <div key={field.id} className="grid grid-cols-1 md:grid-cols-2 gap-4 col-span-1 md:col-span-2 lg:col-span-3 bg-slate-50/50 dark:bg-slate-800/30 p-3 rounded-lg border border-slate-100 dark:border-slate-800/50">
                 <div className="space-y-2">
@@ -557,10 +603,6 @@ export function AddEmployeeForm({ onSubmit, onCancel }: AddEmployeeFormProps) {
               <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Deductions & Eligibility</h3>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="loaderAllowance">Loader Allowance</Label>
-              <Input id="loaderAllowance" name="loaderAllowance" type="text" inputMode="decimal" value={formData.loaderAllowance} onChange={handleChange} placeholder="0" className="border-slate-200 dark:border-slate-700" />
-            </div>
             <div className="space-y-2">
               <Label htmlFor="advanceEligibilityAmount">Advance Amount Eligibility</Label>
               <Input id="advanceEligibilityAmount" name="advanceEligibilityAmount" type="text" inputMode="decimal" value={formData.advanceEligibilityAmount} onChange={handleChange} placeholder="0" className="border-slate-200 dark:border-slate-700" />

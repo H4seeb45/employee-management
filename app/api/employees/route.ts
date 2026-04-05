@@ -98,6 +98,7 @@ export async function POST(request: NextRequest) {
       joinDate,
       leaveDate,
       probationConfirmationDate,
+      licenseExpiryDate,
       ...data 
     } = body;
 
@@ -112,6 +113,7 @@ export async function POST(request: NextRequest) {
         joinDate: joinDate ? new Date(joinDate) : null,
         leaveDate: leaveDate ? new Date(leaveDate) : null,
         probationConfirmationDate: probationConfirmationDate ? new Date(probationConfirmationDate) : null,
+        licenseExpiryDate: licenseExpiryDate ? new Date(licenseExpiryDate) : null,
       },
     });
 

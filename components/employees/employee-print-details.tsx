@@ -74,6 +74,7 @@ export const EmployeePrintDetails = forwardRef<HTMLDivElement, EmployeePrintDeta
           <LabelValue label="Phone Number" value={employee.phone} />
           <LabelValue label="Email Address" value={employee.email} />
           <LabelValue label="Blood Group" value={employee.bloodGroup} />
+          <LabelValue label="License Expiry" value={employee.licenseExpiryDate ? new Date(employee.licenseExpiryDate).toLocaleDateString() : null} />
           <div className="col-span-3">
             <LabelValue label="Home Address" value={employee.address} />
           </div>
@@ -108,11 +109,11 @@ export const EmployeePrintDetails = forwardRef<HTMLDivElement, EmployeePrintDeta
           <FinancialRow label="KPI Incentives" value={employee.eachKpiIncentives ? `Rs. ${Number(employee.eachKpiIncentives).toLocaleString()}` : null} detail={employee.salaryAllowanceDetails?.eachKpiIncentives} />
           <FinancialRow label="Incentives" value={employee.incentives ? `Rs. ${Number(employee.incentives).toLocaleString()}` : null} detail={employee.salaryAllowanceDetails?.incentives} />
           <FinancialRow label="Category Incentive" value={employee.categoryIncentive ? `Rs. ${Number(employee.categoryIncentive).toLocaleString()}` : null} detail={employee.salaryAllowanceDetails?.categoryIncentive} />
+          <FinancialRow label="Loader Allowance" value={employee.loaderAllowance ? `Rs. ${Number(employee.loaderAllowance).toLocaleString()}` : null} detail={employee.salaryAllowanceDetails?.loaderAllowance} />
           <LabelValue label="Tax Deduction" value={employee.taxDeduction} />
           <LabelValue label="EOBI Deduction" value={employee.eobiDeduction} />
           <LabelValue label="Social Security" value={employee.socialSecurityDeduction} />
           
-          <LabelValue label="Loader Allowance" value={employee.loaderAllowance != null ? `Rs. ${Number(employee.loaderAllowance).toLocaleString()}` : "Rs. 0"} />
           <LabelValue label="Advance Eligibility" value={employee.advanceEligibilityAmount != null ? `Rs. ${Number(employee.advanceEligibilityAmount).toLocaleString()}` : "Rs. 0"} />
           <LabelValue label="Loan Eligibility" value={employee.loanEligibilityAmount != null ? `Rs. ${Number(employee.loanEligibilityAmount).toLocaleString()}` : "Rs. 0"} />
         </div>
@@ -122,7 +123,11 @@ export const EmployeePrintDetails = forwardRef<HTMLDivElement, EmployeePrintDeta
         <div className="grid grid-cols-4 gap-4 text-[10px]">
           <div className="flex items-center gap-2 uppercase">
             <div className={`w-3 h-3 border ${employee.cnicCopyUrl ? 'bg-slate-900' : ''}`} />
-            <span>CNIC Copy</span>
+            <span>CNIC Copy Front</span>
+          </div>
+          <div className="flex items-center gap-2 uppercase">
+            <div className={`w-3 h-3 border ${employee.cnicCopyBackUrl ? 'bg-slate-900' : ''}`} />
+            <span>CNIC Copy Back</span>
           </div>
           <div className="flex items-center gap-2 uppercase">
             <div className={`w-3 h-3 border ${employee.eduDocsUrl ? 'bg-slate-900' : ''}`} />
@@ -142,7 +147,11 @@ export const EmployeePrintDetails = forwardRef<HTMLDivElement, EmployeePrintDeta
           </div>
           <div className="flex items-center gap-2 uppercase">
             <div className={`w-3 h-3 border ${employee.guarantorCnicUrl ? 'bg-slate-900' : ''}`} />
-            <span>Guarantor CNIC</span>
+            <span>Guarantor CNIC Front</span>
+          </div>
+          <div className="flex items-center gap-2 uppercase">
+            <div className={`w-3 h-3 border ${employee.guarantorCnicBackUrl ? 'bg-slate-900' : ''}`} />
+            <span>Guarantor CNIC Back</span>
           </div>
           <div className="flex items-center gap-2 uppercase">
             <div className={`w-3 h-3 border ${employee.stampPaperUrl ? 'bg-slate-900' : ''}`} />
@@ -154,7 +163,11 @@ export const EmployeePrintDetails = forwardRef<HTMLDivElement, EmployeePrintDeta
           </div>
           <div className="flex items-center gap-2 uppercase">
             <div className={`w-3 h-3 border ${employee.drivingLicenseUrl ? 'bg-slate-900' : ''}`} />
-            <span>Driving License</span>
+            <span>Driving License Front</span>
+          </div>
+          <div className="flex items-center gap-2 uppercase">
+            <div className={`w-3 h-3 border ${employee.drivingLicenseBackUrl ? 'bg-slate-900' : ''}`} />
+            <span>Driving License Back</span>
           </div>
           <div className="flex items-center gap-2 uppercase">
             <div className={`w-3 h-3 border ${employee.policeCertUrl ? 'bg-slate-900' : ''}`} />
@@ -164,6 +177,12 @@ export const EmployeePrintDetails = forwardRef<HTMLDivElement, EmployeePrintDeta
             <div className={`w-3 h-3 border ${employee.clearanceLetterUrl ? 'bg-slate-900' : ''}`} />
             <span>Clearance Letter</span>
           </div>
+          {employee.otherDocuments?.map((doc: any, index: number) => (
+            <div key={`custom-${index}`} className="flex items-center gap-2 uppercase">
+              <div className={`w-3 h-3 border bg-slate-900`} />
+              <span>{doc.name}</span>
+            </div>
+          ))}
         </div>
 
         {/* Signatures Section */}
