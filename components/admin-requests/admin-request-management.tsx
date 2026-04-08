@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
   Plus,
-  Calendar,
+  MessageSquare,
   CheckCircle,
   XCircle,
   AlertCircle,
@@ -18,7 +18,7 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { AddLeaveRequestForm } from "@/components/leave/add-leave-request-form"
+import { AddAdminRequestForm } from "./add-admin-request-form"
 import { useLayout } from "@/components/layout/layout-provider"
 import { useToast } from "@/hooks/use-toast"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -28,14 +28,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input"
 import * as XLSX from "xlsx"
 
-export function LeaveManagement() {
+export function AdminRequestManagement() {
   const { user } = useLayout()
   const { toast } = useToast()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [viewOpen, setViewOpen] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null)
-  const [leaveRequestData, setLeaveRequestData] = useState<any[]>([])
+  const [requestData, setRequestData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [locations, setLocations] = useState<any[]>([])
 
@@ -68,7 +68,7 @@ export function LeaveManagement() {
 
   useEffect(() => {
     if (mounted) {
-      fetchLeaveRequests()
+      fetchRequests()
     }
   }, [mounted, selectedMonth, selectedYear, selectedLocation])
 
@@ -82,21 +82,21 @@ export function LeaveManagement() {
     }
   }
 
-  const fetchLeaveRequests = async () => {
+  const fetchRequests = async () => {
     setLoading(true)
     try {
-      let url = `/api/leave-requests?month=${selectedMonth}&year=${selectedYear}`
+      let url = `/api/admin-requests?month=${selectedMonth}&year=${selectedYear}`
       if (selectedLocation !== "all") {
         url += `&locationId=${selectedLocation}`
       }
       const res = await fetch(url)
       const data = await res.json()
-      setLeaveRequestData(Array.isArray(data) ? data : [])
+      setRequestData(Array.isArray(data) ? data : [])
     } catch (error) {
-      console.error("Failed to fetch leave requests", error)
+      console.error("Failed to fetch admin requests", error)
       toast({
         title: "Error",
-        description: "Failed to fetch leave requests",
+        description: "Failed to fetch admin requests",
         variant: "destructive",
       })
     } finally {
@@ -104,9 +104,9 @@ export function LeaveManagement() {
     }
   }
 
-  const handleAddLeaveRequest = async (request: any) => {
+  const handleAddRequest = async (request: any) => {
     try {
-      const res = await fetch("/api/leave-requests", {
+      const res = await fetch("/api/admin-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(request),
@@ -115,11 +115,11 @@ export function LeaveManagement() {
       if (!res.ok) throw new Error(data.error || "Failed to submit request")
 
       toast({
-        title: "Leave Request Submitted",
-        description: "Your leave request has been submitted successfully.",
+        title: "Request Submitted",
+        description: "Your request has been submitted successfully.",
       })
       setDialogOpen(false)
-      fetchLeaveRequests()
+      fetchRequests()
     } catch (error: any) {
       toast({
         title: "Error",
@@ -129,74 +129,55 @@ export function LeaveManagement() {
     }
   }
 
-  const handleApproveRequest = async (id: string, updatedData?: any) => {
+  const [updatingStatus, setUpdatingStatus] = useState(false)
+
+  const handleUpdateStatus = async (id: string, status: string) => {
+    setUpdatingStatus(true)
     try {
-      const res = await fetch(`/api/leave-requests/${id}`, {
+      const res = await fetch(`/api/admin-requests/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...updatedData, status: "Approved" }),
+        body: JSON.stringify({ status }),
       })
-      if (!res.ok) throw new Error("Failed to approve request")
+      if (!res.ok) throw new Error("Failed to update request")
 
       toast({
-        title: "Leave Request Approved",
-        description: `Leave request has been approved.`,
+        title: `Request ${status}`,
+        description: `Request has been marked as ${status}.`,
       })
-      fetchLeaveRequests()
+      fetchRequests()
+      setViewOpen(false)
     } catch (error: any) {
       toast({
         title: "Error",
         description: error.message,
         variant: "destructive",
       })
-    }
-  }
-
-  const handleRejectRequest = async (id: string) => {
-    try {
-      const res = await fetch(`/api/leave-requests/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "Rejected" }),
-      })
-      if (!res.ok) throw new Error("Failed to reject request")
-
-      toast({
-        title: "Leave Request Rejected",
-        description: `Leave request has been rejected.`,
-      })
-      fetchLeaveRequests()
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      })
+    } finally {
+      setUpdatingStatus(false)
     }
   }
 
   const exportToExcel = () => {
-    const dataToExport = leaveRequestData.map((request) => ({
+    const dataToExport = requestData.map((request) => ({
       "EMP ID": request.employee?.employeeId || "N/A",
-      Employee: request.employeeName || request.employee?.employeeName,
+      Name: request.employeeName || request.employee?.employeeName,
       Designation: request.employee?.position || "N/A",
       Office: request.employee?.location?.name || "N/A",
-      "Leave Type": request.leaveType,
-      From: request.startDate ? new Date(request.startDate).toLocaleDateString() : "N/A",
-      To: request.endDate ? new Date(request.endDate).toLocaleDateString() : "N/A",
-      Days: request.days,
-      Reason: request.reason,
+      Subject: request.subject,
+      Details: request.details,
       Status: request.status,
+      Date: request.createdAt ? new Date(request.createdAt).toLocaleDateString() : "N/A",
     }))
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport)
     const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Leave Requests")
-    XLSX.writeFile(workbook, `Leave_Requests_${selectedMonth}_${selectedYear}.xlsx`)
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Admin Requests")
+    XLSX.writeFile(workbook, `Admin_Requests_${selectedMonth}_${selectedYear}.xlsx`)
 
     toast({
       title: "Export Successful",
-      description: `${leaveRequestData.length} leave requests exported to Excel.`,
+      description: `${requestData.length} requests exported to Excel.`,
     })
   }
 
@@ -207,10 +188,10 @@ export function LeaveManagement() {
 
     if (s === "APPROVED") {
       color = "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-      icon = <CheckCircle className="h-4 w-4 mr-1" />
+      icon = <CheckCircle2 className="h-4 w-4 mr-1" />
     } else if (s === "REJECTED") {
       color = "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-      icon = <XCircle className="h-4 w-4 mr-1" />
+      icon = <XCircleIcon className="h-4 w-4 mr-1" />
     }
 
     return (
@@ -220,24 +201,10 @@ export function LeaveManagement() {
     )
   }
 
-  const renderLeaveTypeBadge = (leaveType: string) => {
-    let color = "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
-
-    if (leaveType === "Sick Leave") color = "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-    if (leaveType === "Vacation") color = "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-    if (leaveType === "Personal") color = "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400"
-
-    return (
-      <Badge variant="outline" className={color}>
-        {leaveType}
-      </Badge>
-    )
-  }
-
-  const totalCount = leaveRequestData.length
-  const pendingCount = leaveRequestData.filter((r) => r.status?.toUpperCase() === "PENDING").length
-  const approvedCount = leaveRequestData.filter((r) => r.status?.toUpperCase() === "APPROVED").length
-  const rejectedCount = leaveRequestData.filter((r) => r.status?.toUpperCase() === "REJECTED").length
+  const totalCount = requestData.length
+  const pendingCount = requestData.filter((r) => r.status?.toUpperCase() === "PENDING").length
+  const approvedCount = requestData.filter((r) => r.status?.toUpperCase() === "APPROVED").length
+  const rejectedCount = requestData.filter((r) => r.status?.toUpperCase() === "REJECTED").length
 
   return (
     <div className="space-y-6">
@@ -245,8 +212,8 @@ export function LeaveManagement() {
       <Card className="p-4 space-y-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-sky-600" />
-            <h3 className="text-lg font-medium">Leave Management</h3>
+            <MessageSquare className="h-5 w-5 text-sky-600" />
+            <h3 className="text-lg font-medium">Request to Admin</h3>
           </div>
           <div className="flex w-full sm:w-auto gap-2">
             <TooltipProvider>
@@ -263,13 +230,13 @@ export function LeaveManagement() {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Export leave requests to Excel</p>
+                  <p>Export requests to Excel</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
             <Button className="flex-1 sm:flex-none bg-sky-600 hover:bg-sky-700" onClick={() => setDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" /> <span className="hidden min-[380px]:inline">Apply for Leave</span><span className="min-[380px]:hidden">Apply</span>
+              <Plus className="h-4 w-4 mr-2" /> <span className="hidden min-[380px]:inline">New Request</span><span className="min-[380px]:hidden">New</span>
             </Button>
           </div>
         </div>
@@ -328,14 +295,13 @@ export function LeaveManagement() {
 
       {mounted ? (
         <>
-          {/* Summary Cards */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
               title="Total Requests"
               value={totalCount}
               gradientFrom="from-sky-600"
               gradientTo="to-cyan-500"
-              icon={<Calendar className="h-5 w-5" aria-hidden="true" />}
+              icon={<MessageSquare className="h-5 w-5" aria-hidden="true" />}
               subtext="Filtered requests"
             />
             <StatCard
@@ -364,33 +330,24 @@ export function LeaveManagement() {
             />
           </div>
 
-          {/* Tabs with Counts */}
           <Card>
             <Tabs defaultValue="all">
               <TabsList className="w-full border-b rounded-none justify-start h-auto p-0 bg-transparent overflow-x-auto flex-nowrap scrollbar-hide">
                 <TabsTrigger value="all" className="flex items-center gap-2 py-3 px-4 rounded-tl-lg rounded-tr-none rounded-b-none data-[state=active]:bg-muted whitespace-nowrap">
                   All Requests
-                  <Badge variant="secondary" className="rounded-full">
-                    {totalCount}
-                  </Badge>
+                  <Badge variant="secondary" className="rounded-full">{totalCount}</Badge>
                 </TabsTrigger>
                 <TabsTrigger value="pending" className="flex items-center gap-2 py-3 px-4 rounded-none data-[state=active]:bg-muted whitespace-nowrap">
                   Pending
-                  <Badge variant="secondary" className="rounded-full">
-                    {pendingCount}
-                  </Badge>
+                  <Badge variant="secondary" className="rounded-full">{pendingCount}</Badge>
                 </TabsTrigger>
                 <TabsTrigger value="approved" className="flex items-center gap-2 py-3 px-4 rounded-none data-[state=active]:bg-muted whitespace-nowrap">
                   Approved
-                  <Badge variant="secondary" className="rounded-full">
-                    {approvedCount}
-                  </Badge>
+                  <Badge variant="secondary" className="rounded-full">{approvedCount}</Badge>
                 </TabsTrigger>
                 <TabsTrigger value="rejected" className="flex items-center gap-2 py-3 px-4 rounded-none data-[state=active]:bg-muted whitespace-nowrap">
                   Rejected
-                  <Badge variant="secondary" className="rounded-full">
-                    {rejectedCount}
-                  </Badge>
+                  <Badge variant="secondary" className="rounded-full">{rejectedCount}</Badge>
                 </TabsTrigger>
               </TabsList>
 
@@ -404,51 +361,38 @@ export function LeaveManagement() {
                           <TableHead>Employee</TableHead>
                           <TableHead className="hidden md:table-cell">Designation</TableHead>
                           {isAdmin && <TableHead className="hidden xl:table-cell">Office</TableHead>}
-                          <TableHead className="hidden sm:table-cell">Leave Type</TableHead>
-                          <TableHead>From</TableHead>
-                          <TableHead className="hidden sm:table-cell">To</TableHead>
-                          <TableHead className="hidden md:table-cell text-center">Days</TableHead>
+                          <TableHead>Subject</TableHead>
                           <TableHead>Status</TableHead>
+                          <TableHead className="hidden sm:table-cell">Date</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {loading ? (
                           <TableRow>
-                            <TableCell colSpan={isAdmin ? 10 : 9} className="text-center py-8 text-muted-foreground">
-                              Loading requests...
-                            </TableCell>
+                            <TableCell colSpan={isAdmin ? 8 : 7} className="text-center py-8 text-muted-foreground">Loading...</TableCell>
                           </TableRow>
-                        ) : leaveRequestData.length === 0 ? (
+                        ) : requestData.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={isAdmin ? 10 : 9} className="text-center py-8 text-muted-foreground">
-                              No leave requests found for this period.
-                            </TableCell>
+                            <TableCell colSpan={isAdmin ? 8 : 7} className="text-center py-8 text-muted-foreground">No requests found.</TableCell>
                           </TableRow>
                         ) : (
-                          leaveRequestData
+                          requestData
                             .filter((req) => tab === "all" || req.status?.toUpperCase() === tab.toUpperCase())
                             .map((request) => (
                               <TableRow key={request.id}>
                                 <TableCell className="hidden lg:table-cell font-mono text-xs">{request.employee?.employeeId || "N/A"}</TableCell>
-                                <TableCell className="font-medium whitespace-nowrap">
-                                  <div className="flex flex-col">
-                                    <span>{request.employeeName || request.employee?.employeeName}</span>
-                                    <span className="md:hidden text-[10px] text-muted-foreground">{request.leaveType}</span>
-                                  </div>
-                                </TableCell>
+                                <TableCell className="font-medium whitespace-nowrap">{request.employeeName || request.employee?.employeeName}</TableCell>
                                 <TableCell className="hidden md:table-cell">{request.employee?.position || "N/A"}</TableCell>
                                 {isAdmin && <TableCell className="hidden xl:table-cell">{request.employee?.location?.name || "N/A"}</TableCell>}
-                                <TableCell className="hidden sm:table-cell">{renderLeaveTypeBadge(request.leaveType)}</TableCell>
-                                <TableCell className="whitespace-nowrap">
+                                <TableCell className="max-w-[150px] sm:max-w-[200px] truncate">
                                   <div className="flex flex-col">
-                                    <span>{request.startDate ? new Date(request.startDate).toLocaleDateString() : "-"}</span>
-                                    <span className="sm:hidden text-[10px] text-muted-foreground">to {request.endDate ? new Date(request.endDate).toLocaleDateString() : "-"}</span>
+                                    <span>{request.subject}</span>
+                                    <span className="sm:hidden text-[10px] text-muted-foreground">{request.createdAt ? new Date(request.createdAt).toLocaleDateString() : "-"}</span>
                                   </div>
                                 </TableCell>
-                                <TableCell className="hidden sm:table-cell">{request.endDate ? new Date(request.endDate).toLocaleDateString() : "-"}</TableCell>
-                                <TableCell className="hidden md:table-cell text-center">{request.days}</TableCell>
                                 <TableCell>{renderStatusBadge(request.status)}</TableCell>
+                                <TableCell className="hidden sm:table-cell whitespace-nowrap">{request.createdAt ? new Date(request.createdAt).toLocaleDateString() : "-"}</TableCell>
                                 <TableCell className="text-right">
                                   <Button
                                     variant="ghost"
@@ -474,204 +418,70 @@ export function LeaveManagement() {
           </Card>
         </>
       ) : (
-        <Card>
-          <div className="p-6 text-sm text-muted-foreground">Loading...</div>
-        </Card>
+        <Card><div className="p-6 text-sm text-muted-foreground">Loading...</div></Card>
       )}
 
-      {/* Apply for Leave Dialog */}
+      {/* New Request Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Apply for Leave</DialogTitle>
-          </DialogHeader>
-          <AddLeaveRequestForm onSubmit={handleAddLeaveRequest} />
+          <DialogHeader><DialogTitle>Create New Request</DialogTitle></DialogHeader>
+          <AddAdminRequestForm onSubmit={handleAddRequest} />
         </DialogContent>
       </Dialog>
 
-      {/* View Request Details Dialog */}
+      {/* View Details Dialog */}
       {mounted && (
         <Dialog open={viewOpen} onOpenChange={setViewOpen}>
           <DialogContent className="sm:max-w-[520px]">
-            <DialogHeader>
-              <DialogTitle>Leave Request Details</DialogTitle>
-            </DialogHeader>
-            <LeaveRequestDetails
-              request={selectedRequest}
-              isAdmin={isAdmin}
-              onApprove={async (data: any) => {
-                await handleApproveRequest(selectedRequest.id, data)
-                setViewOpen(false)
-              }}
-              onReject={async () => {
-                await handleRejectRequest(selectedRequest.id)
-                setViewOpen(false)
-              }}
-              onClose={() => setViewOpen(false)}
-              renderStatusBadge={renderStatusBadge}
-            />
+            <DialogHeader><DialogTitle>Request Details</DialogTitle></DialogHeader>
+            {selectedRequest && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs text-muted-foreground uppercase font-bold">Employee</Label>
+                    <p className="text-sm font-medium mt-1">{selectedRequest.employeeName || selectedRequest.employee?.employeeName}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground uppercase font-bold">Status</Label>
+                    <div className="mt-1">{renderStatusBadge(selectedRequest.status)}</div>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground uppercase font-bold">Subject</Label>
+                  <p className="text-sm font-medium mt-1 p-2 bg-muted/50 rounded border">{selectedRequest.subject}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground uppercase font-bold">Details</Label>
+                  <p className="text-sm mt-1 p-3 bg-muted/30 rounded-lg border min-h-[100px] whitespace-pre-wrap">{selectedRequest.details}</p>
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  {selectedRequest.status?.toUpperCase() === "PENDING" && isAdmin ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        className="text-red-600 bg-transparent"
+                        onClick={() => handleUpdateStatus(selectedRequest.id, "Rejected")}
+                        disabled={updatingStatus}
+                      >
+                        Reject
+                      </Button>
+                      <Button
+                        className="bg-green-600 hover:bg-green-700"
+                        onClick={() => handleUpdateStatus(selectedRequest.id, "Approved")}
+                        disabled={updatingStatus}
+                      >
+                        {updatingStatus ? "Processing..." : "Approve"}
+                      </Button>
+                    </>
+                  ) : (
+                    <Button onClick={() => setViewOpen(false)} variant="secondary">Close</Button>
+                  )}
+                </div>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       )}
-    </div>
-  )
-}
-
-function LeaveRequestDetails({ request, isAdmin, onApprove, onReject, onClose, renderStatusBadge }: any) {
-  const [isEditing, setIsEditing] = useState(false)
-  const [formData, setFormData] = useState({
-    startDate: request?.startDate?.split("T")[0] || "",
-    endDate: request?.endDate?.split("T")[0] || "",
-    days: request?.days || 1
-  })
-
-  useEffect(() => {
-    if (request) {
-      setFormData({
-        startDate: request.startDate?.split("T")[0] || "",
-        endDate: request.endDate?.split("T")[0] || "",
-        days: request.days || 1
-      })
-      setIsEditing(false)
-    }
-  }, [request])
-
-  if (!request) return <div className="text-sm text-muted-foreground">No request selected.</div>
-
-  const [loading, setLoading] = useState(false)
-
-  const handleSaveAndApprove = async () => {
-    setLoading(true)
-    try {
-      await onApprove(formData)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleReject = async () => {
-    setLoading(true)
-    try {
-      await onReject()
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleDateChange = (name: string, value: string) => {
-    setFormData(prev => {
-      const newData = { ...prev, [name]: value }
-      if (name === "startDate" || name === "endDate") {
-        const start = name === "startDate" ? new Date(value) : new Date(prev.startDate)
-        const end = name === "endDate" ? new Date(value) : new Date(prev.endDate)
-        if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-          const diffTime = Math.abs(end.getTime() - start.getTime())
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
-          newData.days = diffDays
-        }
-      }
-      return newData
-    })
-  }
-
-  const isPending = request.status?.toUpperCase() === "PENDING"
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label className="text-xs text-muted-foreground uppercase font-bold">Employee</Label>
-          <p className="text-sm font-medium mt-1">{request.employeeName || request.employee?.employeeName || "N/A"}</p>
-        </div>
-        <div>
-          <Label className="text-xs text-muted-foreground uppercase font-bold">Leave Type</Label>
-          <p className="text-sm font-medium mt-1">{request.leaveType}</p>
-        </div>
-        <div>
-          <Label className="text-xs text-muted-foreground uppercase font-bold">From</Label>
-          {isAdmin && isEditing && isPending ? (
-            <Input
-              type="date"
-              className="mt-1"
-              value={formData.startDate}
-              onChange={(e) => handleDateChange("startDate", e.target.value)}
-            />
-          ) : (
-            <p className="text-sm font-medium mt-1">{request.startDate ? new Date(request.startDate).toLocaleDateString() : "-"}</p>
-          )}
-        </div>
-        <div>
-          <Label className="text-xs text-muted-foreground uppercase font-bold">To</Label>
-          {isAdmin && isEditing && isPending ? (
-            <Input
-              type="date"
-              className="mt-1"
-              value={formData.endDate}
-              onChange={(e) => handleDateChange("endDate", e.target.value)}
-            />
-          ) : (
-            <p className="text-sm font-medium mt-1">{request.endDate ? new Date(request.endDate).toLocaleDateString() : "-"}</p>
-          )}
-        </div>
-        <div>
-          <Label className="text-xs text-muted-foreground uppercase font-bold">Days</Label>
-          {isAdmin && isEditing && isPending ? (
-            <Input
-              type="number"
-              className="mt-1"
-              value={formData.days}
-              readOnly
-            />
-          ) : (
-            <p className="text-sm font-medium mt-1">{request.days}</p>
-          )}
-        </div>
-        <div>
-          <Label className="text-xs text-muted-foreground uppercase font-bold">Status</Label>
-          <div className="mt-1">{renderStatusBadge(request.status)}</div>
-        </div>
-      </div>
-      <div>
-        <Label className="text-xs text-muted-foreground uppercase font-bold">Reason</Label>
-        <p className="text-sm mt-1 p-3 bg-muted/30 rounded-lg border">{request.reason}</p>
-      </div>
-
-      <div className="flex justify-between items-center pt-2 gap-2">
-        {isAdmin && isPending && !isEditing && (
-          <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
-            Modify Dates
-          </Button>
-        )}
-        {isAdmin && isPending && isEditing && (
-          <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>
-            Cancel Edit
-          </Button>
-        )}
-        
-        <div className="flex gap-2 ml-auto">
-          {isPending && isAdmin ? (
-            <>
-              <Button
-                variant="outline"
-                className="text-red-600 bg-transparent"
-                onClick={handleReject}
-                disabled={loading}
-              >
-                Reject
-              </Button>
-              <Button
-                className="bg-green-600 hover:bg-green-700 font-semibold"
-                onClick={handleSaveAndApprove}
-                disabled={loading}
-              >
-                {loading ? "Processing..." : (isEditing ? "Save & Approve" : "Approve")}
-              </Button>
-            </>
-          ) : (
-            <Button onClick={onClose} variant="secondary">Close</Button>
-          )}
-        </div>
-      </div>
     </div>
   )
 }

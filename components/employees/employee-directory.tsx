@@ -89,9 +89,12 @@ export default function EmployeeDirectory() {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [eligibilityImportDialogOpen, setEligibilityImportDialogOpen] = useState(false);
   const [credentialsDialog, setCredentialsDialog] = useState<{ open: boolean; email?: string; password?: string; message?: string }>({ open: false });
   const [importing, setImporting] = useState(false);
+  const [eligibilityImporting, setEligibilityImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const eligibilityFileInputRef = useRef<HTMLInputElement>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -435,6 +438,74 @@ export default function EmployeeDirectory() {
     reader.readAsArrayBuffer(file);
   };
 
+  const handleDownloadEligibilityTemplate = () => {
+    const headers = ["Employee ID", "Advance Eligibility Amount", "Loan Eligibility Amount"];
+    const exampleRow = ["EMP-001", "50000", "500000"];
+    
+    const wsData = [headers, exampleRow];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Eligibility Template");
+    XLSX.writeFile(wb, "Employee_Eligibility_Template.xlsx");
+  };
+
+  const handleEligibilityFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setEligibilityImporting(true);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: "array" });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: false }) as any[];
+
+        if (jsonData.length === 0) {
+          toast({ title: "Error", description: "The template is empty.", variant: "destructive" });
+          setEligibilityImporting(false);
+          return;
+        }
+
+        const mappedData = jsonData.map((row) => ({
+          employeeId: String(row["Employee ID"] || "").trim(),
+          advanceAmount: parseFloat(String(row["Advance Eligibility Amount"] || "0")) || 0,
+          loanAmount: parseFloat(String(row["Loan Eligibility Amount"] || "0")) || 0,
+        }));
+
+        const res = await fetch("/api/employees/bulk-eligibility", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data: mappedData }),
+        });
+
+        const result = await res.json();
+        if (res.ok && result.success) {
+          toast({ 
+            title: "Import Complete", 
+            description: `Successfully updated ${result.count} eligibility records. ${result.errors?.length ? `Failed: ${result.errors.length}.` : ''}` 
+          });
+          setEligibilityImportDialogOpen(false);
+          fetchEmployees();
+          if (result.errors?.length > 0) {
+             console.error("Eligibility Import Errors:", result.errors);
+             toast({ title: "Some Imports Failed", description: "Check browser console for error details.", variant: "destructive" });
+          }
+        } else {
+          toast({ title: "Import Error", description: result.message || "Failed to update eligibility.", variant: "destructive" });
+        }
+      } catch (error) {
+        toast({ title: "Error", description: "Failed to parse the Excel file.", variant: "destructive" });
+      } finally {
+        setEligibilityImporting(false);
+        if (event.target) event.target.value = "";
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
   const totalEmployees = employees.length;
   const totalShown = filteredData.length;
   const activeCount = filteredData.filter((e: any) => e.status?.startsWith("Active")).length;
@@ -549,8 +620,12 @@ export default function EmployeeDirectory() {
         <div className="flex gap-2">
           <Button variant="outline" className="flex items-center gap-2 bg-transparent border-emerald-600 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20" onClick={() => setImportDialogOpen(true)}>
             <FileUp className="h-4 w-4" />
-            <span className="hidden sm:inline">Import</span>
+            <span className="hidden lg:inline">Import</span>
           </Button>
+          {/* <Button variant="outline" className="flex items-center gap-2 bg-transparent border-sky-600 text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-900/20" onClick={() => setEligibilityImportDialogOpen(true)}>
+            <Download className="h-4 w-4" />
+            <span className="hidden lg:inline">Eligibility Import</span>
+          </Button> */}
           <Button variant="outline" className="flex items-center gap-2 bg-transparent" onClick={exportToCSV}>
             <Download className="h-4 w-4" />
             <span className="hidden sm:inline">Export</span>
@@ -740,6 +815,37 @@ export default function EmployeeDirectory() {
               disabled={importing}
             >
               {importing ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Importing Data...</> : <><FileUp className="h-4 w-4 mr-2" /> Upload Completed File</>}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={eligibilityImportDialogOpen} onOpenChange={setEligibilityImportDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader><DialogTitle>Bulk Import Eligibility amounts</DialogTitle></DialogHeader>
+          <div className="flex flex-col gap-4 py-4">
+            <div className="text-sm text-slate-500 bg-slate-50 dark:bg-slate-800 p-3 rounded-md">
+              <p className="mb-2"><strong>Step 1:</strong> Download the eligibility template and fill in Employee IDs with their respective advance and loan eligibility amounts.</p>
+              <p><strong>Step 2:</strong> Upload the completed file to bulk update eligibility amounts for existing employees.</p>
+            </div>
+            
+            <Button variant="outline" onClick={handleDownloadEligibilityTemplate} className="w-full">
+              <Download className="h-4 w-4 mr-2" /> Download Eligibility Template
+            </Button>
+            
+            <input 
+              type="file" 
+              accept=".xlsx,.xls,.csv" 
+              className="hidden" 
+              ref={eligibilityFileInputRef}
+              onChange={handleEligibilityFileUpload}
+            />
+            <Button 
+              className="w-full bg-sky-600 hover:bg-sky-700 text-white" 
+              onClick={() => eligibilityFileInputRef.current?.click()}
+              disabled={eligibilityImporting}
+            >
+              {eligibilityImporting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Updating Eligibility...</> : <><FileUp className="h-4 w-4 mr-2" /> Upload Eligibility File</>}
             </Button>
           </div>
         </DialogContent>

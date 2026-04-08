@@ -40,7 +40,7 @@ export function RoleGuard({ children }: { children: React.ReactNode }) {
     return PermissionDenied();
   }
 
-  if (employeeOnly && !accessingLoansOrAdvances) {
+  if (employeeOnly && !accessingLoansOrAdvances && !pathname.startsWith("/dashboard/leave-management") && !pathname.startsWith("/dashboard/admin-requests")) {
     return PermissionDenied();
   }
 

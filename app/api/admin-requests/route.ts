@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       }
       where.employeeId = employee.id;
     } else {
-      if (locationId) {
+      if (locationId && locationId !== "all") {
         where.employee = { locationId };
       } else if (!isSuperAdmin) {
         where.employee = { locationId: user.locationId };
@@ -44,13 +44,13 @@ export async function GET(request: NextRequest) {
       const startOfMonth = new Date(y, m - 1, 1);
       const endOfMonth = new Date(y, m, 0, 23, 59, 59);
 
-      where.startDate = {
+      where.createdAt = {
         gte: startOfMonth,
         lte: endOfMonth,
       };
     }
 
-    const requests = await prisma.leaveRequest.findMany({
+    const requests = await prisma.adminRequest.findMany({
       where,
       include: {
         employee: {
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error(error);
     return NextResponse.json(
-      { error: "Failed to fetch leave requests" },
+      { error: "Failed to fetch admin requests" },
       { status: 500 }
     );
   }
@@ -80,14 +80,7 @@ export async function POST(req: NextRequest) {
     const isAdmin = isAdminUser(user);
     const body = await req.json();
 
-    const parseDate = (val: any) => {
-      if (val === null || val === undefined || val === "") return null;
-      if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
-      const parsed = new Date(val);
-      return isNaN(parsed.getTime()) ? null : parsed;
-    };
-
-    let employeeId: string | undefined = body.employeeId ?? body.employee_id ?? undefined;
+    let employeeId: string | undefined = body.employeeId;
 
     if (!isAdmin) {
       const employee = await prisma.employee.findUnique({
@@ -100,12 +93,12 @@ export async function POST(req: NextRequest) {
       employeeId = employee.id;
       body.employeeName = employee.employeeName;
 
-      // Constraint: employees can submit leaves again only if there aren't any pending requests in current month.
+      // Constraint: only one pending request per month per employee
       const now = new Date();
       const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
       const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
-      const pendingRequest = await prisma.leaveRequest.findFirst({
+      const pendingRequest = await prisma.adminRequest.findFirst({
         where: {
           employeeId,
           status: "PENDING",
@@ -118,7 +111,7 @@ export async function POST(req: NextRequest) {
 
       if (pendingRequest) {
         return NextResponse.json(
-          { error: "You already have a pending leave request for this month." },
+          { error: "You already have a pending admin request for this month." },
           { status: 400 }
         );
       }
@@ -133,29 +126,27 @@ export async function POST(req: NextRequest) {
     }
 
     if (!employeeId) {
-      return NextResponse.json(
-        { error: "Missing or unknown employeeId for leave request" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing employee information" }, { status: 400 });
+    }
+
+    if (!body.subject || !body.details) {
+      return NextResponse.json({ error: "Subject and Details are required" }, { status: 400 });
     }
 
     const data: any = {
       employeeId,
       employeeName: body.employeeName ?? null,
-      leaveType: body.leaveType ?? null,
-      startDate: parseDate(body.startDate),
-      endDate: parseDate(body.endDate),
-      days: body.days ? parseInt(body.days.toString()) : null,
-      reason: body.reason ?? null,
+      subject: body.subject,
+      details: body.details,
       status: isAdmin ? (body.status ?? "PENDING") : "PENDING",
     };
 
-    const created = await prisma.leaveRequest.create({ data });
+    const created = await prisma.adminRequest.create({ data });
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
     console.error(error);
     return NextResponse.json(
-      { error: "Failed to create leave request" },
+      { error: "Failed to create admin request" },
       { status: 500 }
     );
   }

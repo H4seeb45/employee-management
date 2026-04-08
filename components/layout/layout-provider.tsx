@@ -177,22 +177,22 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function load() {
       try {
-        const [empRes, projRes, attRes, leaveRes] = await Promise.all([
+        // projRes, attRes,
+        const [empRes,leaveRes ] = await Promise.all([
           fetch("/api/employees").then((r) => (r.ok ? r.json() : [])),
-          fetch("/api/projects").then((r) => (r.ok ? r.json() : [])),
-          fetch("/api/attendance").then((r) => (r.ok ? r.json() : [])),
+          // fetch("/api/projects").then((r) => (r.ok ? r.json() : [])),
+          // fetch("/api/attendance").then((r) => (r.ok ? r.json() : [])),
           fetch("/api/leave-requests").then((r) => (r.ok ? r.json() : [])),
         ]);
 
-        setEmployees(Array.isArray(empRes) ? empRes : []);
-        setAttendance(Array.isArray(attRes) ? attRes : []);
+        setEmployees(Array.isArray(empRes.employees) ? empRes.employees : (Array.isArray(empRes) ? empRes : []));
         setLeaveRequests(Array.isArray(leaveRes) ? leaveRes : []);
       } catch (err) {
         console.error("Failed to load initial data", err);
       }
     }
 
-    // load();
+    load();
   }, []);
 
   useEffect(() => {

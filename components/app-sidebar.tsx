@@ -20,6 +20,7 @@ import {
   ChevronRight,
   LogOut,
   PieChart,
+  MessageSquare,
 } from "lucide-react";
 import { useLayout } from "@/components/layout/layout-provider";
 import { motion, AnimatePresence } from "framer-motion";
@@ -28,12 +29,18 @@ const sidebarItems = [
   { name: "Dashboard", href: "/dashboard", icon: BarChart3 },
   { name: "Employees", href: "/dashboard/employees", icon: Users, requiredRoles: ["Business Manager", "Data Manager"] },
   // { name: "Attendance", href: "/dashboard/attendance", icon: Calendar, adminOnly: true },
-  // {
-  //   name: "Leave Management",
-  //   href: "/dashboard/leave-management",
-  //   icon: ClipboardList,
-  //   adminOnly: true,
-  // },
+  {
+    name: "Leave Management",
+    href: "/dashboard/leave-management",
+    icon: ClipboardList,
+    requiredRoles: ["Admin", "Employee"],
+  },
+  {
+    name: "Request to Admin",
+    href: "/dashboard/admin-requests",
+    icon: MessageSquare,
+    requiredRoles: ["Admin", "Employee"],
+  },
   // { name: "Payroll", href: "/dashboard/payroll", icon: Briefcase, adminOnly: true, },
   { name: "Advances", href: "/dashboard/advances", icon: Banknote, requiredRoles: ["Employee"] },
   { name: "Loans", href: "/dashboard/loans", icon: Banknote, requiredRoles: ["Employee"] },

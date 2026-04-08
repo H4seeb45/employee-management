@@ -78,6 +78,7 @@ model Employee {
   loans                     Loan[]
   advances                  Advance[]
   payrolls                  Payroll[]
+  adminRequests             AdminRequest[]
 }
 
 model User {
@@ -237,7 +238,21 @@ model LeaveRequest {
   endDate      DateTime?
   days         Int?
   reason       String?
-  status       String?
+  status       String?   @default("PENDING")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  employee     Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model AdminRequest {
+  id           String    @id @default(cuid())
+  employeeId   String
+  employeeName String?
+  subject      String
+  details      String
+  status       String    @default("PENDING")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
   employee     Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
 
