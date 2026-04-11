@@ -42,14 +42,14 @@ const sidebarItems = [
     requiredRoles: ["Admin", "Employee"],
   },
   // { name: "Payroll", href: "/dashboard/payroll", icon: Briefcase, adminOnly: true, },
-  { name: "Advances", href: "/dashboard/advances", icon: Banknote, requiredRoles: ["Employee"] },
-  { name: "Loans", href: "/dashboard/loans", icon: Banknote, requiredRoles: ["Employee"] },
   {
     name: "Expenses",
     href: "/dashboard/expenses",
     icon: Briefcase,
     requiredRoles: ["Cashier", "Accountant"],
   },
+  { name: "Advances", href: "/dashboard/advances", icon: Banknote, requiredRoles: ["Employee", "Cashier"] },
+  { name: "Loans", href: "/dashboard/loans", icon: Banknote, requiredRoles: ["Employee", "Cashier"] },
   {
     name: "Expense Types",
     href: "/dashboard/expense-types",

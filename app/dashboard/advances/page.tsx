@@ -65,7 +65,7 @@ export default function AdvancesPage() {
   const [currentUser, setCurrentUser] = useState<any>(null);
 
   const isAdmin = currentUser?.roles?.includes("Admin") || currentUser?.roles?.includes("Super Admin");
-  const isCashier = currentUser?.roles?.includes("Cashier") || currentUser?.roles?.includes("Accountant");
+  const isCashier = currentUser?.roles?.includes("Cashier");
   const isEmployee = currentUser?.roles?.includes("Employee");
   const isBusinessManager = currentUser?.roles?.includes("Business Manager");
   
@@ -664,7 +664,7 @@ export default function AdvancesPage() {
                   )}
                   <TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">Status</TableHead>
                   
-                  {isAdmin && (<TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 text-right">Actions</TableHead>)}
+                  {(isAdmin || isCashier) && (<TableHead className="uppercase text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 text-right">Actions</TableHead>)}
                 </TableRow>
               </TableHeader>
               <TableBody>
