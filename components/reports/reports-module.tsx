@@ -45,12 +45,13 @@ import {
   Search,
   Loader2,
   X,
-  ChevronDown,
   ChevronRight,
+  ChevronLeft,
   CheckCircle2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { VehicleWiseReport } from "./vehicle-wise-report";
 
 // --- Types ---
 
@@ -71,13 +72,14 @@ type BudgetReport = {
 
 type ExpenseDetailed = {
   id: string;
-  expenseType: {name: string,id:string,expenseCode:string};
+  expenseType: {name: string, id: string, expenseCode: string, requiresRouteAndVehicle: boolean};
   details: string | null;
   amount: number;
   status: string;
   createdAt: string;
-  location?: { name: string; city: string };
-  route?: { routeNo: string; name: string };
+  location?: { id: string; name: string; city: string };
+  locationId?: string;
+  route?: { id: string; routeNo: string; name: string; locationId: string };
   vehicle?: { vehicleNo: string };
   createdBy?: { email: string };
   items?: any[];
@@ -132,6 +134,13 @@ export function ReportsModule({ roles }: { roles: string[] }) {
   const [filterRoute, setFilterRoute] = useState("all");
   const [filterVehicle, setFilterVehicle] = useState("all");
   const [filterLocation, setFilterLocation] = useState("all");
+  const [filterRouteWiseFromDate, setFilterRouteWiseFromDate] = useState("");
+  const [filterRouteWiseToDate, setFilterRouteWiseToDate] = useState("");
+
+  const [routeWiseData, setRouteWiseData] = useState<any[]>([]);
+  const [routeWiseColumns, setRouteWiseColumns] = useState<string[]>([]);
+  const [routeWiseRows, setRouteWiseRows] = useState<string[]>([]);
+  const [routeWisePivot, setRouteWisePivot] = useState<Record<string, Record<string, number>>>({});
 
   const [routes, setRoutes] = useState<any[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
@@ -141,6 +150,9 @@ export function ReportsModule({ roles }: { roles: string[] }) {
   const budgetPrintRef = useRef<HTMLDivElement>(null);
   const expensePrintRef = useRef<HTMLDivElement>(null);
   const routeVehiclePrintRef = useRef<HTMLDivElement>(null);
+  const routeWisePrintRef = useRef<HTMLDivElement>(null);
+  const routeWiseScrollRef = useRef<any>(null);
+  const mtdScrollRef = useRef<any>(null);
 
   // --- Printing ---
   const handlePrintBudget = useReactToPrint({
@@ -156,6 +168,11 @@ export function ReportsModule({ roles }: { roles: string[] }) {
   const handlePrintRouteVehicle = useReactToPrint({
     contentRef: routeVehiclePrintRef,
     documentTitle: "Routes and Vehicles Report",
+  });
+
+  const handlePrintRouteWise = useReactToPrint({
+    contentRef: routeWisePrintRef,
+    documentTitle: "Route Wise Expense Report",
   });
 
   const canSeeAllLocations = roles.some(role => ["Admin", "Super Admin", "Accountant"].includes(role));
@@ -176,6 +193,26 @@ export function ReportsModule({ roles }: { roles: string[] }) {
     if (routeVehiclePrintRef.current) {
       handlePrintRouteVehicle();
     }
+  };
+
+  const onPrintRouteWise = () => {
+    if (routeWisePrintRef.current) {
+      handlePrintRouteWise();
+    }
+  };
+
+  const scrollContainer = (ref: React.RefObject<any>, direction: 'left' | 'right') => {
+    let el = ref.current;
+    if (!el) return;
+
+    if (el.tagName === 'TABLE') {
+      const parent = el.parentElement;
+      if (parent) el = parent;
+    }
+    
+    const scrollAmount = 500;
+    const target = el.scrollLeft + (direction === 'left' ? -scrollAmount : scrollAmount);
+    el.scrollTo({ left: target, behavior: 'smooth' });
   };
 
   // --- Fetch Logic ---
@@ -274,6 +311,78 @@ export function ReportsModule({ roles }: { roles: string[] }) {
     }
   };
 
+  const fetchRouteWiseReport = async () => {
+    setLoading(true);
+    setRouteWiseData([]);
+    try {
+      const params = new URLSearchParams();
+      if (filterLocation !== "all") params.append("locationId", filterLocation);
+      if (filterRouteWiseFromDate) params.append("fromDate", filterRouteWiseFromDate);
+      if (filterRouteWiseToDate) params.append("toDate", filterRouteWiseToDate);
+      params.append("status", "APPROVED,DISBURSED"); // Usually only care about approved/disbursed for reports
+
+      const res = await fetch(`/api/reports/expenses?${params}`);
+      const data = await res.json();
+      if (res.ok) {
+        const expenses: ExpenseDetailed[] = data.expenses;
+        
+        const pivot: Record<string, Record<string, number>> = {};
+        const routesSet = new Set<string>();
+        const expenseTypesSet = new Set<string>();
+
+        // Filter valid routes based on the current location if one is selected
+        const locationRoutes = filterLocation !== "all" 
+          ? routes.filter(r => r.locationId === filterLocation || r.location?.id === filterLocation)
+          : routes;
+
+        expenses.forEach(exp => {
+          if (!exp.expenseType?.requiresRouteAndVehicle) return;
+
+          const typeName = exp.expenseType?.name || "Other";
+          expenseTypesSet.add(typeName);
+
+          if (exp.items && Array.isArray(exp.items) && exp.items.length > 0) {
+            exp.items.forEach((item: any) => {
+              const rNo = item.routeNo;
+              if (rNo) {
+                // Find route from the filtered locationRoutes list
+                const routeObj = locationRoutes.find(r => r.routeNo === rNo);
+                if (routeObj) {
+                  const rName = routeObj.name;
+                  routesSet.add(rName);
+                  if (!pivot[typeName]) pivot[typeName] = {};
+                  pivot[typeName][rName] = (pivot[typeName][rName] || 0) + (Number(item.amount) || 0);
+                }
+              }
+            });
+          } else if (exp.route) {
+            // Check if the route is part of the valid location-based routes
+            const routeValid = filterLocation === "all" || exp.route.locationId === filterLocation || exp.locationId === filterLocation;
+            if (routeValid) {
+              const rName = exp.route.name;
+              routesSet.add(rName);
+              if (!pivot[typeName]) pivot[typeName] = {};
+              pivot[typeName][rName] = (pivot[typeName][rName] || 0) + exp.amount;
+            }
+          }
+        });
+
+        // Optional: If a location is selected, always show ALL routes of that location as columns
+        if (filterLocation !== "all") {
+          locationRoutes.forEach(r => routesSet.add(r.name));
+        }
+
+        setRouteWisePivot(pivot);
+        setRouteWiseColumns(Array.from(routesSet).sort());
+        setRouteWiseRows(Array.from(expenseTypesSet).sort());
+      }
+    } catch (err) {
+      setError("Failed to fetch route-wise expense report");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchRoutesAndVehicles();
   }, []);
@@ -304,6 +413,7 @@ export function ReportsModule({ roles }: { roles: string[] }) {
       fetchExpenseTypes(filterLocation);
     }
     if (activeTab === "routes-vehicles") fetchRouteVehicleReport();
+    if (activeTab === "route-wise-expense") fetchRouteWiseReport();
   }, [activeTab, filterLocation, filterMonthStr, showMtdView]);
 
   const getRouteDisplay = (e: ExpenseDetailed) => {
@@ -436,6 +546,33 @@ export function ReportsModule({ roles }: { roles: string[] }) {
     exportToExcel([...routes, ...vehicles], "Routes_Vehicles_Report");
   };
 
+  const handleExportRouteWise = () => {
+    const data = routeWiseRows.map(row => {
+      const excelRow: any = { "Expense Type": row };
+      let rowTotal = 0;
+      routeWiseColumns.forEach(col => {
+        const val = routeWisePivot[row]?.[col] || 0;
+        excelRow[col] = val;
+        rowTotal += val;
+      });
+      excelRow["Grand Total"] = rowTotal;
+      return excelRow;
+    });
+
+    // Add total row
+    const totalRow: any = { "Expense Type": "Grand Total" };
+    let grandTotal = 0;
+    routeWiseColumns.forEach(col => {
+      const colTotal = routeWiseRows.reduce((sum, row) => sum + (routeWisePivot[row]?.[col] || 0), 0);
+      totalRow[col] = colTotal;
+      grandTotal += colTotal;
+    });
+    totalRow["Grand Total"] = grandTotal;
+    data.push(totalRow);
+
+    exportToExcel(data, "Route_Wise_Expense_Report");
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2">
@@ -444,7 +581,7 @@ export function ReportsModule({ roles }: { roles: string[] }) {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-full lg:w-auto h-auto grid grid-cols-1 md:grid-cols-3">
+        <TabsList className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-full h-auto flex flex-wrap gap-1">
           <TabsTrigger value="budget" className="rounded-lg py-2.5">
             <TrendingUp className="h-4 w-4 mr-2" />
             Budget Report
@@ -456,6 +593,14 @@ export function ReportsModule({ roles }: { roles: string[] }) {
           <TabsTrigger value="routes-vehicles" className="rounded-lg py-2.5">
             <Truck className="h-4 w-4 mr-2" />
             Routes & Vehicles
+          </TabsTrigger>
+          <TabsTrigger value="route-wise-expense" className="rounded-lg py-2.5">
+            <FileText className="h-4 w-4 mr-2" />
+            Route Wise Expense
+          </TabsTrigger>
+          <TabsTrigger value="vehicle-wise" className="rounded-lg py-2.5">
+            <Truck className="h-4 w-4 mr-2" />
+            Vehicle Wise Expense
           </TabsTrigger>
         </TabsList>
 
@@ -634,11 +779,19 @@ export function ReportsModule({ roles }: { roles: string[] }) {
             {/* MTD View */}
             {showMtdView && !loading && mtdData && (
                 <Card className="mt-8 border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-                    <CardHeader className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                    <CardHeader className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 flex flex-row items-center justify-between">
                         <CardTitle className="text-lg">Month To Date Expenses: {mtdData.monthAbbr} {mtdData.year}</CardTitle>
+                        <div className="flex gap-1 print:hidden">
+                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => scrollContainer(mtdScrollRef, 'left')}>
+                                <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => scrollContainer(mtdScrollRef, 'right')}>
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
                     </CardHeader>
-                    <CardContent className="p-0 max-w-[1182px]">
-                        <Table>
+                    <CardContent className="p-0 w-full max-w-[1150px] relative">
+                        <Table ref={mtdScrollRef} className="custom-scrollbar">
                             <TableHeader>
                                 <TableRow className="bg-slate-50/50 dark:bg-slate-900/50 whitespace-nowrap">
                                     <TableHead className="md:sticky md:left-0 bg-slate-50 dark:bg-slate-900 min-w-[200px]">Details</TableHead>
@@ -1085,7 +1238,189 @@ export function ReportsModule({ roles }: { roles: string[] }) {
               </div>
            </div>
         </TabsContent>
-      </Tabs>
+        
+        {/* --- Route Wise Expense Report Tab --- */}
+        <TabsContent value="route-wise-expense" className="space-y-4">
+          <div className="flex flex-col gap-4 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <h2 className="text-lg font-semibold">Route Wise Expense Report</h2>
+                <p className="text-sm text-slate-500">Expense breakdown by route and expense type</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={handleExportRouteWise}>
+                  <Download className="h-4 w-4 mr-2" /> Export Excel
+                </Button>
+                <Button size="sm" onClick={onPrintRouteWise}>
+                  <Printer className="h-4 w-4 mr-2" /> Print Report
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end border-t pt-4">
+              {canSeeAllLocations && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Location</Label>
+                  <SearchableSelect
+                    value={filterLocation}
+                    onValueChange={setFilterLocation}
+                    options={[
+                      { value: "all", label: "All Locations" },
+                      ...locations.map(l => ({ value: l.id, label: `${l.name} (${l.city})` }))
+                    ]}
+                    placeholder="Filter by Location"
+                  />
+                </div>
+              )}
+              <div className="space-y-1">
+                <Label className="text-xs">From Date</Label>
+                <Input 
+                  type="date" 
+                  value={filterRouteWiseFromDate} 
+                  onChange={(e) => setFilterRouteWiseFromDate(e.target.value)}
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">To Date</Label>
+                <Input 
+                  type="date" 
+                  value={filterRouteWiseToDate} 
+                  onChange={(e) => setFilterRouteWiseToDate(e.target.value)}
+                  className="h-9"
+                />
+              </div>
+              <Button 
+                onClick={fetchRouteWiseReport} 
+                disabled={loading}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Search className="h-4 w-4 mr-2" />}
+                Generate Report
+              </Button>
+            </div>
+          </div>
+
+          <div ref={routeWisePrintRef} className="print:p-8">
+            <div className="hidden print:block mb-8 text-center border-b-2 border-slate-200 pb-4">
+              <h1 className="text-3xl font-bold text-slate-900 border-b-2 border-black inline-block mb-2">SADIQ TRADERS HRMS</h1>
+              <h2 className="text-xl font-bold text-slate-700">Route Wise Expense Report</h2>
+              <div className="flex justify-center gap-4 text-xs text-slate-500 mt-2">
+                {filterLocation !== 'all' && <span>Location: {locations.find(l => l.id === filterLocation)?.name}</span>}
+                {filterRouteWiseFromDate && <span>From: {filterRouteWiseFromDate}</span>}
+                {filterRouteWiseToDate && <span>To: {filterRouteWiseToDate}</span>}
+                <span>Generated: {new Date().toLocaleString()}</span>
+              </div>
+            </div>
+
+            <Card className="border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden w-full max-w-[1180px]">
+              <div className="bg-slate-50 dark:bg-slate-800/50 border-b px-4 py-2 flex items-center justify-between print:hidden">
+                <span className="text-xs font-medium text-slate-500">Report Preview</span>
+                <div className="flex gap-1">
+                  <Button type="button" variant="outline" size="icon" className="h-8 w-8 dark:bg-slate-900 shadow-sm hover:bg-slate-100 z-50" onClick={() => scrollContainer(routeWiseScrollRef, 'left')}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button type="button" variant="outline" size="icon" className="h-8 w-8 dark:bg-slate-900 shadow-sm hover:bg-slate-100 z-50" onClick={() => scrollContainer(routeWiseScrollRef, 'right')}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="w-full">
+                <Table ref={routeWiseScrollRef} className="border-collapse custom-scrollbar">
+                  <TableHeader>
+                    <TableRow className="bg-slate-100 dark:bg-slate-800 border-b-2 border-slate-200 dark:border-slate-700">
+                      <TableHead className="font-bold text-slate-900 dark:text-white border-r min-w-[200px] sticky left-0 bg-slate-100 dark:bg-slate-800 z-20">Expense Type</TableHead>
+                      {routeWiseColumns.map(col => (
+                        <TableHead key={col} className="text-center font-bold text-slate-900 dark:text-white border-r px-4 uppercase text-[10px]">
+                          {col}
+                        </TableHead>
+                      ))}
+                      <TableHead className="text-right font-bold text-slate-900 dark:text-white bg-slate-200/50 dark:bg-slate-700/50 min-w-[120px]">Grand Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loading && (
+                      <TableRow>
+                        <TableCell colSpan={routeWiseColumns.length + 2} className="h-64 text-center">
+                          <Loader2 className="h-10 w-10 animate-spin mx-auto text-blue-600 mb-4" />
+                          <p className="text-slate-500 font-medium">Processing report data...</p>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    
+                    {!loading && routeWiseRows.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={routeWiseColumns.length + 2} className="h-40 text-center text-slate-500">
+                          No expense data found for the selected criteria.
+                        </TableCell>
+                      </TableRow>
+                    )}
+
+                    {!loading && routeWiseRows.map(row => {
+                      let rowTotal = 0;
+                      return (
+                        <TableRow key={row} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors border-b">
+                          <TableCell className="font-medium text-slate-900 dark:text-slate-200 border-r sticky left-0 bg-white dark:bg-slate-900 z-10">{row}</TableCell>
+                          {routeWiseColumns.map(col => {
+                            const val = routeWisePivot[row]?.[col] || 0;
+                            rowTotal += val;
+                            return (
+                              <TableCell key={col} className="text-right border-r px-4 text-xs">
+                                {val > 0 ? new Intl.NumberFormat("en-PK").format(val) : '-'}
+                              </TableCell>
+                            );
+                          })}
+                          <TableCell className="text-right font-bold bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white">
+                            {new Intl.NumberFormat("en-PK").format(rowTotal)}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                  {routeWiseRows.length > 0 && (
+                    <tfoot className="bg-slate-100 dark:bg-slate-800 border-t-2 border-slate-200 dark:border-slate-700 font-bold">
+                      <TableRow>
+                        <TableCell className="sticky left-0 bg-slate-100 dark:bg-slate-800 z-10 border-r text-slate-600">Total</TableCell>
+                        {routeWiseColumns.map(col => {
+                          const colTotal = routeWiseRows.reduce((sum, row) => sum + (routeWisePivot[row]?.[col] || 0), 0);
+                          return (
+                            <TableCell key={col} className="text-right border-r px-4 text-sm text-blue-600">
+                              {new Intl.NumberFormat("en-PK").format(colTotal)}
+                            </TableCell>
+                          );
+                        })}
+                        <TableCell className="text-right text-lg text-blue-700 bg-blue-50/30 dark:bg-blue-900/10">
+                          {new Intl.NumberFormat("en-PK", { style: "currency", currency: "PKR", maximumFractionDigits: 0 }).format(
+                            routeWiseRows.reduce((sum, row) => {
+                              const rt = Object.values(routeWisePivot[row] || {}).reduce((s, v) => s + v, 0);
+                              return sum + rt;
+                            }, 0)
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    </tfoot>
+                  )}
+                </Table>
+              </div>
+            </Card>
+
+            <div className="hidden print:block mt-12 pt-4 border-t border-slate-200 text-center">
+              <p className="text-[10px] text-slate-400 italic">This is a computer-generated report and does not require a physical signature.</p>
+              <p className="text-[8px] text-slate-300">Generated via Sadiq Traders HRMS</p>
+            </div>
+          </div>
+            </TabsContent>
+
+            <TabsContent value="vehicle-wise" className="space-y-4">
+                <VehicleWiseReport 
+                    locations={locations}
+                    vehicles={vehicles}
+                    filterLocation={filterLocation}
+                    setFilterLocation={setFilterLocation}
+                    canSeeAllLocations={canSeeAllLocations}
+                />
+            </TabsContent>
+        </Tabs>
 
       <style jsx global>{`
         @media print {
@@ -1112,6 +1447,26 @@ export function ReportsModule({ roles }: { roles: string[] }) {
             overflow: visible !important;
             height: auto !important;
           }
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+          height: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #334155;
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #475569;
         }
       `}</style>
     </div>

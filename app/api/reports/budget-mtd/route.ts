@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
 // console.log("where",where);
     const currentExpensesRaw = await prisma.expenseSheet.findMany({
         where: {
-            locationId: locationId as string,
+            ...where,
             createdAt: { gte: startOfMonth, lt: endOfMonth },
             status: { in: ["APPROVED", "DISBURSED"] },
         },

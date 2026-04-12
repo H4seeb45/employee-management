@@ -90,8 +90,12 @@ export async function GET(request: NextRequest) {
 
   // Search by status
   const status = searchParams.get("status");
-  if (status) {
-    where.status = status;
+  if (status && status !== "all") {
+    if (status.includes(",")) {
+      where.status = { in: status.split(",") };
+    } else {
+      where.status = status;
+    }
   }
 
   // Search by expense type

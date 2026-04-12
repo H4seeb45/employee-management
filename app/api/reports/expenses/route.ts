@@ -40,7 +40,11 @@ export async function GET(request: NextRequest) {
   // Status filter
   const status = searchParams.get("status");
   if (status && status !== "all") {
-    where.status = status;
+    if (status.includes(",")) {
+      where.status = { in: status.split(",") };
+    } else {
+      where.status = status;
+    }
   }
 
   // Expense Type filter
