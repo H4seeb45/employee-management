@@ -38,7 +38,8 @@ export async function GET(request: NextRequest) {
         employee: {
           include: {
             loans: { where: { status: { not: "Rejected" } }, select: { balance: true } },
-            advances: { where: { status: { not: "Rejected" } }, select: { balance: true } }
+            advances: { where: { status: { not: "Rejected" } }, select: { balance: true } },
+            location: true
           }
         } 
       },

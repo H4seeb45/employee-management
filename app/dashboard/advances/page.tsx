@@ -1,7 +1,8 @@
 "use client";
 
-import { Loader2, Plus, Download, MoreHorizontal, FileText, Check, X, HandCoins, Pencil, FileUp } from "lucide-react";
+import { Loader2, Plus, Download, MoreHorizontal, FileText, Check, X, HandCoins, Pencil, FileUp, Printer } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
+import { useReactToPrint } from "react-to-print";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DisburseVoucher } from "@/components/reports/disburse-voucher";
 
 function formatDate(dt: string | null) {
   if (!dt) return "-";
@@ -76,6 +78,12 @@ export default function AdvancesPage() {
   const [editNotes, setEditNotes] = useState<string>("");
   const [savingEdit, setSavingEdit] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [printingAdvance, setPrintingAdvance] = useState<any>(null);
+  const printRef = useRef<HTMLDivElement>(null);
+
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+  });
   const fetchRecords = async () => {
     try {
       const [advanceData, employeeData, authData] = await Promise.all([
@@ -736,10 +744,24 @@ export default function AdvancesPage() {
                                 <Pencil className="h-4 w-4" /><span className="sr-only">Edit</span>
                             </Button>
                          )}
-                         {adv.status === "Approved" && isCashier && (
-                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/30" onClick={() => handleStatusUpdate(adv.id, "Disbursed")} title="Disburse">
-                                <HandCoins className="h-4 w-4" /><span className="sr-only">Disburse</span>
-                            </Button>
+                         {(adv.status === "Approved" || adv.status === "Disbursed") && isCashier && (
+                            <div className="flex gap-1">
+                              {adv.status === "Approved" && <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/30" onClick={() => handleStatusUpdate(adv.id, "Disbursed")} title="Disburse">
+                                  <HandCoins className="h-4 w-4" /><span className="sr-only">Disburse</span>
+                              </Button>}
+                              {adv.status === "Disbursed" && <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                className="h-8 w-8 p-0 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/30" 
+                                onClick={() => {
+                                  setPrintingAdvance(adv);
+                                  setTimeout(() => handlePrint(), 50);
+                                }} 
+                                title="Print Disburse Report"
+                              >
+                                  <Printer className="h-4 w-4" /><span className="sr-only">Print</span>
+                              </Button>}
+                            </div>
                          )}
                        </div>
                     </TableCell>
@@ -750,6 +772,16 @@ export default function AdvancesPage() {
           )}
         </CardContent>
       </Card>
+
+      <div className="hidden">
+        <DisburseVoucher 
+          ref={printRef} 
+          record={printingAdvance ? {
+            ...printingAdvance,
+            type: "Advance"
+          } : null} 
+        />
+      </div>
     </div>
   );
 }
