@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser, isAdminUser, isSuperAdminUser } from "@/lib/auth";
+import { getCurrentUser, hasRole, isAdminUser, isSuperAdminUser } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser(request);
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: "Unauthorized." }, { status: 401 });
   }
 
-  if (!isAdminUser(user)) {
+  if (!isAdminUser(user) && !hasRole(user, "Business Manager") && !hasRole(user, "Data Manager")) {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 
