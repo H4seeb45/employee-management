@@ -76,9 +76,9 @@ export async function POST(request: NextRequest) {
     const date = startOfDay(new Date(dateStr));
     const today = startOfDay(new Date());
 
-    if (date < today) {
-      return NextResponse.json({ message: "Cannot edit or add records for previous dates." }, { status: 400 });
-    }
+    // if (date < today) {
+    //   return NextResponse.json({ message: "Cannot edit or add records for previous dates." }, { status: 400 });
+    // }
 
     await prisma.$transaction(async (tx) => {
       // Clear existing entries for this date and location

@@ -74,7 +74,8 @@ export function LoaderModule({ user, isAdmin }: { user: any; isAdmin: boolean })
   const [isSaving, setIsSaving] = useState(false);
 
   // Requirement: no records can be added or edited in previous dates.
-  const isPreviousDate = isBefore(startOfDay(date), startOfDay(new Date()));
+  // isBefore(startOfDay(date), startOfDay(new Date()));
+  const isPreviousDate = false
 
   // Fetch locations if Admin
   const fetchLocations = async () => {
@@ -183,6 +184,13 @@ export function LoaderModule({ user, isAdmin }: { user: any; isAdmin: boolean })
   const netAttendance = totalLoaders - (parseInt(summary.dailyWages.toString()) || 0);
 
   const handleSave = async () => {
+    // Validation: make sure vehicles are selected in all records
+    const hasIncompleteEntries = entries.some(entry => !entry.vehicleId);
+    if (hasIncompleteEntries) {
+      toast.error("Please select a vehicle for all records before syncing.");
+      return;
+    }
+
     setIsSaving(true);
     try {
       const res = await fetch("/api/loaders", {
