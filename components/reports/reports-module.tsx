@@ -52,6 +52,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { VehicleWiseReport } from "./vehicle-wise-report";
+import { LoaderReport } from "./loader-report";
 
 // --- Types ---
 
@@ -601,6 +602,10 @@ export function ReportsModule({ roles }: { roles: string[] }) {
           <TabsTrigger value="vehicle-wise" className="rounded-lg py-2.5">
             <Truck className="h-4 w-4 mr-2" />
             Vehicle Wise Expense
+          </TabsTrigger>
+          <TabsTrigger value="loaders" className="rounded-lg py-2.5">
+            <Truck className="h-4 w-4 mr-2" />
+            Loaders Report
           </TabsTrigger>
         </TabsList>
 
@@ -1415,6 +1420,15 @@ export function ReportsModule({ roles }: { roles: string[] }) {
                 <VehicleWiseReport 
                     locations={locations}
                     vehicles={vehicles}
+                    filterLocation={filterLocation}
+                    setFilterLocation={setFilterLocation}
+                    canSeeAllLocations={canSeeAllLocations}
+                />
+            </TabsContent>
+
+            <TabsContent value="loaders" className="space-y-4">
+                <LoaderReport 
+                    locations={locations}
                     filterLocation={filterLocation}
                     setFilterLocation={setFilterLocation}
                     canSeeAllLocations={canSeeAllLocations}

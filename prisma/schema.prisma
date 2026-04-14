@@ -131,6 +131,8 @@ model Location {
   users                 User[]
   vehicles              Vehicle[]      @relation("VehicleLocation")
   authorizedUsers       User[]         @relation("UserAuthorizedLocations")
+  loaderEntries         LoaderEntry[]
+  loaderSummaries       LoaderDailySummary[]
 
   @@unique([name, city])
 }
@@ -325,6 +327,7 @@ model Vehicle {
   location      Location       @relation("VehicleLocation", fields: [locationId], references: [id])
 
   @@unique([vehicleNo, locationId])
+  loaderEntries LoaderEntry[]
 }
 
 model Budget {
@@ -437,4 +440,38 @@ enum BudgetStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+model LoaderEntry {
+  id        String   @id @default(cuid())
+  date      DateTime
+  vehicleId String?
+  vehicleNo String?
+  loads     Int      @default(0)
+  loaders   Int      @default(0)
+  locationId String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  vehicle    Vehicle? @relation(fields: [vehicleId], references: [id])
+  location   Location? @relation(fields: [locationId], references: [id])
+
+  @@index([date])
+  @@index([locationId])
+}
+
+model LoaderDailySummary {
+  id               String   @id @default(cuid())
+  date             DateTime
+  warehouseLoaders Int      @default(0)
+  netWages         Float    @default(0)
+  dailyWages       Float?   @default(0)
+  netAttendance    Float?   @default(0)
+  locationId       String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  location         Location? @relation(fields: [locationId], references: [id])
+
+  @@unique([date, locationId])
+  @@index([date])
+  @@index([locationId])
 }

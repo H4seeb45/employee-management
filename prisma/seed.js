@@ -14,7 +14,7 @@ const databaseUrl = isLocalhost && process.env.DATABASE_URL_STAGING
 const adapter = databaseUrl ? new PrismaPg({ connectionString: databaseUrl }) : undefined;
 const prisma = databaseUrl ? new PrismaClient({ adapter }) : new PrismaClient();
 
-const roles = ["Business Manager", "Cashier", "Admin", "Super Admin", "Employee"];
+const roles = ["Business Manager", "Cashier", "Admin", "Super Admin", "Employee", "Storekeeper", "Accountant"];
 
 const locations = [
   { name: "Lahore-1", city: "Lahore" },

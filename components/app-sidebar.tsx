@@ -68,6 +68,12 @@ const sidebarItems = [
     icon: Truck,
     adminOnly: true,
   },
+  {
+    name: "Loaders Management",
+    href: "/dashboard/loaders",
+    icon: Users,
+    requiredRoles: ["Admin", "Storekeeper"],
+  },
   { name: "Users", href: "/dashboard/users", icon: Users, adminOnly: true },
   {
     name: "Reports",
