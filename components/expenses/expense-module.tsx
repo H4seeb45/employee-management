@@ -2048,7 +2048,7 @@ export function ExpenseModule({
                                       "Printer", "Car", "Vehicles", "Bike", "Warehouse", "Fans", "Lights", "Cool Box", "Shell & Glass",
                                       "Shell", "Glass", "Pallets", "Pressure Washer", "Hand Lifter", "Deep Freezer", "Office Furniture",
                                       "Air Conditioner", "Cash Machine", "Cash Locker", "Generator", "Note Detector Machine",
-                                      "Telephone", "Office Accessories", "Fan", "Refrigerator"
+                                      "Telephone", "Office Accessories", "Fan", "Refrigerator", "LCD/LED"
                                     ].map((option) => (
                                       <SelectItem key={option} value={option}>{option}</SelectItem>
                                     ))}
