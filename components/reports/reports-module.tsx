@@ -138,6 +138,10 @@ export function ReportsModule({ roles }: { roles: string[] }) {
   const [filterRouteWiseFromDate, setFilterRouteWiseFromDate] = useState("");
   const [filterRouteWiseToDate, setFilterRouteWiseToDate] = useState("");
 
+  const [filterRentFromDate, setFilterRentFromDate] = useState("");
+  const [filterRentToDate, setFilterRentToDate] = useState("");
+  const [rentReportData, setRentReportData] = useState<any[]>([]);
+
   const [routeWiseData, setRouteWiseData] = useState<any[]>([]);
   const [routeWiseColumns, setRouteWiseColumns] = useState<string[]>([]);
   const [routeWiseRows, setRouteWiseRows] = useState<string[]>([]);
@@ -384,6 +388,26 @@ export function ReportsModule({ roles }: { roles: string[] }) {
     }
   };
 
+  const fetchRentReport = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (filterLocation !== "all") params.append("locationId", filterLocation);
+      if (filterRentFromDate) params.append("fromDate", filterRentFromDate);
+      if (filterRentToDate) params.append("toDate", filterRentToDate);
+
+      const res = await fetch(`/api/reports/rent-percentage?${params}`);
+      const data = await res.json();
+      if (res.ok) {
+        setRentReportData(data.report || []);
+      }
+    } catch (err) {
+      setError("Failed to fetch rent report");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchRoutesAndVehicles();
   }, []);
@@ -606,6 +630,10 @@ export function ReportsModule({ roles }: { roles: string[] }) {
           <TabsTrigger value="loaders" className="rounded-lg py-2.5">
             <Truck className="h-4 w-4 mr-2" />
             Loaders Report
+          </TabsTrigger>
+          <TabsTrigger value="rent-percentage" className="rounded-lg py-2.5">
+            <TrendingUp className="h-4 w-4 mr-2" />
+            Rent Percentage
           </TabsTrigger>
         </TabsList>
 
@@ -1433,6 +1461,91 @@ export function ReportsModule({ roles }: { roles: string[] }) {
                     setFilterLocation={setFilterLocation}
                     canSeeAllLocations={canSeeAllLocations}
                 />
+            </TabsContent>
+
+            <TabsContent value="rent-percentage" className="space-y-4">
+                <div className="flex flex-col gap-4 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <h2 className="text-lg font-semibold">Rent Percentage Report</h2>
+                            <p className="text-sm text-slate-500">Analyze rent expenses relative to invoice totals</p>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => exportToExcel(rentReportData, "Rent_Percentage_Report")}>
+                            <Download className="h-4 w-4 mr-2" /> Export Excel
+                        </Button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end border-t pt-4">
+                        {canSeeAllLocations && (
+                            <div className="space-y-1">
+                                <Label className="text-xs">Location</Label>
+                                <SearchableSelect
+                                    value={filterLocation}
+                                    onValueChange={setFilterLocation}
+                                    options={[
+                                        { value: "all", label: "All Locations" },
+                                        ...locations.map(l => ({ value: l.id, label: `${l.name} (${l.city})` }))
+                                    ]}
+                                    placeholder="Filter by Location"
+                                />
+                            </div>
+                        )}
+                        <div className="space-y-1">
+                            <Label className="text-xs">From Date</Label>
+                            <Input type="date" value={filterRentFromDate} onChange={(e) => setFilterRentFromDate(e.target.value)} className="h-9" />
+                        </div>
+                        <div className="space-y-1">
+                            <Label className="text-xs">To Date</Label>
+                            <Input type="date" value={filterRentToDate} onChange={(e) => setFilterRentToDate(e.target.value)} className="h-9" />
+                        </div>
+                        <Button onClick={fetchRentReport} disabled={loading} className="bg-blue-600 hover:bg-blue-700">
+                            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Search className="h-4 w-4 mr-2" />}
+                            Generate Report
+                        </Button>
+                    </div>
+                </div>
+
+                <Card className="border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden bg-white dark:bg-slate-900">
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="bg-slate-50 dark:bg-slate-800/50">
+                                <TableHead className="font-bold">Location</TableHead>
+                                <TableHead className="text-right">Invoice Amount</TableHead>
+                                <TableHead className="text-right">Return Amount</TableHead>
+                                <TableHead className="text-right">Rent Amount</TableHead>
+                                <TableHead className="text-right">Return %</TableHead>
+                                <TableHead className="text-right">Rent %</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {loading ? (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="h-32 text-center">
+                                        <Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-600 mb-2" />
+                                        Processing...
+                                    </TableCell>
+                                </TableRow>
+                            ) : rentReportData.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="h-32 text-center text-slate-500">
+                                        No data found for the selected criteria.
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                rentReportData.map((r, i) => (
+                                    <TableRow key={r.locationId || i}>
+                                        <TableCell className="font-medium">{r.locationName}</TableCell>
+                                        <TableCell className="text-right">{new Intl.NumberFormat("en-PK").format(r.invoiceAmount)}</TableCell>
+                                        <TableCell className="text-right">{new Intl.NumberFormat("en-PK").format(r.returnAmount)}</TableCell>
+                                        <TableCell className="text-right font-bold text-blue-600">{new Intl.NumberFormat("en-PK").format(r.rentAmount)}</TableCell>
+                                        <TableCell className="text-right font-semibold text-amber-600">{r.returnPercent.toFixed(2)}%</TableCell>
+                                        <TableCell className="text-right font-bold text-rose-600">{r.rentPercent.toFixed(2)}%</TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </Card>
             </TabsContent>
         </Tabs>
 

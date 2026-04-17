@@ -123,12 +123,12 @@ export const DisburseVoucher = React.forwardRef<HTMLDivElement, DisburseVoucherP
         </style>
 
         {/* Main Border Container */}
-        <div className="border-4 border-double border-black p-6">
+        <div className="border-4 border-double border-black p-6 mt-1">
           
           {/* Header with Company Name */}
           <div className="text-center mb-4 pb-3 border-b-2 border-black">
             <h1 className="text-3xl font-bold tracking-wider mb-1">SADIQ TRADERS</h1>
-            <div className="text-xs text-gray-700">Trading & Distribution Company</div>
+            {/* <div className="text-xs text-gray-700">Trading & Distribution Company</div> */}
           </div>
 
           {/* Document Title */}
@@ -209,7 +209,7 @@ export const DisburseVoucher = React.forwardRef<HTMLDivElement, DisburseVoucherP
           </div> */}
 
           {/* Signature Section */}
-          <div className="mt-16 grid grid-cols-3 gap-8 px-4">
+          {/* <div className="mt-16 grid grid-cols-3 gap-8 px-4">
             <div className="text-center">
               <div className="border-t-2 border-black pt-2">
                 <p className="font-bold uppercase tracking-widest text-[10px]">Employee Signature</p>
@@ -225,7 +225,7 @@ export const DisburseVoucher = React.forwardRef<HTMLDivElement, DisburseVoucherP
                 <p className="font-bold uppercase tracking-widest text-[10px]">Manager Signature</p>
               </div>
             </div>
-          </div>
+          </div> */}
 
           {/* Company Stamp Space */}
           {/* <div className="mt-12 flex justify-end">
@@ -235,7 +235,7 @@ export const DisburseVoucher = React.forwardRef<HTMLDivElement, DisburseVoucherP
           </div> */}
 
           {/* Footer Note */}
-          <div className="mt-4 pt-3 border-t border-gray-300 text-center text-[9px] text-gray-400 uppercase tracking-widest">
+          <div className="text-center text-[9px] text-gray-400 uppercase tracking-widest">
             Official Payment Document • Sadiq Traders • Internal Use Only
           </div>
         </div>

@@ -69,7 +69,7 @@ export function SalarySlip({ payroll, month, year }: SalarySlipProps) {
       <div className="grid grid-cols-2 gap-x-12">
         {/* Earnings */}
         <div>
-          <h3 className="text-lg font-bold border-b-2 border-[#0A192F] mb-4 text-[#0A192F]">Earnings</h3>
+          <h3 className="text-lg font-bold border-b-2 border-[#0A192F] mb-4 text-[#0A192F]">Salary & Incentives</h3>
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span>Basic Payable</span>
@@ -155,7 +155,7 @@ export function SalarySlip({ payroll, month, year }: SalarySlipProps) {
           <p className="text-3xl font-black text-[#0A192F]">{formatCurrency(payroll.netSalary)}</p>
         </div>
         <div className="text-right">
-          <p className="text-xs uppercase tracking-tighter opacity-70 mb-1">In Words</p>
+          {/* <p className="text-xs uppercase tracking-tighter opacity-70 mb-1">In Words</p> */}
           <p className="text-sm italic">Excluding taxes and deductions as calculated above.</p>
         </div>
       </div>
