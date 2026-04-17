@@ -28,7 +28,7 @@ import { motion, AnimatePresence } from "framer-motion";
 const sidebarItems = [
   { name: "Dashboard", href: "/dashboard", icon: BarChart3 },
   { name: "Employees", href: "/dashboard/employees", icon: Users, requiredRoles: ["Business Manager", "Data Manager"] },
-  // { name: "Attendance", href: "/dashboard/attendance", icon: Calendar, adminOnly: true },
+  { name: "Attendance", href: "/dashboard/attendance", icon: Calendar, requiredRoles: ["Admin", "Super Admin", "Data Manager"] },
   { name: "Payroll", href: "/dashboard/payroll", icon: Briefcase, adminOnly: true, },
   {
     name: "Leave Management",

@@ -11,16 +11,57 @@ export async function GET(request: NextRequest) {
     const isAdmin = isAdminUser(user);
     const isSuperAdmin = isSuperAdminUser(user);
     const { searchParams } = new URL(request.url);
-    const locationId = isSuperAdmin ? searchParams.get("locationId") : null;
+    const locationId = searchParams.get("locationId");
+    
+    const month = searchParams.get("month");
+    const year = searchParams.get("year");
+    const status = searchParams.get("status");
+
+    const where: any = {};
+
+    // Status filtering
+    if (status && status !== "all") {
+      where.status = status;
+    }
+
+    // Location filtering
+    if (isAdmin || isSuperAdmin) {
+      if (locationId && locationId !== "all") {
+        where.employee = { locationId };
+      }
+    } else {
+      where.employee = { locationId: user.locationId };
+    }
+
+    // Month/Year filtering
+    if (month && year) {
+      const m = parseInt(month);
+      const y = parseInt(year);
+      const startDate = new Date(y, m - 1, 1);
+      const endDate = new Date(y, m, 0, 23, 59, 59, 999);
+      where.date = {
+        gte: startDate,
+        lte: endDate,
+      };
+    }
+
     const attendance = await prisma.attendance.findMany({
-      where: isAdmin
-        ? locationId
-          ? { employee: { locationId } }
-          : undefined
-        : { employee: { locationId: user.locationId } },
+      where,
+      include: {
+        employee: {
+          select: {
+            employeeId: true,
+            employeeName: true,
+            position: true,
+            department: true,
+          }
+        }
+      },
+      orderBy: { date: "desc" },
     });
     return NextResponse.json(attendance);
   } catch (error) {
+    console.error(error);
     return NextResponse.json(
       { error: "Failed to fetch attendance" },
       { status: 500 }

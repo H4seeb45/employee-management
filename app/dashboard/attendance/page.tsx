@@ -1,10 +1,11 @@
-import { AttendanceTracker } from "@/components/attendance/attendance-tracker"
+"use client";
+
+import { AttendanceModule } from "@/components/attendance/attendance-module";
 
 export default function AttendancePage() {
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight">Attendance Tracker</h1>
-      <AttendanceTracker />
+    <div className="container mx-auto py-6">
+      <AttendanceModule />
     </div>
-  )
+  );
 }

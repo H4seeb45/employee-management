@@ -229,6 +229,8 @@ model Attendance {
   workingHours   Float?
   status         String?
   employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, date])
 }
 
 model LeaveRequest {

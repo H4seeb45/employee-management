@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
     const monthStr = searchParams.get("month");
     const yearStr = searchParams.get("year");
     const locationId = searchParams.get("locationId") || user.locationId;
+    const employeeIds = searchParams.get("employeeIds");
 
     if (!monthStr || !yearStr) {
       return NextResponse.json({ error: "Month and Year are required" }, { status: 400 });
@@ -23,6 +24,10 @@ export async function GET(request: NextRequest) {
 
     const month = parseInt(monthStr);
     const year = parseInt(yearStr);
+
+    const where: any = {};
+    if (locationId) where.locationId = locationId;
+    if (employeeIds) where.id = { in: employeeIds.split(",") };
 
     // Calculate Working Days (without Sundays)
     const getWorkingDaysCount = (y: number, m: number) => {
@@ -41,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch employees
     const employees = await prisma.employee.findMany({
-      where: locationId ? { locationId } : undefined,
+      where,
       include: {
         location: true,
         loans: {

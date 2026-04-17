@@ -32,6 +32,7 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { SalarySlip } from "@/components/payroll/salary-slip";
 import { useReactToPrint } from "react-to-print";
@@ -46,6 +47,7 @@ export default function PayrollPage() {
   const [payrolls, setPayrolls] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [calculating, setCalculating] = useState(false);
+  const [calculateProgress, setCalculateProgress] = useState(0);
   const [saving, setSaving] = useState(false);
   const [mounted, setMounted] = useState(false);
   
@@ -92,16 +94,41 @@ export default function PayrollPage() {
 
   const handleCalculate = async () => {
     setCalculating(true);
+    setCalculateProgress(0);
     try {
-      const res = await fetch(`/api/payroll/calculate?month=${month}&year=${year}`);
-      if (res.ok) {
-        const data = await res.json();
-        setPayrolls(data.calculations);
-        setIsCalculated(true);
-        toast.success("Payroll calculated for " + month + "/" + year);
-      } else {
-        toast.error("Failed to calculate payroll");
+      // Step 1: Get all employee IDs
+      const empRes = await fetch("/api/employees?status=Active:Working");
+      if (!empRes.ok) throw new Error("Failed to fetch employees");
+      const { employees } = await empRes.json();
+      
+      if (!employees || employees.length === 0) {
+        toast.error("No active employees found to calculate payroll");
+        setCalculating(false);
+        return;
       }
+
+      const employeeIds = employees.map((e: any) => e.id);
+      const chunkSize = 15;
+      const totalChunks = Math.ceil(employeeIds.length / chunkSize);
+      let allCalculations: any[] = [];
+
+      for (let i = 0; i < totalChunks; i++) {
+        const chunk = employeeIds.slice(i * chunkSize, (i + 1) * chunkSize);
+        const res = await fetch(`/api/payroll/calculate?month=${month}&year=${year}&employeeIds=${chunk.join(",")}`);
+        
+        if (res.ok) {
+          const data = await res.json();
+          allCalculations = [...allCalculations, ...data.calculations];
+        } else {
+          console.error("Failed to calculate batch", i);
+        }
+        
+        setCalculateProgress(Math.round(((i + 1) / totalChunks) * 100));
+      }
+
+      setPayrolls(allCalculations);
+      setIsCalculated(true);
+      toast.success("Payroll calculation completed for " + employees.length + " employees");
     } catch (err) {
       console.error(err);
       toast.error("Error calculating payroll");
@@ -317,6 +344,28 @@ export default function PayrollPage() {
               </DialogContent>
           </Dialog>
       )}
+
+      {/* Calculation Progress Dialog */}
+      <Dialog open={calculating} onOpenChange={() => {}}>
+          <DialogContent className="max-w-md text-center py-12 bg-white dark:bg-[#1E293B] border-none shadow-2xl">
+              <div className="space-y-6">
+                  <div className="flex justify-center">
+                      <div className="relative">
+                          <Loader2 className="h-16 w-16 animate-spin text-blue-600" />
+                          <div className="absolute inset-0 flex items-center justify-center font-bold text-xs dark:text-white">
+                              {calculateProgress}%
+                          </div>
+                      </div>
+                  </div>
+                  <div className="space-y-2">
+                      <h3 className="text-xl font-bold text-[#0A192F] dark:text-white">Calculating Payroll...</h3>
+                      <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Processing salary, deductions, and incentives batches.</p>
+                  </div>
+                  <Progress value={calculateProgress} className="h-2 w-full bg-slate-100 dark:bg-slate-800" />
+                  <p className="text-[10px] text-slate-400 uppercase tracking-widest font-black">Hold tight, almost there!</p>
+              </div>
+          </DialogContent>
+      </Dialog>
     </div>
   );
 }
