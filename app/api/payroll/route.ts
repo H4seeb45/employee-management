@@ -12,13 +12,29 @@ export async function GET(request: NextRequest) {
     const isSuperAdmin = isSuperAdminUser(user);
     const { searchParams } = new URL(request.url);
     const locationId = isSuperAdmin ? searchParams.get("locationId") : null;
+    const month = searchParams.get("month") ? parseInt(searchParams.get("month")!) : undefined;
+    const year = searchParams.get("year") ? parseInt(searchParams.get("year")!) : undefined;
+
     const list = await prisma.payroll.findMany({
-      include: { employee: true },
-      where: isAdmin
-        ? locationId
-          ? { employee: { locationId } }
-          : undefined
-        : { employee: { locationId: user.locationId } },
+      include: { 
+        employee: {
+          include: {
+            location: true
+          }
+        } 
+      },
+      where: {
+        AND: [
+          isAdmin
+            ? locationId
+              ? { employee: { locationId } }
+              : {}
+            : { employee: { locationId: user.locationId } },
+          month ? { month } : {},
+          year ? { year } : {},
+        ]
+      },
+      orderBy: { createdAt: 'desc' }
     });
     return NextResponse.json(list);
   } catch (error) {
@@ -37,45 +53,123 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const isAdmin = isAdminUser(user);
+    if (!isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
     const body = await req.json();
 
-    const parseDate = (v: any) => {
-      if (!v && v !== 0) return null;
-      const d = v instanceof Date ? v : new Date(v);
-      return isNaN(d.getTime()) ? null : d;
+    const sanitizePayroll = (data: any) => {
+      const {
+        employeeName,
+        empId,
+        designation,
+        department,
+        locationName,
+        id,
+        employee,
+        ...rest
+      } = data;
+      return rest;
     };
 
-    const employeeId = body.employeeId ?? body.employee_id ?? undefined;
-    if (!employeeId)
-      return NextResponse.json(
-        { error: "Missing employeeId" },
-        { status: 400 }
-      );
-    if (!isAdmin) {
-      const employee = await prisma.employee.findUnique({
-        where: { id: employeeId },
-        select: { locationId: true },
+    // Helper to update loan/advance balances
+    const updateBalances = async (employeeId: string, month: number, year: number, loanDed: number, advDed: number) => {
+      if (loanDed <= 0 && advDed <= 0) return;
+
+      // Ensure we don't deduct multiple times for the same month
+      const existing = await prisma.payroll.findUnique({
+        where: { employeeId_month_year: { employeeId, month, year } }
       });
-      if (!employee || employee.locationId !== user.locationId) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+      if (existing && existing.status === "Processed") {
+        // Already processed, don't update balances again unless we want to handle diffs
+        return;
       }
+
+      if (loanDed > 0) {
+        const activeLoans = await prisma.loan.findMany({
+          where: { employeeId, balance: { gt: 0 }, status: { in: ["Approved", "APPROVED", "Disbursed"] } },
+          orderBy: { issuedAt: 'asc' }
+        });
+
+        let remaining = loanDed;
+        for (const loan of activeLoans) {
+          if (remaining <= 0) break;
+          const toDeduct = Math.min(loan.balance || 0, remaining);
+          await prisma.loan.update({
+            where: { id: loan.id },
+            data: { balance: { decrement: toDeduct } }
+          });
+          remaining -= toDeduct;
+        }
+      }
+
+      if (advDed > 0) {
+        const activeAdvances = await prisma.advance.findMany({
+          where: { employeeId, balance: { gt: 0 }, status: { in: ["Approved", "APPROVED", "Disbursed"] } },
+          orderBy: { issuedAt: 'asc' }
+        });
+
+        let remaining = advDed;
+        for (const adv of activeAdvances) {
+          if (remaining <= 0) break;
+          const toDeduct = Math.min(adv.balance || 0, remaining);
+          await prisma.advance.update({
+            where: { id: adv.id },
+            data: { balance: { decrement: toDeduct } }
+          });
+          remaining -= toDeduct;
+        }
+      }
+    };
+
+    // Support bulk save
+    if (Array.isArray(body)) {
+      const results = await Promise.all(
+        body.map(async (item) => {
+          const sanitized = sanitizePayroll(item);
+          
+          // Update balances before upserting (only if new or moving to Processed)
+          if (item.status === "Processed") {
+            await updateBalances(item.employeeId, item.month, item.year, item.loan || 0, item.advance || 0);
+          }
+
+          return prisma.payroll.upsert({
+            where: {
+              employeeId_month_year: {
+                employeeId: item.employeeId,
+                month: item.month,
+                year: item.year,
+              }
+            },
+            update: { ...sanitized, updatedAt: new Date() },
+            create: sanitized,
+          });
+        })
+      );
+      return NextResponse.json(results, { status: 201 });
     }
 
-    const data: any = {
-      employeeId,
-      amount:
-        typeof body.amount === "number"
-          ? body.amount
-          : parseFloat(body.amount) || 0,
-      periodStart: parseDate(body.periodStart),
-      periodEnd: parseDate(body.periodEnd),
-      paidAt: parseDate(body.paidAt),
-      paymentMethod: body.paymentMethod ?? null,
-      status: body.status ?? null,
-      notes: body.notes ?? null,
-    };
+    // Single save
+    const employeeId = body.employeeId;
+    if (!employeeId) return NextResponse.json({ error: "Missing employeeId" }, { status: 400 });
 
-    const created = await prisma.payroll.create({ data });
+    if (body.status === "Processed") {
+        await updateBalances(employeeId, body.month, body.year, body.loan || 0, body.advance || 0);
+    }
+
+    const sanitizedBody = sanitizePayroll(body);
+    const created = await prisma.payroll.upsert({
+      where: {
+        employeeId_month_year: {
+          employeeId: employeeId,
+          month: body.month,
+          year: body.year,
+        }
+      },
+      update: { ...sanitizedBody, updatedAt: new Date() },
+      create: sanitizedBody,
+    });
+
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
     console.error(error);

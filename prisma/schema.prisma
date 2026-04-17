@@ -259,16 +259,50 @@ model AdminRequest {
 }
 
 model Payroll {
-  id            String    @id @default(cuid())
-  employeeId    String
-  amount        Float
-  periodStart   DateTime?
-  periodEnd     DateTime?
-  paidAt        DateTime?
-  paymentMethod String?
-  status        String?
-  notes         String?
-  employee      Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  id                    String    @id @default(cuid())
+  employeeId            String
+  employee              Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  month                 Int
+  year                  Int
+  
+  basicSalary           Float?
+  totalDays             Int?
+  workingDays           Int?
+  daysWorked            Int?
+  basicPayable          Float?
+  
+  attendanceAllowance    Float?
+  dailyAllowance         Float?
+  fuelAllowance          Float?
+  conveyanceAllowance    Float?
+  maintainence           Float?
+  comission              Float?
+  eachKpiIncentives      Float?
+  incentives             Float?
+  loadersAllowance       Float?
+  
+  totalIncentives        Float?
+  grossSalary            Float?
+  
+  eobi                   Float?
+  socialSecurity         Float?
+  incomeTax              Float?
+  advance                Float?
+  loan                   Float?
+  totalDeduction         Float?
+  
+  netSalary              Float?
+  
+  amount                Float     // Net Salary equivalent
+  paidAt                DateTime?
+  paymentMethod         String?
+  status                String?   @default("Draft")
+  notes                 String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([employeeId, month, year])
 }
 
 model Loan {

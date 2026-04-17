@@ -29,6 +29,7 @@ const sidebarItems = [
   { name: "Dashboard", href: "/dashboard", icon: BarChart3 },
   { name: "Employees", href: "/dashboard/employees", icon: Users, requiredRoles: ["Business Manager", "Data Manager"] },
   // { name: "Attendance", href: "/dashboard/attendance", icon: Calendar, adminOnly: true },
+  { name: "Payroll", href: "/dashboard/payroll", icon: Briefcase, adminOnly: true, },
   {
     name: "Leave Management",
     href: "/dashboard/leave-management",
@@ -41,7 +42,6 @@ const sidebarItems = [
     icon: MessageSquare,
     requiredRoles: ["Admin", "Employee"],
   },
-  // { name: "Payroll", href: "/dashboard/payroll", icon: Briefcase, adminOnly: true, },
   {
     name: "Expenses",
     href: "/dashboard/expenses",
