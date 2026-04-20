@@ -55,6 +55,7 @@ export default function PayrollPage() {
   const [year, setYear] = useState<string>(new Date().getFullYear() + "");
   
   const [isCalculated, setIsCalculated] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
   const [viewingSlip, setViewingSlip] = useState<any | null>(null);
   
   const contentRef = useRef<HTMLDivElement>(null);
@@ -78,8 +79,9 @@ export default function PayrollPage() {
       const res = await fetch(`/api/payroll?month=${month}&year=${year}`);
       if (res.ok) {
         const data = await res.json();
-        setPayrolls(data);
         setIsCalculated(data.length > 0);
+        setIsSaved(data.length > 0);
+        setPayrolls(data);
       }
     } catch (err) {
       console.error(err);
@@ -93,6 +95,10 @@ export default function PayrollPage() {
   }, [month, year]);
 
   const handleCalculate = async () => {
+    if (isSaved) {
+      toast.error("Payroll for this month is already saved and locked.");
+      return;
+    }
     setCalculating(true);
     setCalculateProgress(0);
     try {
@@ -128,6 +134,7 @@ export default function PayrollPage() {
 
       setPayrolls(allCalculations);
       setIsCalculated(true);
+      setIsSaved(false); // New calculation is not yet saved
       toast.success("Payroll calculation completed for " + employees.length + " employees");
     } catch (err) {
       console.error(err);
@@ -138,6 +145,7 @@ export default function PayrollPage() {
   };
 
   const handleSave = async () => {
+    if (isSaved) return;
     setSaving(true);
     try {
       const payload = payrolls.map(p => ({
@@ -156,6 +164,7 @@ export default function PayrollPage() {
       
       if (res.ok) {
         toast.success("Payroll saved successfully");
+        setIsSaved(true);
         fetchPayrolls();
       } else {
         toast.error("Failed to save payroll");
@@ -178,10 +187,12 @@ export default function PayrollPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-[#0A192F] dark:text-white">Payroll Management</h1>
-          <p className="text-slate-500 dark:text-slate-400">
-            {isCurrentMonth 
-              ? "Calculate and manage monthly employee payroll." 
-              : `Viewing archived payroll for ${currentMonthName} ${year}. Calculations are disabled.`}
+          <p className="text-slate-500 dark:text-slate-400 font-medium">
+            {isSaved 
+              ? `Payroll for ${currentMonthName} ${year} is saved and locked.` 
+              : isCurrentMonth 
+                ? "Calculate and manage monthly employee payroll." 
+                : `Viewing archived payroll for ${currentMonthName} ${year}. Calculations are disabled.`}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -202,14 +213,14 @@ export default function PayrollPage() {
                     <SelectValue placeholder="Year" />
                 </SelectTrigger>
                 <SelectContent>
-                    {[2024, 2025, 2026].map(y => (
+                    {[2024, 2025, 2026, 2027].map(y => (
                         <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
                     ))}
                 </SelectContent>
             </Select>
             <Button 
                 onClick={handleCalculate} 
-                disabled={calculating || !isCurrentMonth} 
+                disabled={loading || saving || calculating || !isCurrentMonth || isSaved} 
                 variant="outline" 
                 className="border-[#0A192F] text-[#0A192F] hover:bg-[#0A192F] hover:text-white dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
             >
@@ -218,7 +229,7 @@ export default function PayrollPage() {
             </Button>
             <Button 
                 onClick={handleSave} 
-                disabled={saving || !isCalculated || !isCurrentMonth} 
+                disabled={loading || saving || !isCalculated || !isCurrentMonth || isSaved || calculating} 
                 className="bg-[#0A192F] hover:bg-[#162a45] dark:bg-blue-600 dark:hover:bg-blue-700 text-white"
             >
                 {saving ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}

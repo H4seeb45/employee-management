@@ -176,13 +176,50 @@ export function AttendanceModule() {
         }
 
         const formattedRecords = data.map((row: any) => {
-             let dateVal = row["Date"];
-             if (typeof dateVal === 'number') {
-                dateVal = new Date((dateVal - (25567 + 1)) * 86400 * 1000).toISOString().split('T')[0];
+             // Case-insensitive key lookup helper
+             const getVal = (keys: string[]) => {
+               const foundKey = Object.keys(row).find(k => 
+                 keys.some(key => k.toLowerCase().trim() === key.toLowerCase().trim())
+               );
+               return foundKey ? row[foundKey] : null;
+             };
+
+             let dateVal = getVal(["Date", "Attendance Date", "AttendanceDate", "DAT"]);
+             let dateStr = "";
+
+             if (dateVal instanceof Date) {
+                // If cellDates: true is on, use local components to avoid timezone shift
+                const y = dateVal.getFullYear();
+                const m = dateVal.getMonth() + 1;
+                const d = dateVal.getDate();
+                console.log(d)
+                dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+             } else if (typeof dateVal === 'number') {
+                // For numeric serials, use Math.floor to ignore time parts
+                const serial = Math.floor(dateVal);
+                const date = new Date((serial - 25569) * 86400 * 1000);
+                dateStr = date.toISOString().split('T')[0];
+             } else if (typeof dateVal === 'string') {
+                // Try to parse string date
+                const parts = dateVal.split(/[-/]/);
+                if (parts.length === 3) {
+                   if (parts[0].length === 4) {
+                      dateStr = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+                   } else {
+                      dateStr = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                   }
+                } else {
+                   const d = new Date(dateVal);
+                   if (!isNaN(d.getTime())) {
+                      dateStr = d.toISOString().split('T')[0];
+                   }
+                }
              }
 
-             const checkIn = row["Check In"] || row["CheckIn"] || "";
-             const checkOut = row["Check Out"] || row["CheckOut"] || "";
+             const checkIn = getVal(["Check In", "CheckIn", "In Time", "In", "Arrival"])?.toString() || "";
+             const checkOut = getVal(["Check Out", "CheckOut", "Out Time", "Out", "Departure"])?.toString() || "";
+             const empId = getVal(["Employee ID", "EmployeeID", "EMP ID", "ID", "User ID"])?.toString() || "";
+             const status = getVal(["Status", "Attendance", "REMARK"])?.toString() || "Present";
              
              let workingHours = 0;
              let checkInStatus = "on-time";
@@ -192,25 +229,27 @@ export function AttendanceModule() {
                 try {
                   const [ciH, ciM] = checkIn.split(":").map(Number);
                   const [coH, coM] = checkOut.split(":").map(Number);
-                  const diffMs = (coH * 60 + coM - (ciH * 60 + ciM)) * 60 * 1000 + (coH < ciH ? 24 * 60 * 60 * 1000 : 0);
-                  workingHours = Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100;
+                  if (!isNaN(ciH) && !isNaN(coH)) {
+                    const diffMs = (coH * 60 + coM - (ciH * 60 + ciM)) * 60 * 1000 + (coH < ciH ? 24 * 60 * 60 * 1000 : 0);
+                    workingHours = Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100;
 
-                  if (ciH > 9 || (ciH === 9 && ciM > 15)) checkInStatus = "late";
-                  if (coH < 17) checkOutStatus = "early";
+                    if (ciH > 9 || (ciH === 9 && ciM > 15)) checkInStatus = "late";
+                    if (coH < 17) checkOutStatus = "early";
+                  }
                 } catch (err) {}
              }
 
              return {
-                employeeCustomId: (row["Employee ID"] || row["EmployeeID"] || row["ID"])?.toString() || "",
-                date: dateVal,
+                employeeCustomId: empId,
+                date: dateStr,
                 checkIn,
                 checkOut,
-                status: row["Status"] || "Present",
+                status: status,
                 checkInStatus,
                 checkOutStatus,
                 workingHours
              }
-        });
+        }).filter(r => r.employeeCustomId && r.date);
 
         // Batch processing
         const chunkSize = 50;
@@ -551,7 +590,7 @@ export function AttendanceModule() {
                 ) : (
                   records.map((r, i) => (
                     <TableRow key={r.id} className={i % 2 === 0 ? 'bg-white dark:bg-[#1E293B]' : 'bg-slate-50/30 dark:bg-slate-800/20'}>
-                      <TableCell className="py-3 px-6 font-medium text-xs">{new Date(r.date).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}</TableCell>
+                      <TableCell className="py-3 px-6 font-medium text-xs">{new Date(r.date).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Karachi' })}</TableCell>
                       <TableCell className="py-3 px-6 font-mono text-xs text-blue-600 dark:text-blue-400 font-bold">{r.employee.employeeId}</TableCell>
                       <TableCell className="py-3 px-6">
                         <div className="flex flex-col">

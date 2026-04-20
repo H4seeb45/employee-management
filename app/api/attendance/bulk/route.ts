@@ -43,9 +43,8 @@ export async function POST(req: NextRequest) {
         return null;
       }
 
-      const attendanceDate = new Date(record.date);
-      attendanceDate.setHours(0, 0, 0, 0);
-
+      const [year, month, day] = record.date.split('-').map(Number);
+      const attendanceDate = new Date(Date.UTC(year, month - 1, day));
       const data = {
         employeeId: internalId,
         date: attendanceDate,

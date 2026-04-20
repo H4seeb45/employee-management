@@ -156,15 +156,12 @@ export async function GET(request: NextRequest) {
       const totalDeduction = eobi + socialSecurity + incomeTax + loanDeduction + advanceDeduction;
       const netSalary = grossSalary - totalDeduction;
 
-      if (emp.employeeName === "Ronan Lindsey"){
-        console.log("emp advances",emp.advances);
-        console.log("emp loans",emp.loans);
-
-        // console.log("allLoans",allLoans);
-        // console.log("allAdvances",allAdvances);
-        console.log("loanDeduction",loanDeduction);
-        console.log("advanceDeduction",advanceDeduction);
-      }
+      // if (emp.employeeName === "Ronan Lindsey"){
+      //   console.log("emp advances",emp.advances);
+      //   console.log("emp loans",emp.loans);
+      //   console.log("loanDeduction",loanDeduction);
+      //   console.log("advanceDeduction",advanceDeduction);
+      // }
       return {
         employeeId: emp.id,
         employeeName: emp.employeeName,
