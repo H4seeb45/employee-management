@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PayrollManager } from "@/components/payroll/payroll-manager";
 import { IncentiveManager } from "@/components/payroll/incentive-manager";
+import { Loader2 } from "lucide-react";
 
 export default function PayrollPage() {
   const [mounted, setMounted] = useState(false);
@@ -38,7 +39,16 @@ export default function PayrollPage() {
     return new Date(0, m - 1).toLocaleString('default', { month: 'long' });
   }, [month]);
 
-  if (!mounted) return null;
+  if (!mounted) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <div className="relative h-16 w-16">
+          <Loader2 className="absolute top-0 left-0 h-16 w-16 animate-spin text-[#0A192F] dark:text-sky-500" />
+        </div>
+        <p className="text-slate-500 font-medium animate-pulse">Loading Payroll...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-[1200px] mx-auto px-4 sm:px-6">

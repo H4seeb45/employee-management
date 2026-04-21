@@ -74,12 +74,27 @@ export async function GET(request: NextRequest) {
             balance: { gt: 0.01 } 
           },
         },
+        attendances: {
+          where: {
+            date: {
+              gte: new Date(Date.UTC(year, month - 1, 1)),
+              lte: new Date(Date.UTC(year, month - 1, totalMonthDays, 23, 59, 59))
+            }
+          }
+        },
       },
     });
 
     const calculations = employees.map((emp) => {
+      // Calculate actual days worked from attendance
+      const actualDaysWorked = emp.attendances.reduce((total, att) => {
+        if (att.status === "Present" || att.status === "Late") return total + 1;
+        if (att.status === "Half Day") return total + 0.5;
+        return total;
+      }, 0);
+
       const basicSalary = emp.basicSalary || 0;
-      const basicPayable = (basicSalary / workingDaysCount) * daysWorkedConst;
+      const basicPayable = (basicSalary / workingDaysCount) * actualDaysWorked;
 
       // Allowances
       // Allowances & Adjustments
@@ -195,7 +210,7 @@ export async function GET(request: NextRequest) {
         basicSalary,
         totalDays: totalMonthDays,
         workingDays: workingDaysCount,
-        daysWorked: daysWorkedConst,
+        daysWorked: actualDaysWorked,
         basicPayable,
         attendanceAllowance: attAllowance,
         dailyAllowance,
