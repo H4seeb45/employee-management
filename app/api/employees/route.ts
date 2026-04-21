@@ -30,14 +30,19 @@ export async function GET(request: NextRequest) {
   
   if (isSuperAdmin) {
     if (queryLocationId && queryLocationId !== "all") {
-       where.locationId = queryLocationId;
+      where.locationId = queryLocationId;
     }
   } else {
     // For non-superadmins (including BM and Admin), restrict to authorized locations
-    if (queryLocationId && queryLocationId !== "all" && authorizedIds.includes(queryLocationId)) {
+    if (queryLocationId && queryLocationId !== "all") {
+      if (authorizedIds.includes(queryLocationId)) {
         where.locationId = queryLocationId;
+      } else {
+        where.id = "none"; // Selection forbidden, return empty
+      }
     } else {
-        where.locationId = { in: authorizedIds };
+      // Default to all authorized locations
+      where.locationId = { in: authorizedIds };
     }
   }
 

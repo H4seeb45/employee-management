@@ -14,11 +14,17 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { employees } = body;
+    const { employees, defaultLocationId } = body;
 
     if (!Array.isArray(employees)) {
       return NextResponse.json({ message: "Invalid payload: 'employees' must be an array" }, { status: 400 });
     }
+
+    const isSuperAdmin = isSuperAdminUser(user);
+    const authorizedIds = [
+      user.locationId,
+      ...(user.authorizedLocations?.map((l: any) => l.id) || []),
+    ].filter(Boolean);
 
     let count = 0;
     const errors: string[] = [];
@@ -39,7 +45,15 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        const targetLocationId = employeeData.locationId || (isSuperAdminUser(user) ? null : user.locationId);
+        let targetLocationId = employeeData.locationId || defaultLocationId || (isSuperAdmin ? null : user.locationId);
+        
+        if (targetLocationId === "all") targetLocationId = isSuperAdmin ? null : user.locationId;
+
+        // Authorization check
+        if (!isSuperAdmin && targetLocationId && !authorizedIds.includes(targetLocationId)) {
+           errors.push(`Row ${index + 2}: Forbidden. You are not authorized for Location ID ${targetLocationId}`);
+           continue;
+        }
 
         // Map frontend strings to dates safely
         const { 

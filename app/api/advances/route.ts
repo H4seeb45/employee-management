@@ -9,10 +9,11 @@ export async function GET(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-     const isAdmin = isAdminUser(user);
+    const isAdmin = isAdminUser(user);
     const isSuperAdmin = isSuperAdminUser(user);
     const { searchParams } = new URL(request.url);
-    const locationId = isSuperAdmin ? searchParams.get("locationId") : null;
+    const locationParam = searchParams.get("locationId");
+    const locationId = locationParam === "all" ? null : locationParam;
     let whereClause: any = {};
     const employeeRecord = await prisma.employee.findUnique({ where: { userId: user.id } });
     const isBM = user.roles?.some((ur: any) => ur.role.name === "Business Manager");
@@ -26,7 +27,15 @@ export async function GET(request: NextRequest) {
         whereClause = { employee: { locationId } };
       }
     } else if (isBM || isAdmin) {
-      whereClause = { employee: { locationId: { in: authorizedIds } } };
+      if (locationId) {
+        if (authorizedIds.includes(locationId)) {
+          whereClause = { employee: { locationId } };
+        } else {
+          whereClause = { employee: { id: "none" } }; // Force empty
+        }
+      } else {
+        whereClause = { employee: { locationId: { in: authorizedIds } } };
+      }
     } else if (employeeRecord) {
       whereClause = { employeeId: employeeRecord.id };
     } else {

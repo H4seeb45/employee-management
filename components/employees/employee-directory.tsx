@@ -80,6 +80,9 @@ export default function EmployeeDirectory() {
     department: "all",
     status: "all",
   });
+  const [locationId, setLocationId] = useState<string>("all");
+  const [locations, setLocations] = useState<any[]>([]);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
@@ -99,13 +102,34 @@ export default function EmployeeDirectory() {
 
   useEffect(() => {
     setMounted(true);
-    fetchEmployees();
+    const init = async () => {
+      try {
+        const [userRes, locRes] = await Promise.all([
+          fetch("/api/auth/me"),
+          fetch("/api/locations")
+        ]);
+        if (userRes.ok) {
+          const userData = await userRes.json();
+          setCurrentUser(userData.user);
+        }
+        if (locRes.ok) {
+          const locData = await locRes.json();
+          setLocations(locData.locations || []);
+        }
+      } catch (e) {}
+    };
+    init();
   }, []);
+
+  useEffect(() => {
+    fetchEmployees();
+  }, [locationId]);
 
   const fetchEmployees = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/employees",{cache:"no-store"});
+      const url = `/api/employees?locationId=${locationId}`;
+      const res = await fetch(url, { cache: "no-store" });
       const data = await res.json();
       if (res.ok) {
         setEmployees(data.employees || []);
@@ -410,7 +434,7 @@ export default function EmployeeDirectory() {
         const res = await fetch("/api/employees/batch", {
            method: "POST",
            headers: { "Content-Type": "application/json" },
-           body: JSON.stringify({ employees: mappedData }),
+           body: JSON.stringify({ employees: mappedData, defaultLocationId: locationId }),
         });
 
         const result = await res.json();
@@ -567,7 +591,7 @@ export default function EmployeeDirectory() {
       </div>
 
       <div className="p-4 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="flex flex-col md:flex-row gap-4 md:items-center">
+        <div className="flex flex-col md:flex-row gap-4 md:items-center flex-wrap">
           <div className="relative">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
             <Input
@@ -577,11 +601,33 @@ export default function EmployeeDirectory() {
                 setSearchText(e.target.value);
                 setCurrentPage(1);
               }}
-              className="pl-10 w-full md:w-64"
+              className="pl-10 w-full lg:w-[500px]"
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+             {(currentUser?.roles?.some((r: any) => ["Admin", "Super Admin", "Business Manager"].includes(r))) && (
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-gray-400" />
+              <Select
+                value={locationId}
+                onValueChange={(value) => {
+                  setLocationId(value);
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="All Locations" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Locations</SelectItem>
+                  {locations.map((loc) => (
+                    <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
             <Filter className="h-4 w-4 text-gray-400" />
             <Select
               value={filters.department}
@@ -753,7 +799,11 @@ export default function EmployeeDirectory() {
         <DialogContent className="sm:max-w-[900px]">
           <DialogHeader><DialogTitle>Add New Employee</DialogTitle></DialogHeader>
           <div className="max-h-[85vh] overflow-y-auto pr-2">
-            <AddEmployeeForm onSubmit={handleAddEmployee} onCancel={() => setAddDialogOpen(false)} />
+            <AddEmployeeForm 
+              onSubmit={handleAddEmployee} 
+              onCancel={() => setAddDialogOpen(false)} 
+              initialLocationId={locationId}
+            />
           </div>
         </DialogContent>
       </Dialog>

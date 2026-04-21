@@ -20,9 +20,10 @@ import { documentFields } from "./documents";
 interface AddEmployeeFormProps {
   onSubmit: (data: any) => void;
   onCancel: () => void;
+  initialLocationId?: string;
 }
 
-export function AddEmployeeForm({ onSubmit, onCancel }: AddEmployeeFormProps) {
+export function AddEmployeeForm({ onSubmit, onCancel, initialLocationId }: AddEmployeeFormProps) {
   const [activeTab, setActiveTab] = useState("personal");
   const [locations, setLocations] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -45,7 +46,7 @@ export function AddEmployeeForm({ onSubmit, onCancel }: AddEmployeeFormProps) {
     status: "Active:Working",
     joinDate: new Date().toISOString(),
     setupName: "",
-    locationId: "",
+    locationId: (initialLocationId && initialLocationId !== "all") ? initialLocationId : "",
     // Salary Info
     basicSalary: "",
     attendanceAllowance: "",

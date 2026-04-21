@@ -65,6 +65,8 @@ export default function AdvancesPage() {
 
   const [dateFilter, setDateFilter] = useState<string>("");
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [locations, setLocations] = useState<any[]>([]);
+  const [locationId, setLocationId] = useState<string>("all");
 
   const isAdmin = currentUser?.roles?.includes("Admin") || currentUser?.roles?.includes("Super Admin");
   const isCashier = currentUser?.roles?.includes("Cashier");
@@ -85,15 +87,18 @@ export default function AdvancesPage() {
     contentRef: printRef,
   });
   const fetchRecords = async () => {
+    setLoading(true);
     try {
-      const [advanceData, employeeData, authData] = await Promise.all([
-        fetch("/api/advances", { cache: "no-store" }).then((r) => (r.ok ? r.json() : [])),
-        fetch("/api/employees", { cache: "no-store" }).then((r) => (r.ok ? r.json() : [])),
+      const [advanceData, employeeData, authData, locData] = await Promise.all([
+        fetch(`/api/advances?locationId=${locationId}`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : [])),
+        fetch(`/api/employees?locationId=${locationId}`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : [])),
         fetch("/api/auth/me", { cache: "no-store" }).then((r) => (r.ok ? r.json() : { user: null })),
+        fetch("/api/locations", { cache: "no-store" }).then((r) => (r.ok ? r.json() : { locations: [] })),
       ]);
       setAdvances(Array.isArray(advanceData) ? advanceData : []);
       setEmployees(Array.isArray(employeeData?.employees) ? (employeeData as any).employees : []);
       setCurrentUser(authData?.user || null);
+      setLocations(locData?.locations || []);
       if (authData?.user?.employeeId && !authData.user.roles.includes("Admin") && !authData.user.roles.includes("Super Admin")) {
         setEmployeeId(authData.user.employeeId);
       }
@@ -106,7 +111,7 @@ export default function AdvancesPage() {
 
   useEffect(() => {
     fetchRecords();
-  }, []);
+  }, [locationId]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -294,7 +299,7 @@ export default function AdvancesPage() {
         const res = await fetch("/api/advances/batch", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ advances: mappedData }),
+          body: JSON.stringify({ advances: mappedData, locationId }),
         });
 
         const result = await res.json();
@@ -339,6 +344,23 @@ export default function AdvancesPage() {
               </Button>
             )}
           </div>
+
+          {(isAdmin || isBusinessManager) && (
+            <div className="flex items-center gap-2 bg-white dark:bg-slate-800 p-1.5 px-3 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm grow sm:max-w-[200px]">
+              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Location:</Label>
+              <Select value={locationId} onValueChange={setLocationId}>
+                <SelectTrigger className="h-8 border-0 focus:ring-0 bg-transparent p-0 shadow-none text-xs">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Locations</SelectItem>
+                  {locations.map(loc => (
+                    <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {(isAdmin || isBusinessManager) && (
             <div className="flex items-center gap-2 bg-white dark:bg-slate-800 p-1.5 px-3 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm grow sm:max-w-xs">

@@ -192,7 +192,6 @@ export function AttendanceModule() {
                 const y = dateVal.getFullYear();
                 const m = dateVal.getMonth() + 1;
                 const d = dateVal.getDate();
-                console.log(d)
                 dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
              } else if (typeof dateVal === 'number') {
                 // For numeric serials, use Math.floor to ignore time parts

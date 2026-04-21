@@ -14,10 +14,23 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { loans } = body;
+    const { loans, locationId: queryLocationId } = body;
 
     if (!Array.isArray(loans)) {
       return NextResponse.json({ message: "Invalid payload: 'loans' must be an array" }, { status: 400 });
+    }
+
+    const isSuperAdmin = isAdminUser(user) && user.roles.some((r: any) => r.role.name === "Super Admin");
+    const authorizedIds = [
+      user.locationId,
+      ...(user.authorizedLocations?.map((l: any) => l.id) || []),
+    ].filter(Boolean);
+
+    // If queryLocationId is "all", we skip the strict single-location check but still verify authorizedIds
+    const targetLocationId = queryLocationId === "all" ? null : queryLocationId;
+
+    if (!isSuperAdmin && targetLocationId && !authorizedIds.includes(targetLocationId)) {
+      return NextResponse.json({ message: "Forbidden: You are not authorized for this location." }, { status: 403 });
     }
 
     let count = 0;
@@ -38,6 +51,18 @@ export async function POST(request: NextRequest) {
 
         if (!employee) {
           errors.push(`Row ${index + 2}: Employee with ID ${employeeIdReadable} not found`);
+          continue;
+        }
+
+        // Location Check
+        if (targetLocationId && employee.locationId !== targetLocationId) {
+          errors.push(`Row ${index + 2}: Employee ${employeeIdReadable} is not in the selected location.`);
+          continue;
+        }
+
+        // If "all" was selected, non-superadmin still needs to be authorized for the employee's location
+        if (!isSuperAdmin && !targetLocationId && !authorizedIds.includes(employee.locationId)) {
+          errors.push(`Row ${index + 2}: You are not authorized to create records for employee ${employeeIdReadable}'s location.`);
           continue;
         }
 

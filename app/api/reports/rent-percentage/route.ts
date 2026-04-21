@@ -52,7 +52,6 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    console.log(expenses);
     // Group by location or just sum everything?
     // If locationId is provided, we return one consolidated record.
     // If "all", we might want to return per location.
