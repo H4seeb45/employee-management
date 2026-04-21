@@ -1,70 +1,35 @@
 "use client";
 
-import { Loader2, Plus, Search, FileText, MoreHorizontal, Download, Printer, Calculator, Save } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress";
-import { toast } from "sonner";
-import { SalarySlip } from "@/components/payroll/salary-slip";
-import { useReactToPrint } from "react-to-print";
-import { useRef } from "react";
-
-function formatCurrency(amount: number | null | undefined) {
-  if (amount === null || amount === undefined) return "-";
-  return new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 }).format(amount);
-}
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PayrollManager } from "@/components/payroll/payroll-manager";
+import { IncentiveManager } from "@/components/payroll/incentive-manager";
 
 export default function PayrollPage() {
-  const [payrolls, setPayrolls] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [calculating, setCalculating] = useState(false);
-  const [calculateProgress, setCalculateProgress] = useState(0);
-  const [saving, setSaving] = useState(false);
   const [mounted, setMounted] = useState(false);
-  
   const [month, setMonth] = useState<string>(new Date().getMonth() + 1 + "");
   const [year, setYear] = useState<string>(new Date().getFullYear() + "");
+  const [locationId, setLocationId] = useState<string>("all");
+  const [locations, setLocations] = useState<any[]>([]);
+  const [user, setUser] = useState<any>(null);
   
-  const [isCalculated, setIsCalculated] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
-  const [viewingSlip, setViewingSlip] = useState<any | null>(null);
-  
-  const contentRef = useRef<HTMLDivElement>(null);
-  const handlePrint = useReactToPrint({
-    contentRef,
-  });
-
   useEffect(() => {
-    setMounted(true);
+    const init = async () => {
+        try {
+            const [locRes, userRes] = await Promise.all([
+                fetch("/api/locations"),
+                fetch("/api/auth/me")
+            ]);
+            const locations = await locRes.json();
+            if (locRes.ok) setLocations(locations.locations);
+            if (userRes.ok) setUser(await userRes.json());
+        } catch (err) {
+            console.error(err);
+        }
+        setMounted(true);
+    };
+    init();
   }, []);
 
   const currentMonthName = useMemo(() => {
@@ -73,131 +38,20 @@ export default function PayrollPage() {
     return new Date(0, m - 1).toLocaleString('default', { month: 'long' });
   }, [month]);
 
-  const fetchPayrolls = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/payroll?month=${month}&year=${year}`);
-      if (res.ok) {
-        const data = await res.json();
-        setIsCalculated(data.length > 0);
-        setIsSaved(data.length > 0);
-        setPayrolls(data);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchPayrolls();
-  }, [month, year]);
-
-  const handleCalculate = async () => {
-    if (isSaved) {
-      toast.error("Payroll for this month is already saved and locked.");
-      return;
-    }
-    setCalculating(true);
-    setCalculateProgress(0);
-    try {
-      // Step 1: Get all employee IDs
-      const empRes = await fetch("/api/employees?status=Active:Working");
-      if (!empRes.ok) throw new Error("Failed to fetch employees");
-      const { employees } = await empRes.json();
-      
-      if (!employees || employees.length === 0) {
-        toast.error("No active employees found to calculate payroll");
-        setCalculating(false);
-        return;
-      }
-
-      const employeeIds = employees.map((e: any) => e.id);
-      const chunkSize = 15;
-      const totalChunks = Math.ceil(employeeIds.length / chunkSize);
-      let allCalculations: any[] = [];
-
-      for (let i = 0; i < totalChunks; i++) {
-        const chunk = employeeIds.slice(i * chunkSize, (i + 1) * chunkSize);
-        const res = await fetch(`/api/payroll/calculate?month=${month}&year=${year}&employeeIds=${chunk.join(",")}`);
-        
-        if (res.ok) {
-          const data = await res.json();
-          allCalculations = [...allCalculations, ...data.calculations];
-        } else {
-          console.error("Failed to calculate batch", i);
-        }
-        
-        setCalculateProgress(Math.round(((i + 1) / totalChunks) * 100));
-      }
-
-      setPayrolls(allCalculations);
-      setIsCalculated(true);
-      setIsSaved(false); // New calculation is not yet saved
-      toast.success("Payroll calculation completed for " + employees.length + " employees");
-    } catch (err) {
-      console.error(err);
-      toast.error("Error calculating payroll");
-    } finally {
-      setCalculating(false);
-    }
-  };
-
-  const handleSave = async () => {
-    if (isSaved) return;
-    setSaving(true);
-    try {
-      const payload = payrolls.map(p => ({
-        ...p,
-        month: parseInt(month),
-        year: parseInt(year),
-        amount: p.netSalary,
-        status: "Processed"
-      }));
-      
-      const res = await fetch("/api/payroll", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      
-      if (res.ok) {
-        toast.success("Payroll saved successfully");
-        setIsSaved(true);
-        fetchPayrolls();
-      } else {
-        toast.error("Failed to save payroll");
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Error saving payroll");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const isCurrentMonth = useMemo(() => {
-    const now = new Date();
-    return parseInt(month) === now.getMonth() + 1 && parseInt(year) === now.getFullYear();
-  }, [month, year]);
+  if (!mounted) return null;
 
   return (
-    <div className="space-y-6 max-w-[1200px] mx-auto">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div className="space-y-6 max-w-[1200px] mx-auto px-4 sm:px-6">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-[#0A192F] dark:text-white">Payroll Management</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-[#0A192F] dark:text-white">Payroll & Incentives</h1>
           <p className="text-slate-500 dark:text-slate-400 font-medium">
-            {isSaved 
-              ? `Payroll for ${currentMonthName} ${year} is saved and locked.` 
-              : isCurrentMonth 
-                ? "Calculate and manage monthly employee payroll." 
-                : `Viewing archived payroll for ${currentMonthName} ${year}. Calculations are disabled.`}
+            Manage monthly salaries, incentives, and deductions for {currentMonthName} {year}.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
             <Select value={month} onValueChange={setMonth}>
-                <SelectTrigger className="w-[120px]">
+                <SelectTrigger className="w-[130px] bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
                     <SelectValue placeholder="Month" />
                 </SelectTrigger>
                 <SelectContent>
@@ -209,7 +63,7 @@ export default function PayrollPage() {
                 </SelectContent>
             </Select>
             <Select value={year} onValueChange={setYear}>
-                <SelectTrigger className="w-[100px]">
+                <SelectTrigger className="w-[100px] bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
                     <SelectValue placeholder="Year" />
                 </SelectTrigger>
                 <SelectContent>
@@ -218,165 +72,38 @@ export default function PayrollPage() {
                     ))}
                 </SelectContent>
             </Select>
-            <Button 
-                onClick={handleCalculate} 
-                disabled={loading || saving || calculating || !isCurrentMonth || isSaved} 
-                variant="outline" 
-                className="border-[#0A192F] text-[#0A192F] hover:bg-[#0A192F] hover:text-white dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-            >
-                {calculating ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Calculator className="h-4 w-4 mr-2" />}
-                Calculate
-            </Button>
-            <Button 
-                onClick={handleSave} 
-                disabled={loading || saving || !isCalculated || !isCurrentMonth || isSaved || calculating} 
-                className="bg-[#0A192F] hover:bg-[#162a45] dark:bg-blue-600 dark:hover:bg-blue-700 text-white"
-            >
-                {saving ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                Save Payroll
-            </Button>
+            <Select value={locationId} onValueChange={setLocationId}>
+                <SelectTrigger className="w-[180px] bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                    <SelectValue placeholder="Location" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Locations</SelectItem>
+                    {locations?.map(loc => (
+                        <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
         </div>
       </div>
 
-      <Card className="border-slate-200 dark:border-slate-700 shadow-sm rounded-2xl overflow-hidden bg-white dark:bg-[#1E293B]">
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-slate-50/50 dark:bg-slate-800/50">
-                  <TableHead className="sticky left-0 bg-slate-50 dark:bg-[#1E293B] z-10 min-w-[100px] border-r dark:border-slate-700">Actions</TableHead>
-                  <TableHead className="min-w-[150px]">Location</TableHead>
-                  <TableHead className="min-w-[100px]">EMP ID</TableHead>
-                  <TableHead className="min-w-[200px]">Name</TableHead>
-                  <TableHead className="min-w-[150px]">Designation</TableHead>
-                  <TableHead className="min-w-[150px]">Department</TableHead>
-                  <TableHead className="min-w-[120px]">Basic Salary</TableHead>
-                  <TableHead className="min-w-[100px]">Days Worked</TableHead>
-                  <TableHead className="min-w-[120px]">Basic Payable</TableHead>
-                  <TableHead className="min-w-[120px]">Att. Allow.</TableHead>
-                  <TableHead className="min-w-[120px]">Daily Allow.</TableHead>
-                  <TableHead className="min-w-[120px]">Fuel Allow.</TableHead>
-                  <TableHead className="min-w-[120px]">Conv. Allow.</TableHead>
-                  <TableHead className="min-w-[120px]">Maintenance</TableHead>
-                  <TableHead className="min-w-[120px]">Commission</TableHead>
-                  <TableHead className="min-w-[120px]">KPI Inc.</TableHead>
-                  <TableHead className="min-w-[120px]">Incentives</TableHead>
-                  <TableHead className="min-w-[120px]">Loaders Allow.</TableHead>
-                  <TableHead className="min-w-[120px]">Total Inc.</TableHead>
-                  <TableHead className="min-w-[120px] font-bold">Gross Salary</TableHead>
-                  <TableHead className="min-w-[100px]">EOBI</TableHead>
-                  <TableHead className="min-w-[100px]">S. Security</TableHead>
-                  <TableHead className="min-w-[120px]">I.Tax Ded</TableHead>
-                  <TableHead className="min-w-[100px]">Advance</TableHead>
-                  <TableHead className="min-w-[100px]">Loan</TableHead>
-                  <TableHead className="min-w-[120px]">Total Ded.</TableHead>
-                  <TableHead className="min-w-[120px] font-bold text-[#0A192F] dark:text-white">Net Salary</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                    <TableRow>
-                        <TableCell colSpan={27} className="h-48 text-center">
-                            <Loader2 className="h-8 w-8 animate-spin mx-auto text-slate-300" />
-                        </TableCell>
-                    </TableRow>
-                ) : payrolls.length === 0 ? (
-                    <TableRow>
-                        <TableCell colSpan={27} className="h-48 text-center text-slate-500">
-                            No records found for this period. Click Calculate to generate.
-                        </TableCell>
-                    </TableRow>
-                ) : (
-                    payrolls.map((p) => (
-                      <TableRow key={p.id || p.employeeId} className="transition-colors">
-                        <TableCell className="sticky left-0 bg-white dark:bg-[#1E293B] z-10 border-r dark:border-slate-700">
-                            <div className="flex items-center gap-1">
-                                <Button variant="ghost" size="icon" onClick={() => setViewingSlip(p)}>
-                                    <Printer className="h-4 w-4 text-slate-400 dark:text-white" />
-                                </Button>
-                            </div>
-                        </TableCell>
-                        <TableCell className="dark:text-slate-400">{p.locationName || p.employee?.location?.name || "-"}</TableCell>
-                        <TableCell className="font-mono text-xs dark:text-slate-300">{p.empId || p.employee?.employeeId}</TableCell>
-                        <TableCell className="font-medium dark:text-slate-200">{p.employeeName || p.employee?.employeeName}</TableCell>
-                        <TableCell className="dark:text-slate-400">{p.designation || p.employee?.position}</TableCell>
-                        <TableCell>
-                            <Badge variant="outline" className="dark:border-slate-700 dark:text-slate-300">{p.department || p.employee?.department}</Badge>
-                        </TableCell>
-                        <TableCell className="dark:text-slate-300">{formatCurrency(p.basicSalary)}</TableCell>
-                        <TableCell className="text-center dark:text-slate-300">{p.daysWorked}</TableCell>
-                        <TableCell className="dark:text-slate-300">{formatCurrency(p.basicPayable)}</TableCell>
-                        <TableCell className="dark:text-slate-300">{formatCurrency(p.attendanceAllowance)}</TableCell>
-                        <TableCell className="dark:text-slate-300">{formatCurrency(p.dailyAllowance)}</TableCell>
-                        <TableCell className="dark:text-slate-300">{formatCurrency(p.fuelAllowance)}</TableCell>
-                        <TableCell className="dark:text-slate-300">{formatCurrency(p.conveyanceAllowance)}</TableCell>
-                        <TableCell className="dark:text-slate-300">{formatCurrency(p.maintainence)}</TableCell>
-                        <TableCell className="dark:text-slate-300">{formatCurrency(p.comission)}</TableCell>
-                        <TableCell className="dark:text-slate-300">{formatCurrency(p.eachKpiIncentives)}</TableCell>
-                        <TableCell className="dark:text-slate-300">{formatCurrency(p.incentives)}</TableCell>
-                        <TableCell className="dark:text-slate-300">{formatCurrency(p.loadersAllowance)}</TableCell>
-                        <TableCell className="font-semibold dark:text-slate-200">{formatCurrency(p.totalIncentives)}</TableCell>
-                        <TableCell className="font-bold text-slate-900 dark:text-slate-100">{formatCurrency(p.grossSalary)}</TableCell>
-                        <TableCell className="text-red-500 dark:text-red-400">{formatCurrency(p.eobi)}</TableCell>
-                        <TableCell className="text-red-500 dark:text-red-400">{formatCurrency(p.socialSecurity)}</TableCell>
-                        <TableCell className="text-red-500 dark:text-red-400">{formatCurrency(p.incomeTax)}</TableCell>
-                        <TableCell className="text-red-500 dark:text-red-400">{formatCurrency(p.advance)}</TableCell>
-                        <TableCell className="text-red-500 dark:text-red-400">{formatCurrency(p.loan)}</TableCell>
-                        <TableCell className="font-semibold text-red-600 dark:text-red-500">{formatCurrency(p.totalDeduction)}</TableCell>
-                        <TableCell className="font-bold text-[#0A192F] dark:text-blue-400 bg-slate-50/50 dark:bg-slate-800/50">{formatCurrency(p.netSalary)}</TableCell>
-                      </TableRow>
-                    ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-
-      {viewingSlip && (
-          <Dialog open={!!viewingSlip} onOpenChange={(o) => !o && setViewingSlip(null)}>
-              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                      <DialogTitle>Salary Slip Preview</DialogTitle>
-                      <DialogDescription>
-                          Viewing salary slip for {viewingSlip.employeeName || viewingSlip.employee?.employeeName} - {currentMonthName} {year}
-                      </DialogDescription>
-                  </DialogHeader>
-                  <div className="py-4" ref={contentRef}>
-                      <SalarySlip payroll={viewingSlip} month={month} year={year} />
-                  </div>
-                  <DialogFooter className="sticky bottom-0 bg-white dark:bg-[#1E293B] pt-4 border-t dark:border-slate-700">
-                      <Button onClick={() => handlePrint()} className="bg-[#0A192F] hover:bg-[#162a45]">
-                          <Printer className="mr-2 h-4 w-4" />
-                          Print Slip
-                      </Button>
-                      <Button variant="outline" onClick={() => setViewingSlip(null)} className="dark:border-slate-700 dark:text-slate-200">Close</Button>
-                  </DialogFooter>
-              </DialogContent>
-          </Dialog>
-      )}
-
-      {/* Calculation Progress Dialog */}
-      <Dialog open={calculating} onOpenChange={() => {}}>
-          <DialogContent className="max-w-md text-center py-12 bg-white dark:bg-[#1E293B] border-none shadow-2xl">
-              <div className="space-y-6">
-                  <div className="flex justify-center">
-                      <div className="relative">
-                          <Loader2 className="h-16 w-16 animate-spin text-blue-600" />
-                          <div className="absolute inset-0 flex items-center justify-center font-bold text-xs dark:text-white">
-                              {calculateProgress}%
-                          </div>
-                      </div>
-                  </div>
-                  <div className="space-y-2">
-                      <h3 className="text-xl font-bold text-[#0A192F] dark:text-white">Calculating Payroll...</h3>
-                      <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Processing salary, deductions, and incentives batches.</p>
-                  </div>
-                  <Progress value={calculateProgress} className="h-2 w-full bg-slate-100 dark:bg-slate-800" />
-                  <p className="text-[10px] text-slate-400 uppercase tracking-widest font-black">Hold tight, almost there!</p>
-              </div>
-          </DialogContent>
-      </Dialog>
+      <Tabs defaultValue="payroll" className="w-full">
+        <TabsList className="bg-slate-100/50 dark:bg-slate-800/50 p-1 rounded-xl mb-6">
+          <TabsTrigger value="payroll" className="rounded-lg px-8 py-1.5 data-[state=active]:bg-slate-900 data-[state=active]:text-white">
+            Payroll
+          </TabsTrigger>
+          <TabsTrigger value="incentives" className="rounded-lg px-8 py-1.5 data-[state=active]:bg-slate-900 data-[state=active]:text-white">
+            Incentives & Deductions
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="payroll" className="mt-0 focus-visible:outline-none">
+          <PayrollManager month={month} year={year} locationId={locationId} />
+        </TabsContent>
+        
+        <TabsContent value="incentives" className="mt-0 focus-visible:outline-none">
+          <IncentiveManager month={month} year={year} locationId={locationId} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -71,6 +71,8 @@ model Employee {
   noticePeriod              Int?            @default(0)
   salaryAllowanceDetails    Json?
   otherDocuments            Json?
+  shortages                 Float?          @default(0)
+  marketCredit              Float?          @default(0)
   attendances               Attendance[]
   user                      User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
   location                  Location?       @relation(fields: [locationId], references: [id])
@@ -79,6 +81,7 @@ model Employee {
   advances                  Advance[]
   payrolls                  Payroll[]
   adminRequests             AdminRequest[]
+  adjustments               EmployeeAdjustment[]
 }
 
 model User {
@@ -292,6 +295,8 @@ model Payroll {
   incomeTax              Float?
   advance                Float?
   loan                   Float?
+  shortages              Float?    @default(0)
+  marketCredit           Float?    @default(0)
   totalDeduction         Float?
   
   netSalary              Float?
@@ -303,6 +308,22 @@ model Payroll {
   notes                 String?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
+
+  @@unique([employeeId, month, year])
+}
+
+model EmployeeAdjustment {
+  id             String    @id @default(cuid())
+  employeeId     String
+  month          Int
+  year           Int
+  incentives     Float     @default(0)
+  comission      Float     @default(0)
+  shortages      Float     @default(0)
+  marketCredit   Float     @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  employee       Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@unique([employeeId, month, year])
 }

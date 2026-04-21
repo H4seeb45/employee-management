@@ -15,7 +15,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const monthStr = searchParams.get("month");
     const yearStr = searchParams.get("year");
-    const locationId = searchParams.get("locationId") || user.locationId;
+    const locationParam = searchParams.get("locationId");
+    const locationId = locationParam === "all" ? null : (locationParam || user.locationId);
     const employeeIds = searchParams.get("employeeIds");
 
     if (!monthStr || !yearStr) {
@@ -49,6 +50,18 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         location: true,
+        payrolls: {
+          where: {
+            month: month,
+            year: year
+          }
+        },
+        adjustments: {
+          where: {
+            month: month,
+            year: year
+          }
+        },
         loans: {
           where: { 
             status: "Disbursed", 
@@ -69,14 +82,17 @@ export async function GET(request: NextRequest) {
       const basicPayable = (basicSalary / workingDaysCount) * daysWorkedConst;
 
       // Allowances
+      // Allowances & Adjustments
+      const adj = emp.adjustments[0];
       const attAllowance = emp.attendanceAllowance || 0;
       const dailyAllowance = emp.dailyAllowance || 0;
       const fuelAllowance = emp.fuelAllowance || 0;
       const conveyanceAllowance = emp.conveyanceAllowance || 0;
       const maintenance = emp.maintainence || 0;
-      const commission = emp.comission || 0;
+      
+      const commission = (adj?.comission || emp.comission || 0);
       const kpiIncentive = emp.eachKpiIncentives || 0;
-      const incentives = emp.incentives || 0;
+      const incentives = (adj?.incentives || emp.incentives || 0);
       
       const loaderAllowance = emp.department === "LOADERS" ? (emp.loaderAllowance || 0) : 0;
 
@@ -86,6 +102,9 @@ export async function GET(request: NextRequest) {
       // Deductions
       const eobi = emp.eobiDeduction === "Yes" ? 400 : 0;
       const socialSecurity = emp.socialSecurityDeduction === "Yes" ? 520 : 0;
+      
+      const shortages = adj?.shortages || 0;
+      const marketCredit = adj?.marketCredit || 0;
 
       // Income Tax calculation
       const annualGross = grossSalary * 12;
@@ -108,52 +127,56 @@ export async function GET(request: NextRequest) {
       // Advance & Loan - Checking current month against issuedAt
       const calcYear = parseInt(yearStr);
       const calcMonth = parseInt(monthStr) - 1; // 0-indexed for comparison
-      const currentCalcDate = new Date(calcYear, calcMonth, 1);
+      
+      // Check if this month's payroll is already processed
+      const existingProcessed = emp.payrolls.find(p => p.status === "Processed" || p.status === "Paid");
 
-      const loanDeduction = emp.loans
-        .reduce((sum, l) => {
-          // Take the installment but cap it at the remaining balance
-          let installment = l.monthlyInstallment || l.balance || 0;
-          if (l.balance !== null && installment > l.balance) {
-            installment = l.balance;
-          }
-          
-          if (installment <= 0) return sum;
-          
-          if (l.issuedAt) {
-            const startDate = new Date(l.issuedAt);
-            const startYear = startDate.getFullYear();
-            const startMonth = startDate.getMonth();
-            
-            if (calcYear < startYear || (calcYear === startYear && calcMonth < startMonth)) {
-              return sum;
+      const loanDeduction = existingProcessed 
+        ? (existingProcessed.loan || 0)
+        : emp.loans.reduce((sum, l) => {
+            // Take the installment but cap it at the remaining balance
+            let installment = l.monthlyInstallment || l.balance || 0;
+            if (l.balance !== null && installment > l.balance) {
+              installment = l.balance;
             }
-          }
-          return sum + installment;
-        }, 0);
-
-      const advanceDeduction = emp.advances
-        .reduce((sum, a) => {
-          let installment = a.monthlyInstallment || a.balance || 0;
-          if (a.balance !== null && installment > a.balance) {
-            installment = a.balance;
-          }
-
-          if (installment <= 0) return sum;
-          
-          if (a.issuedAt) {
-            const startDate = new Date(a.issuedAt);
-            const startYear = startDate.getFullYear();
-            const startMonth = startDate.getMonth();
             
-            if (calcYear < startYear || (calcYear === startYear && calcMonth < startMonth)) {
-              return sum;
+            if (installment <= 0) return sum;
+            
+            if (l.issuedAt) {
+              const startDate = new Date(l.issuedAt);
+              const startYear = startDate.getFullYear();
+              const startMonth = startDate.getMonth();
+              
+              if (calcYear < startYear || (calcYear === startYear && calcMonth < startMonth)) {
+                return sum;
+              }
             }
-          }
-          return sum + installment;
-        }, 0);
+            return sum + installment;
+          }, 0);
 
-      const totalDeduction = eobi + socialSecurity + incomeTax + loanDeduction + advanceDeduction;
+      const advanceDeduction = existingProcessed
+        ? (existingProcessed.advance || 0)
+        : emp.advances.reduce((sum, a) => {
+            let installment = a.monthlyInstallment || a.balance || 0;
+            if (a.balance !== null && installment > a.balance) {
+              installment = a.balance;
+            }
+
+            if (installment <= 0) return sum;
+            
+            if (a.issuedAt) {
+              const startDate = new Date(a.issuedAt);
+              const startYear = startDate.getFullYear();
+              const startMonth = startDate.getMonth();
+              
+              if (calcYear < startYear || (calcYear === startYear && calcMonth < startMonth)) {
+                return sum;
+              }
+            }
+            return sum + installment;
+          }, 0);
+
+      const totalDeduction = eobi + socialSecurity + incomeTax + loanDeduction + advanceDeduction + shortages + marketCredit;
       const netSalary = grossSalary - totalDeduction;
 
       // if (emp.employeeName === "Ronan Lindsey"){
@@ -190,6 +213,8 @@ export async function GET(request: NextRequest) {
         incomeTax,
         advance: advanceDeduction,
         loan: loanDeduction,
+        shortages,
+        marketCredit,
         totalDeduction,
         netSalary,
       };

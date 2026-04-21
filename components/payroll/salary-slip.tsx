@@ -21,10 +21,10 @@ export function SalarySlip({ payroll, month, year }: SalarySlipProps) {
       {/* Header */}
       <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-[#0A192F] uppercase tracking-tighter">Sadiq Traders</h1>
+          <h1 className="text-3xl font-bold text-[#0A192F] dark:text-white uppercase tracking-tighter">Sadiq Traders</h1>
         </div>
         <div className="text-right">
-          <h2 className="text-xl font-bold text-slate-900 uppercase">Pay Slip</h2>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white uppercase">Pay Slip</h2>
           <p className="text-slate-500">For the month of {monthName} {year}</p>
         </div>
       </div>
@@ -69,7 +69,7 @@ export function SalarySlip({ payroll, month, year }: SalarySlipProps) {
       <div className="grid grid-cols-2 gap-x-12">
         {/* Earnings */}
         <div>
-          <h3 className="text-lg font-bold border-b-2 border-[#0A192F] mb-4 text-[#0A192F]">Salary & Incentives</h3>
+          <h3 className="text-lg font-bold border-b-2 border-[#0A192F] mb-4 text-[#0A192F] dark:text-white">Salary & Incentives</h3>
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span>Basic Payable</span>
@@ -109,7 +109,7 @@ export function SalarySlip({ payroll, month, year }: SalarySlipProps) {
                 <span className="font-medium">{formatCurrency(payroll.loadersAllowance)}</span>
               </div>
             )}
-            <div className="flex justify-between font-bold border-t border-slate-200 pt-2 mt-4 text-slate-900">
+            <div className="flex justify-between font-bold border-t border-slate-200 pt-2 mt-4 text-slate-900 dark:text-white">
               <span>Gross Salary</span>
               <span>{formatCurrency(payroll.grossSalary)}</span>
             </div>
@@ -139,6 +139,14 @@ export function SalarySlip({ payroll, month, year }: SalarySlipProps) {
             <div className="flex justify-between text-sm">
               <span>Loan Installment</span>
               <span className="font-medium">{formatCurrency(payroll.loan)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span>Shortages</span>
+              <span className="font-medium">{formatCurrency(payroll.shortages)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span>Market Credit</span>
+              <span className="font-medium">{formatCurrency(payroll.marketCredit)}</span>
             </div>
             <div className="flex justify-between font-bold border-t border-slate-200 pt-2 mt-4 text-red-800">
               <span>Total Deductions</span>
