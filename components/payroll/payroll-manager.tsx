@@ -1,8 +1,10 @@
 "use client";
 
-import { Loader2, Calculator, Save, Printer } from "lucide-react";
+import { Loader2, Calculator, Save, Printer, Download, Search } from "lucide-react";
 import { useEffect, useState, useMemo, useRef } from "react";
+import * as XLSX from 'xlsx';
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -47,6 +49,19 @@ export function PayrollManager({ month, year, locationId }: PayrollManagerProps)
   const [isCalculated, setIsCalculated] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [viewingSlip, setViewingSlip] = useState<any | null>(null);
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchId, setSearchId] = useState("");
+  const [searchDesignation, setSearchDesignation] = useState("");
+
+  const filteredPayrolls = useMemo(() => {
+    return payrolls.filter(p => {
+      const nameMatch = (p.employeeName || p.employee?.employeeName || "").toLowerCase().includes(searchTerm.toLowerCase());
+      const idMatch = (p.empId || p.employee?.employeeId || "").toLowerCase().includes(searchId.toLowerCase());
+      const designationMatch = (p.designation || p.employee?.position || "").toLowerCase().includes(searchDesignation.toLowerCase());
+      return nameMatch && idMatch && designationMatch;
+    });
+  }, [payrolls, searchTerm, searchId, searchDesignation]);
   
   const contentRef = useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({
@@ -162,12 +177,88 @@ export function PayrollManager({ month, year, locationId }: PayrollManagerProps)
 
   const isCurrentMonth = useMemo(() => {
     const now = new Date();
-    return true
+    return parseInt(month) === (now.getMonth() + 1) && parseInt(year) === now.getFullYear();
   }, [month, year]);
+  
+  const handleExportExcel = () => {
+    if (filteredPayrolls.length === 0) {
+      toast.error("No payroll data to export");
+      return;
+    }
+
+    const exportData = filteredPayrolls.map(p => ({
+      "Employee ID": p.empId || p.employee?.employeeId,
+      "Employee Name": p.employeeName || p.employee?.employeeName,
+      "Designation": p.designation || p.employee?.position,
+      "Days Worked": p.daysWorked,
+      "Basic Payable": p.basicPayable,
+      "Attendance Allowance": p.attendanceAllowance || 0,
+      "Daily Allowance": p.dailyAllowance || 0,
+      "Fuel Allowance": p.fuelAllowance || 0,
+      "Conveyance Allowance": p.conveyanceAllowance || 0,
+      "Maintenance": p.maintainence || 0,
+      "KPI Incentives": p.eachKpiIncentives || 0,
+      "Category Incentive": p.categoryIncentive || 0,
+      "Gross Salary": p.grossSalary,
+      "EOBI": p.eobi || 0,
+      "Social Security": p.socialSecurity || 0,
+      "Tax": p.incomeTax || 0,
+      "Advance Deduction": p.advance || 0,
+      "Loan Installment": p.loan || 0,
+      "Shortages": p.shortages || 0,
+      "Total Deductions": p.totalDeduction,
+      "Net Salary": p.netSalary,
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Payroll");
+    XLSX.writeFile(wb, `Payroll_${month}_${year}.xlsx`);
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-end gap-2">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative group min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+            <Input 
+              placeholder="Search by name..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 h-10 border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/20"
+            />
+          </div>
+          <div className="relative group min-w-[150px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+            <Input 
+              placeholder="Search ID..." 
+              value={searchId}
+              onChange={(e) => setSearchId(e.target.value)}
+              className="pl-9 h-10 border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/20"
+            />
+          </div>
+          <div className="relative group min-w-[150px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+            <Input 
+              placeholder="Designation..." 
+              value={searchDesignation}
+              onChange={(e) => setSearchDesignation(e.target.value)}
+              className="pl-9 h-10 border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/20"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+            <Button 
+                onClick={handleExportExcel}
+                disabled={filteredPayrolls.length === 0}
+                variant="outline"
+                className="border-[#0A192F] text-[#0A192F] hover:bg-[#0A192F] hover:text-white dark:border-slate-700 dark:text-slate-200"
+            >
+                <Download className="h-4 w-4 mr-2" />
+                Export
+            </Button>
             <Button 
                 onClick={handleCalculate} 
                 disabled={loading || saving || calculating || !isCurrentMonth} 
@@ -180,14 +271,15 @@ export function PayrollManager({ month, year, locationId }: PayrollManagerProps)
             <Button 
                 onClick={handleSave} 
                 disabled={loading || saving || !isCalculated || !isCurrentMonth || isSaved || calculating} 
-                className="bg-[#0A192F] hover:bg-[#162a45] dark:bg-blue-600 dark:hover:bg-blue-700 text-white"
+                className="bg-[#0A192F] hover:bg-[#162a45] dark:bg-blue-600 dark:hover:bg-blue-700 text-white shadow-lg"
             >
                 {saving ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                 Save Payroll
             </Button>
+        </div>
       </div>
 
-      <Card className="border-slate-200 dark:border-slate-700 shadow-sm rounded-2xl overflow-hidden bg-white dark:bg-[#1E293B]">
+      <Card className="border-slate-200 dark:border-slate-700 shadow-xl rounded-2xl overflow-hidden bg-white dark:bg-[#1E293B]">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
@@ -236,14 +328,14 @@ export function PayrollManager({ month, year, locationId }: PayrollManagerProps)
                             <Loader2 className="h-8 w-8 animate-spin mx-auto text-slate-300" />
                         </TableCell>
                     </TableRow>
-                ) : payrolls.length === 0 ? (
+                ) : filteredPayrolls.length === 0 ? (
                     <TableRow>
                         <TableCell colSpan={30} className="h-48 text-center text-slate-500">
-                            No records found for this period. Click Calculate to generate.
+                            {payrolls.length > 0 ? "No records match your filters." : "No records found for this period. Click Calculate to generate."}
                         </TableCell>
                     </TableRow>
                 ) : (
-                    payrolls.map((p) => (
+                    filteredPayrolls.map((p) => (
                       <TableRow key={p.id || p.employeeId} className="transition-colors">
                         <TableCell className="sticky left-0 bg-white dark:bg-[#1E293B] z-10 border-r dark:border-slate-700">
                             <div className="flex items-center gap-1">

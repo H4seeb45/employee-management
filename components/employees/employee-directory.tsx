@@ -325,8 +325,8 @@ export default function EmployeeDirectory() {
       "Date of Leaving (YYYY-MM-DD)", "Probation & Confirmation Date",
       "Basic Salary", "Attendance Allowance", "Daily Allowance", "Fuel Allowance",
       "Conveyance Allowance", "Maintainence", "Comission", "Each KPI Incentives",
-      "Incentives", "Category Incentive", "Tax Deduction (Yes/No)",
-      "EOBI Deduction (Yes/No)", "Social Security Deduction (Yes/No)"
+      "Incentives", "Category Incentive", "Bank Name", "Account #", "Tax Deduction (Yes/No)",
+      "EOBI Deduction (Yes/No)", "Social Security Deduction (Yes/No)", "Route Name"
     ];
 
     const exampleRow = [
@@ -339,8 +339,8 @@ export default function EmployeeDirectory() {
       "", "",
       "50000", "5000", "2000", "3000",
       "4000", "1000", "0", "0",
-      "0", "0", "Yes",
-      "No", "No"
+      "0", "0", "Meezan Bank", "123456789", "Yes",
+      "No", "No", "Route 01"
     ];
 
     const wsData = [headers, exampleRow];
@@ -426,6 +426,9 @@ export default function EmployeeDirectory() {
            eachKpiIncentives: parseFloat(String(row["Each KPI Incentives"])) || 0,
            incentives: parseFloat(String(row["Incentives"])) || 0,
            categoryIncentive: parseFloat(String(row["Category Incentive"])) || 0,
+           bankName: String(row["Bank Name"] || ""),
+           accountNumber: String(row["Account #"] || ""),
+           routeName: String(row["Route Name"] || ""),
            taxDeduction: String(row["Tax Deduction (Yes/No)"] || "No"),
            eobiDeduction: String(row["EOBI Deduction (Yes/No)"] || "No"),
            socialSecurityDeduction: String(row["Social Security Deduction (Yes/No)"] || "No"),

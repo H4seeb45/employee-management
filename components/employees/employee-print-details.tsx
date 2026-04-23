@@ -116,6 +116,8 @@ export const EmployeePrintDetails = forwardRef<HTMLDivElement, EmployeePrintDeta
           
           <LabelValue label="Advance Eligibility" value={employee.advanceEligibilityAmount != null ? `Rs. ${Number(employee.advanceEligibilityAmount).toLocaleString()}` : "Rs. 0"} />
           <LabelValue label="Loan Eligibility" value={employee.loanEligibilityAmount != null ? `Rs. ${Number(employee.loanEligibilityAmount).toLocaleString()}` : "Rs. 0"} />
+          <LabelValue label="Bank Name" value={employee.bankName} />
+          <LabelValue label="Account #" value={employee.accountNumber} />
         </div>
 
         {/* Documents Checklist Section */}

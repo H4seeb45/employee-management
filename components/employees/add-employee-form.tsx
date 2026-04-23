@@ -58,6 +58,8 @@ export function AddEmployeeForm({ onSubmit, onCancel, initialLocationId }: AddEm
     eachKpiIncentives: "",
     incentives: "",
     categoryIncentive: "",
+    bankName: "",
+    accountNumber: "",
     taxDeduction: "",
     eobiDeduction: "",
     socialSecurityDeduction: "",
@@ -570,6 +572,10 @@ export function AddEmployeeForm({ onSubmit, onCancel, initialLocationId }: AddEm
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="routeName">Route Name</Label>
+              <Input id="routeName" name="routeName" value={formData.routeName || ""} onChange={handleChange} placeholder="e.g. Route 01" className="border-slate-200 dark:border-slate-700" />
+            </div>
           </div>
         </TabsContent>
 
@@ -649,6 +655,39 @@ export function AddEmployeeForm({ onSubmit, onCancel, initialLocationId }: AddEm
                   <SelectItem value="No">No</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2 col-span-1 md:col-span-2 lg:col-span-3 pt-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Bank Details</h3>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="bankName">Bank Name</Label>
+              <Select value={formData.bankName} onValueChange={(v) => handleSelectChange("bankName", v)}>
+                <SelectTrigger className="border-slate-200 dark:border-slate-700"><SelectValue placeholder="Select Bank" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="MCB">MCB</SelectItem>
+                  <SelectItem value="Meezan">Meezan</SelectItem>
+                  <SelectItem value="JazzCash">JazzCash</SelectItem>
+                  <SelectItem value="Easypaisa">Easypaisa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="accountNumber">Account #</Label>
+              <Input 
+                id="accountNumber" 
+                name="accountNumber" 
+                type="text" 
+                inputMode="numeric" 
+                value={formData.accountNumber} 
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, "");
+                  setFormData((prev: any) => ({ ...prev, accountNumber: val }));
+                }} 
+                placeholder="Numbers only" 
+                className="border-slate-200 dark:border-slate-700" 
+              />
             </div>
           </div>
         </TabsContent>

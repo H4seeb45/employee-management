@@ -64,6 +64,11 @@ export async function POST(req: NextRequest) {
         designation,
         department,
         locationName,
+        bankName,
+        accountNumber,
+        routeName,
+        joinDate,
+        cnicNumber,
         id,
         employee,
         ...rest

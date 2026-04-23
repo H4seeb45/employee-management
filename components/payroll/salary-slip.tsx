@@ -33,34 +33,50 @@ export function SalarySlip({ payroll, month, year }: SalarySlipProps) {
       <div className="grid grid-cols-2 gap-8 mb-8 bg-slate-50 p-6 rounded-xl border border-slate-100">
         <div className="space-y-2">
           <div className="flex justify-between border-b border-slate-200 pb-1">
-            <span className="text-slate-500 text-sm">Employee Name:</span>
+            <span className="text-black text-sm">CNIC:</span>
+            <span className="font-bold text-slate-800">{payroll.cnicNumber || payroll.employee?.cnicNumber || "---"}</span>
+          </div>
+          <div className="flex justify-between border-b border-slate-200 pb-1">
+            <span className="text-black text-sm">Employee Name:</span>
             <span className="font-bold text-slate-800">{payroll.employeeName || payroll.employee?.employeeName}</span>
           </div>
           <div className="flex justify-between border-b border-slate-200 pb-1">
-            <span className="text-slate-500 text-sm">Employee ID:</span>
+            <span className="text-black text-sm">Employee ID:</span>
             <span className="font-bold text-slate-800">{payroll.empId || payroll.employee?.employeeId}</span>
           </div>
           <div className="flex justify-between border-b border-slate-200 pb-1">
-            <span className="text-slate-500 text-sm">Designation:</span>
+            <span className="text-black text-sm">Designation:</span>
             <span className="font-bold text-slate-800">{payroll.designation || payroll.employee?.position}</span>
           </div>
           <div className="flex justify-between border-b border-slate-200 pb-1">
-            <span className="text-slate-500 text-sm">Department:</span>
+            <span className="text-black text-sm">Department:</span>
             <span className="font-bold text-slate-800">{payroll.department || payroll.employee?.department}</span>
           </div>
+          {(payroll.routeName || payroll.employee?.routeName) &&<div className="flex justify-between border-b border-slate-200 pb-1">
+            <span className="text-black text-sm">Route Name:</span>
+            <span className="font-bold text-slate-800">{payroll.routeName || payroll.employee?.routeName || "---"}</span>
+          </div>}
         </div>
         <div className="space-y-2">
           <div className="flex justify-between border-b border-slate-200 pb-1">
-            <span className="text-slate-500 text-sm">Days Worked:</span>
+            <span className="text-black text-sm">Mode of Payment:</span>
+            <span className="font-bold text-slate-800 uppercase">{payroll.bankName || payroll.employee?.bankName || "Cash"}</span>
+          </div>
+          <div className="flex justify-between border-b border-slate-200 pb-1">
+            <span className="text-black text-sm">Account #:</span>
+            <span className="font-bold text-slate-800">{payroll.accountNumber || payroll.employee?.accountNumber || "---"}</span>
+          </div>
+          <div className="flex justify-between border-b border-slate-200 pb-1">
+            <span className="text-black text-sm">Days Worked:</span>
             <span className="font-bold text-slate-800">{payroll.daysWorked} / {payroll.workingDays}</span>
           </div>
           <div className="flex justify-between border-b border-slate-200 pb-1">
-            <span className="text-slate-500 text-sm">Location:</span>
-            <span className="font-bold text-slate-800">{payroll.locationName || payroll.employee?.location?.name || "-"}</span>
-          </div>
-          <div className="flex justify-between border-b border-slate-200 pb-1">
-            <span className="text-slate-500 text-sm">Slip Date:</span>
-            <span className="font-bold text-slate-800">{new Date().toLocaleDateString()}</span>
+            <span className="text-black text-sm">Joining Date:</span>
+            <span className="font-bold text-slate-800">
+              {payroll.joinDate || payroll.employee?.joinDate 
+                ? new Date(payroll.joinDate || payroll.employee?.joinDate).toLocaleDateString() 
+                : "---"}
+            </span>
           </div>
         </div>
       </div>
@@ -71,62 +87,90 @@ export function SalarySlip({ payroll, month, year }: SalarySlipProps) {
         <div>
           <h3 className="text-lg font-bold border-b-2 border-[#0A192F] mb-4 text-[#0A192F] dark:text-white">Salary & Incentives</h3>
           <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Basic Payable</span>
-              <span className="font-medium">{formatCurrency(payroll.basicPayable)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Attendance Allowance</span>
-              <span className="font-medium">{formatCurrency(payroll.attendanceAllowance)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Daily Allowance</span>
-              <span className="font-medium">{formatCurrency(payroll.dailyAllowance)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Fuel Allowance</span>
-              <span className="font-medium">{formatCurrency(payroll.fuelAllowance)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Conveyance Allowance</span>
-              <span className="font-medium">{formatCurrency(payroll.conveyanceAllowance)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Maintenance</span>
-              <span className="font-medium">{formatCurrency(payroll.maintainence)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Commission</span>
-              <span className="font-medium">{formatCurrency(payroll.comission)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>KPI Incentives</span>
-              <span className="font-medium">{formatCurrency(payroll.eachKpiIncentives)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Category Incentive</span>
-              <span className="font-medium">{formatCurrency(payroll.categoryIncentive)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Olpers Milk</span>
-              <span className="font-medium">{formatCurrency(payroll.olpersMilk)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Olpers Careem</span>
-              <span className="font-medium">{formatCurrency(payroll.olpersCareem)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Eid Incentive</span>
-              <span className="font-medium">{formatCurrency(payroll.eidIncentive)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Olpers 500 ML</span>
-              <span className="font-medium">{formatCurrency(payroll.olpers500ml)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Incentives</span>
-              <span className="font-medium">{formatCurrency(payroll.incentives)}</span>
-            </div>
+            {payroll.basicPayable > 0 && (
+              <div className="flex justify-between text-sm">
+                <span>Basic Payable</span>
+                <span className="font-medium">{formatCurrency(payroll.basicPayable)}</span>
+              </div>
+            )}
+            {payroll.attendanceAllowance > 0 && (
+              <div className="flex justify-between text-sm">
+                <span>Attendance Allowance</span>
+                <span className="font-medium">{formatCurrency(payroll.attendanceAllowance)}</span>
+              </div>
+            )}
+            {payroll.dailyAllowance > 0 && (
+              <div className="flex justify-between text-sm">
+                <span>Daily Allowance</span>
+                <span className="font-medium">{formatCurrency(payroll.dailyAllowance)}</span>
+              </div>
+            )}
+            {payroll.fuelAllowance > 0 && (
+              <div className="flex justify-between text-sm">
+                <span>Fuel Allowance</span>
+                <span className="font-medium">{formatCurrency(payroll.fuelAllowance)}</span>
+              </div>
+            )}
+            {payroll.conveyanceAllowance > 0 && (
+              <div className="flex justify-between text-sm">
+                <span>Conveyance Allowance</span>
+                <span className="font-medium">{formatCurrency(payroll.conveyanceAllowance)}</span>
+              </div>
+            )}
+            {payroll.maintainence > 0 && (
+              <div className="flex justify-between text-sm">
+                <span>Maintenance</span>
+                <span className="font-medium">{formatCurrency(payroll.maintainence)}</span>
+              </div>
+            )}
+            {payroll.comission > 0 && (
+              <div className="flex justify-between text-sm">
+                <span>Commission</span>
+                <span className="font-medium">{formatCurrency(payroll.comission)}</span>
+              </div>
+            )}
+            {payroll.eachKpiIncentives > 0 && (
+              <div className="flex justify-between text-sm">
+                <span>KPI Incentives</span>
+                <span className="font-medium">{formatCurrency(payroll.eachKpiIncentives)}</span>
+              </div>
+            )}
+            {payroll.categoryIncentive > 0 && (
+              <div className="flex justify-between text-sm">
+                <span>Category Incentive</span>
+                <span className="font-medium">{formatCurrency(payroll.categoryIncentive)}</span>
+              </div>
+            )}
+            {payroll.olpersMilk > 0 && (
+              <div className="flex justify-between text-sm">
+                <span>Olpers Milk</span>
+                <span className="font-medium">{formatCurrency(payroll.olpersMilk)}</span>
+              </div>
+            )}
+            {payroll.olpersCareem > 0 && (
+              <div className="flex justify-between text-sm">
+                <span>Olpers Careem</span>
+                <span className="font-medium">{formatCurrency(payroll.olpersCareem)}</span>
+              </div>
+            )}
+            {payroll.eidIncentive > 0 && (
+              <div className="flex justify-between text-sm">
+                <span>Eid Incentive</span>
+                <span className="font-medium">{formatCurrency(payroll.eidIncentive)}</span>
+              </div>
+            )}
+            {payroll.olpers500ml > 0 && (
+              <div className="flex justify-between text-sm">
+                <span>Olpers 500 ML</span>
+                <span className="font-medium">{formatCurrency(payroll.olpers500ml)}</span>
+              </div>
+            )}
+            {payroll.incentives > 0 && (
+              <div className="flex justify-between text-sm">
+                <span>Incentives</span>
+                <span className="font-medium">{formatCurrency(payroll.incentives)}</span>
+              </div>
+            )}
             {payroll.loadersAllowance > 0 && (
               <div className="flex justify-between text-sm">
                 <span>Loaders Allowance</span>
@@ -144,34 +188,34 @@ export function SalarySlip({ payroll, month, year }: SalarySlipProps) {
         <div>
           <h3 className="text-lg font-bold border-b-2 border-red-800 mb-4 text-red-800">Deductions</h3>
           <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>EOBI</span>
-              <span className="font-medium">{formatCurrency(payroll.eobi)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Social Security</span>
-              <span className="font-medium">{formatCurrency(payroll.socialSecurity)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Income Tax</span>
-              <span className="font-medium">{formatCurrency(payroll.incomeTax)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Advance Deduction</span>
-              <span className="font-medium">{formatCurrency(payroll.advance)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Loan Installment</span>
-              <span className="font-medium">{formatCurrency(payroll.loan)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Shortages</span>
-              <span className="font-medium">{formatCurrency(payroll.shortages)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Market Credit</span>
-              <span className="font-medium">{formatCurrency(payroll.marketCredit)}</span>
-            </div>
+              <div className="flex justify-between text-sm">
+                <span>EOBI</span>
+                <span className="font-medium">{formatCurrency(payroll.eobi)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Social Security</span>
+                <span className="font-medium">{formatCurrency(payroll.socialSecurity)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Income Tax</span>
+                <span className="font-medium">{formatCurrency(payroll.incomeTax)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Advance Deduction</span>
+                <span className="font-medium">{formatCurrency(payroll.advance)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Loan Installment</span>
+                <span className="font-medium">{formatCurrency(payroll.loan)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Shortages</span>
+                <span className="font-medium">{formatCurrency(payroll.shortages)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Market Credit</span>
+                <span className="font-medium">{formatCurrency(payroll.marketCredit)}</span>
+              </div>
             <div className="flex justify-between font-bold border-t border-slate-200 pt-2 mt-4 text-red-800">
               <span>Total Deductions</span>
               <span>{formatCurrency(payroll.totalDeduction)}</span>
@@ -199,12 +243,12 @@ export function SalarySlip({ payroll, month, year }: SalarySlipProps) {
         </div>
         <div className="text-center pt-8 border-t border-slate-300">
           <p className="text-sm font-bold text-slate-800">Authorized Signature</p>
-          <p className="text-[10px] text-slate-500 uppercase mt-1">For Sadiq Traders</p>
+          {/* <p className="text-[10px] text-slate-500 uppercase mt-1">For Sadiq Traders</p> */}
         </div>
       </div>
 
       {/* Footer Note */}
-      <div className="mt-12 text-center text-[10px] text-slate-400 border-t border-slate-100 pt-4">
+      <div className="mt-12 text-center text-[10px] text-black dark:text-white border-t border-slate-100 pt-4">
         <p>This is a computer generated document and does not require a physical stamp unless specified.</p>
         <p>© 2026 Sadiq Traders HRMS. All Rights Reserved.</p>
       </div>

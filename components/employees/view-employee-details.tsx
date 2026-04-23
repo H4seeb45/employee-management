@@ -176,6 +176,7 @@ export function ViewEmployeeDetails({ employee }: ViewEmployeeDetailsProps) {
               <InfoRow label="Probation Confirmation" value={employee.probationConfirmationDate ? new Date(employee.probationConfirmationDate).toLocaleDateString() : null} />
               <InfoRow label="Annual Leaves" value={employee.annualLeaves != null ? `${employee.annualLeaves} Days` : "0 Days"} />
               <InfoRow label="Notice Period" value={employee.noticePeriod != null ? `${employee.noticePeriod} Days` : "0 Days"} />
+              <InfoRow label="Route Name" value={employee.routeName} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -217,6 +218,13 @@ export function ViewEmployeeDetails({ employee }: ViewEmployeeDetailsProps) {
               
               <InfoRow label="Advance Amount Eligibility" value={employee.advanceEligibilityAmount != null ? `Rs. ${Number(employee.advanceEligibilityAmount).toLocaleString()}` : "Rs. 0"} />
               <InfoRow label="Loan Amount Eligibility" value={employee.loanEligibilityAmount != null ? `Rs. ${Number(employee.loanEligibilityAmount).toLocaleString()}` : "Rs. 0"} />
+              
+              <div className="col-span-full pt-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Bank Details</h3>
+              </div>
+              
+              <InfoRow label="Bank Name" value={employee.bankName} />
+              <InfoRow label="Account #" value={employee.accountNumber} />
             </CardContent>
           </Card>
         </TabsContent>

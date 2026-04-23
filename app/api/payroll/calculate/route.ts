@@ -158,9 +158,18 @@ export async function GET(request: NextRequest) {
         ? (existingProcessed.loan || 0)
         : emp.loans.reduce((sum, l) => {
             // Take the installment but cap it at the remaining balance
-            let installment = l.monthlyInstallment || l.balance || 0;
+            let installment = l.monthlyInstallment || l.principalAmount/l.installments! || l.balance || 0;
+            if(emp.employeeName === "MUHAMMAD NASIR ALI"){
+              console.log("Monthly Installment", l.installments)
+              console.log("Installment",installment);
+              console.log("Balance",l.balance);
+            }
             if (l.balance !== null && installment > l.balance) {
               installment = l.balance;
+            }
+            if(emp.employeeName === "MUHAMMAD NASIR ALI"){
+              console.log("Installment after if",installment);
+              console.log("Balance",l.balance);
             }
             
             if (installment <= 0) return sum;
@@ -245,6 +254,11 @@ export async function GET(request: NextRequest) {
         marketCredit,
         totalDeduction,
         netSalary,
+        bankName: emp.bankName,
+        accountNumber: emp.accountNumber,
+        routeName: emp.routeName,
+        joinDate: emp.joinDate,
+        cnicNumber: emp.cnicNumber,
       };
     });
 

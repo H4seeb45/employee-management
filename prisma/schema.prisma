@@ -64,6 +64,9 @@ model Employee {
   utilityBillUrl            String?
   referenceEmail            String?
   userId                    String?         @unique
+  bankName                  String?
+  accountNumber             String?
+  routeName                 String?
   advanceEligibilityAmount  Float?
   loanEligibilityAmount     Float?
   loaderAllowance           Float?
