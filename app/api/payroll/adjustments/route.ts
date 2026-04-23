@@ -61,7 +61,24 @@ export async function POST(request: NextRequest) {
     const results = await prisma.$transaction(async (tx) => {
         const processed = [];
         for (const record of records) {
-            const { empId, incentives, comission, shortages, marketCredit } = record;
+            const { 
+              empId, 
+              incentives, 
+              comission, 
+              shortages, 
+              marketCredit,
+              attendanceAllowance,
+              dailyAllowance,
+              fuelAllowance,
+              conveyanceAllowance,
+              maintainence,
+              eachKpiIncentives,
+              olpersMilk,
+              olpersCareem,
+              eidIncentive,
+              olpers500ml,
+              categoryIncentive
+            } = record;
             
             // Find employee by employeeId (the string one, e.g., CCI-01-0001)
             const employee = await tx.employee.findUnique({
@@ -69,6 +86,24 @@ export async function POST(request: NextRequest) {
             });
 
             if (!employee) continue;
+
+            const adjustmentData = {
+                incentives: parseFloat(incentives) || 0,
+                comission: parseFloat(comission) || 0,
+                shortages: parseFloat(shortages) || 0,
+                marketCredit: parseFloat(marketCredit) || 0,
+                attendanceAllowance: parseFloat(attendanceAllowance) || 0,
+                dailyAllowance: parseFloat(dailyAllowance) || 0,
+                fuelAllowance: parseFloat(fuelAllowance) || 0,
+                conveyanceAllowance: parseFloat(conveyanceAllowance) || 0,
+                maintainence: parseFloat(maintainence) || 0,
+                eachKpiIncentives: parseFloat(eachKpiIncentives) || 0,
+                olpersMilk: parseFloat(olpersMilk) || 0,
+                olpersCareem: parseFloat(olpersCareem) || 0,
+                eidIncentive: parseFloat(eidIncentive) || 0,
+                olpers500ml: parseFloat(olpers500ml) || 0,
+                categoryIncentive: parseFloat(categoryIncentive) || 0,
+            };
 
             const adjustment = await tx.employeeAdjustment.upsert({
                 where: {
@@ -78,20 +113,12 @@ export async function POST(request: NextRequest) {
                         year
                     }
                 },
-                update: {
-                    incentives: incentives || 0,
-                    comission: comission || 0,
-                    shortages: shortages || 0,
-                    marketCredit: marketCredit || 0
-                },
+                update: adjustmentData,
                 create: {
                     employeeId: employee.id,
                     month,
                     year,
-                    incentives: incentives || 0,
-                    comission: comission || 0,
-                    shortages: shortages || 0,
-                    marketCredit: marketCredit || 0
+                    ...adjustmentData
                 }
             });
             processed.push(adjustment);

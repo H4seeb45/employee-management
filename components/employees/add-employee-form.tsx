@@ -69,6 +69,10 @@ export function AddEmployeeForm({ onSubmit, onCancel, initialLocationId }: AddEm
     salaryAllowanceDetails: {},
     otherDocuments: [],
     licenseExpiryDate: "",
+    olpersMilk: "",
+    olpersCareem: "",
+    eidIncentive: "",
+    olpers500ml: "",
   });
 
   useEffect(() => {
@@ -97,7 +101,7 @@ export function AddEmployeeForm({ onSubmit, onCancel, initialLocationId }: AddEm
     const salaryNumericFields = [
       "basicSalary", "attendanceAllowance", "dailyAllowance", "fuelAllowance",
       "conveyanceAllowance", "maintainence", "comission", "eachKpiIncentives",
-      "incentives", "categoryIncentive"
+      "incentives", "categoryIncentive", "olpersMilk", "olpersCareem", "eidIncentive", "olpers500ml"
     ];
     if (salaryNumericFields.includes(name)) {
       // Allow empty or valid non-negative numbers (including decimals)
@@ -230,7 +234,7 @@ export function AddEmployeeForm({ onSubmit, onCancel, initialLocationId }: AddEm
     const salaryNumericFields = [
       "basicSalary", "attendanceAllowance", "dailyAllowance", "fuelAllowance",
       "conveyanceAllowance", "maintainence", "comission", "eachKpiIncentives",
-      "incentives", "categoryIncentive", "advanceEligibilityAmount", 
+      "incentives", "categoryIncentive", "olpersMilk", "olpersCareem", "eidIncentive", "olpers500ml", "advanceEligibilityAmount", 
       "loanEligibilityAmount", "loaderAllowance", "annualLeaves", "noticePeriod"
     ];
     const intFields = ["annualLeaves", "noticePeriod"];
@@ -586,6 +590,10 @@ export function AddEmployeeForm({ onSubmit, onCancel, initialLocationId }: AddEm
               { id: "eachKpiIncentives", label: "Each KPI Incentives" },
               { id: "incentives", label: "Incentives" },
               { id: "categoryIncentive", label: "Category Incentive" },
+              { id: "olpersMilk", label: "Olpers Milk" },
+              { id: "olpersCareem", label: "Olpers Careem" },
+              { id: "eidIncentive", label: "Eid Incentive" },
+              { id: "olpers500ml", label: "Olpers 500 ML" },
               { id: "loaderAllowance", label: "Loader Allowance" },
             ].map(field => (
               <div key={field.id} className="grid grid-cols-1 md:grid-cols-2 gap-4 col-span-1 md:col-span-2 lg:col-span-3 bg-slate-50/50 dark:bg-slate-800/30 p-3 rounded-lg border border-slate-100 dark:border-slate-800/50">

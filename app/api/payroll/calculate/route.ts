@@ -99,19 +99,27 @@ export async function GET(request: NextRequest) {
       // Allowances
       // Allowances & Adjustments
       const adj = emp.adjustments[0];
-      const attAllowance = emp.attendanceAllowance || 0;
-      const dailyAllowance = emp.dailyAllowance || 0;
-      const fuelAllowance = emp.fuelAllowance || 0;
-      const conveyanceAllowance = emp.conveyanceAllowance || 0;
-      const maintenance = emp.maintainence || 0;
+      const attAllowance = (adj?.attendanceAllowance ?? emp.attendanceAllowance ?? 0);
+      const dailyAllowance = (adj?.dailyAllowance ?? emp.dailyAllowance ?? 0);
+      const fuelAllowance = (adj?.fuelAllowance ?? emp.fuelAllowance ?? 0);
+      const conveyanceAllowance = (adj?.conveyanceAllowance ?? emp.conveyanceAllowance ?? 0);
+      const maintenance = (adj?.maintainence ?? emp.maintainence ?? 0);
       
-      const commission = (adj?.comission || emp.comission || 0);
-      const kpiIncentive = emp.eachKpiIncentives || 0;
-      const incentives = (adj?.incentives || emp.incentives || 0);
+      const commission = (adj?.comission ?? emp.comission ?? 0);
+      const kpiIncentive = (adj?.eachKpiIncentives ?? emp.eachKpiIncentives ?? 0);
+      const incentives = (adj?.incentives ?? emp.incentives ?? 0);
+      const categoryIncentive = (adj?.categoryIncentive ?? emp.categoryIncentive ?? 0);
       
+      const olpersMilk = (adj?.olpersMilk ?? emp.olpersMilk ?? 0);
+      const olpersCareem = (adj?.olpersCareem ?? emp.olpersCareem ?? 0);
+      const eidIncentive = (adj?.eidIncentive ?? emp.eidIncentive ?? 0);
+      const olpers500ml = (adj?.olpers500ml ?? emp.olpers500ml ?? 0);
+
       const loaderAllowance = emp.department === "LOADERS" ? (emp.loaderAllowance || 0) : 0;
 
-      const totalIncentives = attAllowance + dailyAllowance + fuelAllowance + conveyanceAllowance + maintenance + commission + kpiIncentive + incentives + loaderAllowance;
+      const totalIncentives = attAllowance + dailyAllowance + fuelAllowance + conveyanceAllowance + 
+                             maintenance + commission + kpiIncentive + incentives + categoryIncentive +
+                             olpersMilk + olpersCareem + eidIncentive + olpers500ml + loaderAllowance;
       const grossSalary = basicPayable + totalIncentives;
 
       // Deductions
@@ -220,6 +228,11 @@ export async function GET(request: NextRequest) {
         comission: commission,
         eachKpiIncentives: kpiIncentive,
         incentives,
+        categoryIncentive,
+        olpersMilk,
+        olpersCareem,
+        eidIncentive,
+        olpers500ml,
         loadersAllowance: loaderAllowance,
         totalIncentives,
         grossSalary,

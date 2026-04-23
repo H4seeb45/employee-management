@@ -73,6 +73,10 @@ model Employee {
   otherDocuments            Json?
   shortages                 Float?          @default(0)
   marketCredit              Float?          @default(0)
+  olpersMilk                Float?          @default(0)
+  olpersCareem              Float?          @default(0)
+  eidIncentive              Float?          @default(0)
+  olpers500ml               Float?          @default(0)
   attendances               Attendance[]
   user                      User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
   location                  Location?       @relation(fields: [locationId], references: [id])
@@ -287,6 +291,12 @@ model Payroll {
   incentives             Float?
   loadersAllowance       Float?
   
+  olpersMilk             Float?          @default(0)
+  olpersCareem           Float?          @default(0)
+  eidIncentive           Float?          @default(0)
+  olpers500ml            Float?          @default(0)
+  categoryIncentive      Float?          @default(0)
+
   totalIncentives        Float?
   grossSalary            Float?
   
@@ -318,10 +328,21 @@ model EmployeeAdjustment {
   month          Int
   year           Int
   incentives     Float     @default(0)
-  comission      Float     @default(0)
-  shortages      Float     @default(0)
-  marketCredit   Float     @default(0)
-  createdAt      DateTime  @default(now())
+  comission              Float     @default(0)
+  shortages              Float     @default(0)
+  marketCredit           Float     @default(0)
+  attendanceAllowance    Float?    @default(0)
+  dailyAllowance         Float?    @default(0)
+  fuelAllowance          Float?    @default(0)
+  conveyanceAllowance    Float?    @default(0)
+  maintainence           Float?    @default(0)
+  eachKpiIncentives      Float?    @default(0)
+  olpersMilk             Float?    @default(0)
+  olpersCareem           Float?    @default(0)
+  eidIncentive           Float?    @default(0)
+  olpers500ml            Float?    @default(0)
+  categoryIncentive      Float?    @default(0)
+  createdAt              DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   employee       Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 

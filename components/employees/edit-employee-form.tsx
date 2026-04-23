@@ -79,7 +79,7 @@ export function EditEmployeeForm({
     const salaryNumericFields = [
       "basicSalary", "attendanceAllowance", "dailyAllowance", "fuelAllowance",
       "conveyanceAllowance", "maintainence", "comission", "eachKpiIncentives",
-      "incentives", "categoryIncentive"
+      "incentives", "categoryIncentive", "olpersMilk", "olpersCareem", "eidIncentive", "olpers500ml"
     ];
     if (salaryNumericFields.includes(name)) {
       if (value === "" || /^\d*\.?\d*$/.test(value)) {
@@ -220,7 +220,7 @@ export function EditEmployeeForm({
     const salaryNumericFields = [
       "basicSalary", "attendanceAllowance", "dailyAllowance", "fuelAllowance",
       "conveyanceAllowance", "maintainence", "comission", "eachKpiIncentives",
-      "incentives", "categoryIncentive", "advanceEligibilityAmount", 
+      "incentives", "categoryIncentive", "olpersMilk", "olpersCareem", "eidIncentive", "olpers500ml", "advanceEligibilityAmount", 
       "loanEligibilityAmount", "loaderAllowance", "annualLeaves", "noticePeriod"
     ];
     const intFields = ["annualLeaves", "noticePeriod"];
@@ -576,6 +576,10 @@ export function EditEmployeeForm({
               { id: "eachKpiIncentives", label: "Each KPI Incentives" },
               { id: "incentives", label: "Incentives" },
               { id: "categoryIncentive", label: "Category Incentive" },
+              { id: "olpersMilk", label: "Olpers Milk" },
+              { id: "olpersCareem", label: "Olpers Careem" },
+              { id: "eidIncentive", label: "Eid Incentive" },
+              { id: "olpers500ml", label: "Olpers 500 ML" },
               { id: "loaderAllowance", label: "Loader Allowance" },
             ].map(field => (
               <div key={field.id} className="grid grid-cols-1 md:grid-cols-2 gap-4 col-span-1 md:col-span-2 lg:col-span-3 bg-slate-50/50 dark:bg-slate-800/30 p-3 rounded-lg border border-slate-100 dark:border-slate-800/50">

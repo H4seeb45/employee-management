@@ -209,6 +209,11 @@ export function PayrollManager({ month, year, locationId }: PayrollManagerProps)
                   <TableHead className="min-w-[120px]">Maintenance</TableHead>
                   <TableHead className="min-w-[120px]">Commission</TableHead>
                   <TableHead className="min-w-[120px]">KPI Inc.</TableHead>
+                  <TableHead className="min-w-[150px]">Cat. Incentive</TableHead>
+                  <TableHead className="min-w-[120px]">Olpers Milk</TableHead>
+                  <TableHead className="min-w-[120px]">Olpers Careem</TableHead>
+                  <TableHead className="min-w-[120px]">Eid Inc.</TableHead>
+                  <TableHead className="min-w-[120px]">Olpers 500ML</TableHead>
                   <TableHead className="min-w-[120px]">Incentives</TableHead>
                   <TableHead className="min-w-[120px]">Loaders Allow.</TableHead>
                   <TableHead className="min-w-[120px]">Total Inc.</TableHead>
@@ -227,13 +232,13 @@ export function PayrollManager({ month, year, locationId }: PayrollManagerProps)
               <TableBody>
                 {loading ? (
                     <TableRow>
-                        <TableCell colSpan={8} className="h-48 text-center">
+                        <TableCell colSpan={30} className="h-48 text-center">
                             <Loader2 className="h-8 w-8 animate-spin mx-auto text-slate-300" />
                         </TableCell>
                     </TableRow>
                 ) : payrolls.length === 0 ? (
                     <TableRow>
-                        <TableCell colSpan={8} className="h-48 text-center text-slate-500">
+                        <TableCell colSpan={30} className="h-48 text-center text-slate-500">
                             No records found for this period. Click Calculate to generate.
                         </TableCell>
                     </TableRow>
@@ -264,6 +269,11 @@ export function PayrollManager({ month, year, locationId }: PayrollManagerProps)
                         <TableCell className="dark:text-slate-300">{formatCurrency(p.maintainence)}</TableCell>
                         <TableCell className="dark:text-slate-300">{formatCurrency(p.comission)}</TableCell>
                         <TableCell className="dark:text-slate-300">{formatCurrency(p.eachKpiIncentives)}</TableCell>
+                        <TableCell className="dark:text-slate-300">{formatCurrency(p.categoryIncentive)}</TableCell>
+                        <TableCell className="dark:text-slate-300">{formatCurrency(p.olpersMilk)}</TableCell>
+                        <TableCell className="dark:text-slate-300">{formatCurrency(p.olpersCareem)}</TableCell>
+                        <TableCell className="dark:text-slate-300">{formatCurrency(p.eidIncentive)}</TableCell>
+                        <TableCell className="dark:text-slate-300">{formatCurrency(p.olpers500ml)}</TableCell>
                         <TableCell className="dark:text-slate-300">{formatCurrency(p.incentives)}</TableCell>
                         <TableCell className="dark:text-slate-300">{formatCurrency(p.loadersAllowance)}</TableCell>
                         <TableCell className="font-semibold dark:text-slate-200">{formatCurrency(p.totalIncentives)}</TableCell>

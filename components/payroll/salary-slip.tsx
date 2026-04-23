@@ -100,6 +100,30 @@ export function SalarySlip({ payroll, month, year }: SalarySlipProps) {
               <span className="font-medium">{formatCurrency(payroll.comission)}</span>
             </div>
             <div className="flex justify-between text-sm">
+              <span>KPI Incentives</span>
+              <span className="font-medium">{formatCurrency(payroll.eachKpiIncentives)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span>Category Incentive</span>
+              <span className="font-medium">{formatCurrency(payroll.categoryIncentive)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span>Olpers Milk</span>
+              <span className="font-medium">{formatCurrency(payroll.olpersMilk)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span>Olpers Careem</span>
+              <span className="font-medium">{formatCurrency(payroll.olpersCareem)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span>Eid Incentive</span>
+              <span className="font-medium">{formatCurrency(payroll.eidIncentive)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span>Olpers 500 ML</span>
+              <span className="font-medium">{formatCurrency(payroll.olpers500ml)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
               <span>Incentives</span>
               <span className="font-medium">{formatCurrency(payroll.incentives)}</span>
             </div>
