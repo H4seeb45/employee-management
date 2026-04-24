@@ -161,128 +161,146 @@ export function AttendanceModule() {
     setImporting(true);
     setImportProgress(0);
     try {
-      const reader = new FileReader();
-      reader.onload = async (evt) => {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: "binary" });
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
-        const data = XLSX.utils.sheet_to_json(ws);
-
-        if (data.length === 0) {
-          toast.error("Excel file is empty");
-          setImporting(false);
-          return;
-        }
-
-        const formattedRecords = data.map((row: any) => {
-             // Case-insensitive key lookup helper
-             const getVal = (keys: string[]) => {
-               const foundKey = Object.keys(row).find(k => 
-                 keys.some(key => k.toLowerCase().trim() === key.toLowerCase().trim())
-               );
-               return foundKey ? row[foundKey] : null;
-             };
-
-             let dateVal = getVal(["Date", "Attendance Date", "AttendanceDate", "DAT"]);
-             let dateStr = "";
-
-             if (dateVal instanceof Date) {
-                // If cellDates: true is on, use local components to avoid timezone shift
-                const y = dateVal.getFullYear();
-                const m = dateVal.getMonth() + 1;
-                const d = dateVal.getDate();
-                dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-             } else if (typeof dateVal === 'number') {
-                // For numeric serials, use Math.floor to ignore time parts
-                const serial = Math.floor(dateVal);
-                const date = new Date((serial - 25569) * 86400 * 1000);
-                dateStr = date.toISOString().split('T')[0];
-             } else if (typeof dateVal === 'string') {
-                // Try to parse string date
-                const parts = dateVal.split(/[-/]/);
-                if (parts.length === 3) {
-                   if (parts[0].length === 4) {
-                      dateStr = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-                   } else {
-                      dateStr = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-                   }
-                } else {
-                   const d = new Date(dateVal);
-                   if (!isNaN(d.getTime())) {
-                      dateStr = d.toISOString().split('T')[0];
-                   }
-                }
-             }
-
-             const checkIn = getVal(["Check In", "CheckIn", "In Time", "In", "Arrival"])?.toString() || "";
-             const checkOut = getVal(["Check Out", "CheckOut", "Out Time", "Out", "Departure"])?.toString() || "";
-             const empId = getVal(["Employee ID", "EmployeeID", "EMP ID", "ID", "User ID"])?.toString() || "";
-             const status = getVal(["Status", "Attendance", "REMARK"])?.toString() || "Present";
-             
-             let workingHours = 0;
-             let checkInStatus = "on-time";
-             let checkOutStatus = "on-time";
-
-             if (checkIn && checkOut) {
-                try {
-                  const [ciH, ciM] = checkIn.split(":").map(Number);
-                  const [coH, coM] = checkOut.split(":").map(Number);
-                  if (!isNaN(ciH) && !isNaN(coH)) {
-                    const diffMs = (coH * 60 + coM - (ciH * 60 + ciM)) * 60 * 1000 + (coH < ciH ? 24 * 60 * 60 * 1000 : 0);
-                    workingHours = Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100;
-
-                    if (ciH > 9 || (ciH === 9 && ciM > 15)) checkInStatus = "late";
-                    if (coH < 17) checkOutStatus = "early";
-                  }
-                } catch (err) {}
-             }
-
-             return {
-                employeeCustomId: empId,
-                date: dateStr,
-                checkIn,
-                checkOut,
-                status: status,
-                checkInStatus,
-                checkOutStatus,
-                workingHours
-             }
-        }).filter(r => r.employeeCustomId && r.date);
-
-        // Batch processing
-        const chunkSize = 50;
-        const totalChunks = Math.ceil(formattedRecords.length / chunkSize);
-        let successCount = 0;
-        let failedCount = 0;
-
-        for (let i = 0; i < totalChunks; i++) {
-          const chunk = formattedRecords.slice(i * chunkSize, (i + 1) * chunkSize);
+      await new Promise<void>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
           try {
-            const res = await fetch("/api/attendance/bulk", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ records: chunk }),
-            });
+            const bstr = evt.target?.result;
+            const wb = XLSX.read(bstr, { type: "binary" });
+            const wsname = wb.SheetNames[0];
+            const ws = wb.Sheets[wsname];
+            const data = XLSX.utils.sheet_to_json(ws);
 
-            if (res.ok) {
-              const result = await res.json();
-              successCount += result.success;
-              failedCount += result.failed;
-            } else {
-              failedCount += chunk.length;
+            if (data.length === 0) {
+              toast.error("Excel file is empty");
+              resolve();
+              return;
             }
-          } catch (err) {
-            failedCount += chunk.length;
-          }
-          setImportProgress(Math.round(((i + 1) / totalChunks) * 100));
-        }
 
-        toast.success(`Import completed: ${successCount} successful, ${failedCount} failed.`);
-        fetchAttendance();
-        setImportDialogOpen(false);
-      };
-      reader.readAsBinaryString(file);
+            const formattedRecords = data.map((row: any) => {
+                 // Case-insensitive key lookup helper
+                 const getVal = (keys: string[]) => {
+                   const foundKey = Object.keys(row).find(k => 
+                     keys.some(key => k.toLowerCase().trim() === key.toLowerCase().trim())
+                   );
+                   return foundKey ? row[foundKey] : null;
+                 };
+
+                 const formatExcelTime = (val: any) => {
+                    if (typeof val === 'number') {
+                        const totalMinutes = Math.round(val * 24 * 60);
+                        const hours = Math.floor(totalMinutes / 60);
+                        const minutes = totalMinutes % 60;
+                        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+                    }
+                    return val?.toString() || "";
+                 };
+
+                 let dateVal = getVal(["Date", "Attendance Date", "AttendanceDate", "DAT"]);
+                 let dateStr = "";
+
+                 if (dateVal instanceof Date) {
+                    // If cellDates: true is on, use local components to avoid timezone shift
+                    const y = dateVal.getFullYear();
+                    const m = dateVal.getMonth() + 1;
+                    const d = dateVal.getDate();
+                    dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                 } else if (typeof dateVal === 'number') {
+                    // For numeric serials, use Math.floor to ignore time parts
+                    const serial = Math.floor(dateVal);
+                    const date = new Date((serial - 25569) * 86400 * 1000);
+                    dateStr = date.toISOString().split('T')[0];
+                 } else if (typeof dateVal === 'string') {
+                    // Try to parse string date
+                    const parts = dateVal.split(/[-/]/);
+                    if (parts.length === 3) {
+                       if (parts[0].length === 4) {
+                          dateStr = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+                       } else {
+                          dateStr = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                       }
+                    } else {
+                       const d = new Date(dateVal);
+                       if (!isNaN(d.getTime())) {
+                          dateStr = d.toISOString().split('T')[0];
+                       }
+                    }
+                 }
+
+                 const checkIn = formatExcelTime(getVal(["Check In", "CheckIn", "In Time", "In", "Arrival"]));
+                 const checkOut = formatExcelTime(getVal(["Check Out", "CheckOut", "Out Time", "Out", "Departure"]));
+                 const empId = getVal(["Employee ID", "EmployeeID", "EMP ID", "ID", "User ID"])?.toString() || "";
+                 const status = getVal(["Status", "Attendance", "REMARK"])?.toString() || "Present";
+                 
+                 let workingHours = 0;
+                 let checkInStatus = "on-time";
+                 let checkOutStatus = "on-time";
+
+                 if (checkIn && checkOut) {
+                    try {
+                      const [ciH, ciM] = checkIn.split(":").map(Number);
+                      const [coH, coM] = checkOut.split(":").map(Number);
+                      if (!isNaN(ciH) && !isNaN(coH)) {
+                        const diffMs = (coH * 60 + coM - (ciH * 60 + ciM)) * 60 * 1000 + (coH < ciH ? 24 * 60 * 60 * 1000 : 0);
+                        workingHours = Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100;
+
+                        if (ciH > 9 || (ciH === 9 && ciM > 15)) checkInStatus = "late";
+                        if (coH < 17) checkOutStatus = "early";
+                      }
+                    } catch (err) {}
+                 }
+
+                 return {
+                    employeeCustomId: empId,
+                    date: dateStr,
+                    checkIn,
+                    checkOut,
+                    status: status,
+                    checkInStatus,
+                    checkOutStatus,
+                    workingHours
+                 }
+            }).filter(r => r.employeeCustomId && r.date);
+
+            // Batch processing
+            const chunkSize = 50;
+            const totalChunks = Math.ceil(formattedRecords.length / chunkSize);
+            let successCount = 0;
+            let failedCount = 0;
+
+            for (let i = 0; i < totalChunks; i++) {
+              const chunk = formattedRecords.slice(i * chunkSize, (i + 1) * chunkSize);
+              try {
+                const res = await fetch("/api/attendance/bulk", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ records: chunk }),
+                });
+
+                if (res.ok) {
+                  const result = await res.json();
+                  successCount += result.success;
+                  failedCount += result.failed;
+                } else {
+                  failedCount += chunk.length;
+                }
+              } catch (err) {
+                failedCount += chunk.length;
+              }
+              setImportProgress(Math.round(((i + 1) / totalChunks) * 100));
+            }
+
+            toast.success(`Import completed: ${successCount} successful, ${failedCount} failed.`);
+            fetchAttendance();
+            setImportDialogOpen(false);
+            resolve();
+          } catch (err) {
+            reject(err);
+          }
+        };
+        reader.onerror = reject;
+        reader.readAsBinaryString(file);
+      });
     } catch (err) {
       console.error(err);
       toast.error("Error reading Excel file");
