@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser, isAdminUser, isSuperAdminUser } from "@/lib/auth";
+import { getCurrentUser, hasRole, isAdminUser, isSuperAdminUser } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser(request);
@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     const isSuperAdmin = isSuperAdminUser(user);
+    const isAdmin = isAdminUser(user);
     const authorizedIds = [
       user.locationId,
       ...(user.authorizedLocations?.map((l: any) => l.id) || []),
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
         if (targetLocationId === "all") targetLocationId = isSuperAdmin ? null : user.locationId;
 
         // Authorization check
-        if (!isSuperAdmin && targetLocationId && !authorizedIds.includes(targetLocationId)) {
+        if (!isSuperAdmin && !isAdmin && targetLocationId && !authorizedIds.includes(targetLocationId)) {
            errors.push(`Row ${index + 2}: Forbidden. You are not authorized for Location ID ${targetLocationId}`);
            continue;
         }
