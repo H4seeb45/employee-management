@@ -22,6 +22,7 @@ interface AddAdminRequestFormProps {
 export function AddAdminRequestForm({ onSubmit }: AddAdminRequestFormProps) {
   const { employees, user } = useLayout();
   const isAdmin = user?.roles?.some((role: any) => ["Admin", "Super Admin"].includes(role));
+  const isBusinessManager = user?.roles?.some((role: any) => ["Business Manager"].includes(role));
   const currentUserEmployee = employees.find((e) => e.userId === user?.id);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -73,7 +74,7 @@ export function AddAdminRequestForm({ onSubmit }: AddAdminRequestFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-4">
-        {isAdmin && (
+        {(isAdmin || isBusinessManager) && (
           <div>
             <Label htmlFor="employeeId">Select Employee</Label>
             <Select
@@ -95,7 +96,7 @@ export function AddAdminRequestForm({ onSubmit }: AddAdminRequestFormProps) {
           </div>
         )}
 
-        {!isAdmin && (
+        {!isAdmin && !isBusinessManager && (
           <div>
             <Label>Employee Name</Label>
             <Input value={formData.employeeName} disabled className="mt-2" />
