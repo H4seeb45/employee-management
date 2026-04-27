@@ -284,32 +284,79 @@ export default function EmployeeDirectory() {
   };
 
   const exportToCSV = () => {
-    const headers = ["ID", "Name", "Position", "Department", "Email", "Phone", "Join Date", "Status"];
-    const csvContent = [
-      headers.join(","),
-      ...filteredData.map((employee: any) => {
-        return [
-          employee.employeeId,
-          employee.employeeName,
-          employee.position,
-          employee.department,
-          employee.email,
-          employee.phone || "",
-          employee.joinDate ? format(new Date(employee.joinDate), "yyyy-MM-dd") : "",
-          employee.status,
-        ].join(",");
-      }),
-    ].join("\n");
+    const headers = [
+      "Employee Name", "CNIC Number", "CNIC Issue Date (YYYY-MM-DD)", "CNIC Expiry Date (YYYY-MM-DD)",
+      "Mobile Number", "Father's Name", "Emergency Contact Name", "Emergency Contact Number",
+      "Date of Birth (YYYY-MM-DD)", "Blood Group", "Marital Status", "Gender",
+      "Email Address", "Professional Reference Name", "Reference Email Address", "Reference Contact",
+      "Address", "Location ID", "Employee ID", "Department",
+      "Designation", "Employment Status", "Date of Joining (YYYY-MM-DD)",
+      "Date of Leaving (YYYY-MM-DD)", "Probation & Confirmation Date",
+      "Basic Salary", "Attendance Allowance", "Daily Allowance", "Fuel Allowance",
+      "Conveyance Allowance", "Maintainence", "Comission", "Each KPI Incentives",
+      "Incentives", "Category Incentive", "Bank Name", "Account #", "Tax Deduction (Yes/No)",
+      "EOBI Deduction (Yes/No)", "Social Security Deduction (Yes/No)", "Route Name"
+    ];
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", "employees.csv");
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const formatDate = (date: any) => {
+      if (!date) return "";
+      try {
+        const d = new Date(date);
+        if (isNaN(d.getTime())) return "";
+        return format(d, "yyyy-MM-dd");
+      } catch (e) {
+        return "";
+      }
+    };
+
+    const data = filteredData.map((employee: any) => [
+      employee.employeeName || "",
+      employee.cnicNumber || "",
+      formatDate(employee.cnicIssueDate),
+      formatDate(employee.cnicExpiryDate),
+      employee.phone || "",
+      employee.fatherName || "",
+      employee.emergencyContactName || "",
+      employee.emergencyContactNumber || "",
+      formatDate(employee.birthDate),
+      employee.bloodGroup || "",
+      employee.maritalStatus || "",
+      employee.gender || "",
+      employee.email || "",
+      employee.referenceName || "",
+      employee.referenceEmail || "",
+      employee.referenceNumber || "",
+      employee.address || "",
+      employee.locationId || "",
+      employee.employeeId || "",
+      employee.department || "",
+      employee.position || "",
+      employee.status || "",
+      formatDate(employee.joinDate),
+      formatDate(employee.leaveDate),
+      formatDate(employee.probationConfirmationDate),
+      employee.basicSalary || 0,
+      employee.attendanceAllowance || 0,
+      employee.dailyAllowance || 0,
+      employee.fuelAllowance || 0,
+      employee.conveyanceAllowance || 0,
+      employee.maintainence || 0,
+      employee.comission || 0,
+      employee.eachKpiIncentives || 0,
+      employee.incentives || 0,
+      employee.categoryIncentive || 0,
+      employee.bankName || "",
+      employee.accountNumber || "",
+      employee.taxDeduction || "No",
+      employee.eobiDeduction || "No",
+      employee.socialSecurityDeduction || "No",
+      employee.routeName || ""
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Employees");
+    XLSX.writeFile(wb, "employees.csv");
 
     toast({ title: "Export Successful", description: `${filteredData.length} records exported.` });
   };

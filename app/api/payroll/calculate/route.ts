@@ -159,17 +159,9 @@ export async function GET(request: NextRequest) {
         : emp.loans.reduce((sum, l) => {
             // Take the installment but cap it at the remaining balance
             let installment = l.monthlyInstallment || l.principalAmount/l.installments! || l.balance || 0;
-            if(emp.employeeName === "MUHAMMAD NASIR ALI"){
-              console.log("Monthly Installment", l.installments)
-              console.log("Installment",installment);
-              console.log("Balance",l.balance);
-            }
+      
             if (l.balance !== null && installment > l.balance) {
               installment = l.balance;
-            }
-            if(emp.employeeName === "MUHAMMAD NASIR ALI"){
-              console.log("Installment after if",installment);
-              console.log("Balance",l.balance);
             }
             
             if (installment <= 0) return sum;
@@ -208,7 +200,7 @@ export async function GET(request: NextRequest) {
             return sum + installment;
           }, 0);
 
-      const totalDeduction = eobi + socialSecurity + incomeTax + loanDeduction + advanceDeduction + shortages + marketCredit;
+      const totalDeduction = eobi + socialSecurity + (emp.taxDeduction === "Yes" ? incomeTax : 0) + loanDeduction + advanceDeduction + shortages + marketCredit;
       const netSalary = grossSalary - totalDeduction;
 
       // if (emp.employeeName === "Ronan Lindsey"){
@@ -247,7 +239,7 @@ export async function GET(request: NextRequest) {
         grossSalary,
         eobi,
         socialSecurity,
-        incomeTax,
+        incomeTax: emp.taxDeduction === "Yes" ? incomeTax : 0,
         advance: advanceDeduction,
         loan: loanDeduction,
         shortages,

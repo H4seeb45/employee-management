@@ -249,13 +249,13 @@ export function IncentiveManager({ month, year, locationId }: IncentiveManagerPr
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={18} className="h-48 text-center">
+                  <TableCell colSpan={8} className="h-48 text-center">
                     <Loader2 className="h-8 w-8 animate-spin mx-auto text-slate-300" />
                   </TableCell>
                 </TableRow>
               ) : filteredRecords.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={18} className="h-48 text-center text-slate-500">
+                  <TableCell colSpan={8} className="h-48 text-center text-slate-500">
                     No adjustment records found for this period.
                   </TableCell>
                 </TableRow>

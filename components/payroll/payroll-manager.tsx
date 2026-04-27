@@ -191,6 +191,7 @@ export function PayrollManager({ month, year, locationId }: PayrollManagerProps)
       "Employee Name": p.employeeName || p.employee?.employeeName,
       "Designation": p.designation || p.employee?.position,
       "Days Worked": p.daysWorked,
+      "Basic Salary": p.basicSalary,
       "Basic Payable": p.basicPayable,
       "Attendance Allowance": p.attendanceAllowance || 0,
       "Daily Allowance": p.dailyAllowance || 0,
@@ -324,13 +325,13 @@ export function PayrollManager({ month, year, locationId }: PayrollManagerProps)
               <TableBody>
                 {loading ? (
                     <TableRow>
-                        <TableCell colSpan={30} className="h-48 text-center">
+                        <TableCell colSpan={8} className="h-48 text-center">
                             <Loader2 className="h-8 w-8 animate-spin mx-auto text-slate-300" />
                         </TableCell>
                     </TableRow>
                 ) : filteredPayrolls.length === 0 ? (
                     <TableRow>
-                        <TableCell colSpan={30} className="h-48 text-center text-slate-500">
+                        <TableCell colSpan={8} className="h-48 text-center text-slate-500">
                             {payrolls.length > 0 ? "No records match your filters." : "No records found for this period. Click Calculate to generate."}
                         </TableCell>
                     </TableRow>
