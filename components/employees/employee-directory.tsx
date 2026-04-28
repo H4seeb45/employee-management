@@ -429,22 +429,47 @@ export default function EmployeeDirectory() {
           return;
         }
 
-        const parseDate = (val: string) => {
+        const parseDate = (val: any) => {
           if (!val) return null;
-          const d = new Date(val);
-          return isNaN(d.getTime()) ? null : d.toISOString();
+          
+          if (typeof val === 'number' || (!isNaN(Number(val)) && String(val).trim() !== '')) {
+            const num = Number(val);
+            if (num > 10000 && num < 100000) {
+              const excelDate = new Date(Math.round((num - 25569) * 86400 * 1000));
+              return isNaN(excelDate.getTime()) ? null : excelDate.toISOString();
+            }
+          }
+
+          const strVal = String(val).trim();
+          let d = new Date(strVal);
+          if (!isNaN(d.getTime())) return d.toISOString();
+
+          // Try parsing DD-MM-YYYY or DD/MM/YYYY
+          const parts = strVal.split(/[-/.]/);
+          if (parts.length === 3) {
+            d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+            if (!isNaN(d.getTime())) return d.toISOString();
+          }
+
+          return null;
         };
 
+        const findKey = (row: any, searchStr: string) => {
+          const key = Object.keys(row).find(k => k.toLowerCase().includes(searchStr.toLowerCase().trim()));
+          return key ? row[key] : null;
+        };
+
+        console.log(jsonData[0]["CNIC Issue Date (YYYY-MM-DD)"]);
         const mappedData = jsonData.map((row) => ({
            employeeName: String(row["Employee Name"] || ""),
            cnicNumber: String(row["CNIC Number"] || "").replace(/\D/g, ""),
-           cnicIssueDate: parseDate(row["CNIC Issue Date (YYYY-MM-DD)"]),
-           cnicExpiryDate: parseDate(row["CNIC Expiry Date (YYYY-MM-DD)"]),
+           cnicIssueDate: parseDate(findKey(row, "cnic issue") || row["CNIC Issue Date (YYYY-MM-DD)"]),
+           cnicExpiryDate: parseDate(findKey(row, "cnic expiry") || row["CNIC Expiry Date (YYYY-MM-DD)"]),
            phone: String(row["Mobile Number"] || "").replace(/\D/g, ""),
            fatherName: String(row["Father's Name"] || ""),
            emergencyContactName: String(row["Emergency Contact Name"] || ""),
            emergencyContactNumber: String(row["Emergency Contact Number"] || "").replace(/\D/g, ""),
-           birthDate: parseDate(row["Date of Birth (YYYY-MM-DD)"]),
+           birthDate: parseDate(findKey(row, "birth") || row["Date of Birth (YYYY-MM-DD)"]),
            bloodGroup: String(row["Blood Group"] || ""),
            maritalStatus: String(row["Marital Status"] || ""),
            gender: String(row["Gender"] || ""),
@@ -459,9 +484,9 @@ export default function EmployeeDirectory() {
            department: String(row["Department"] || ""),
            position: String(row["Designation"] || ""),
            status: String(row["Employment Status"] || "Active:Working"),
-           joinDate: parseDate(row["Date of Joining (YYYY-MM-DD)"]),
-           leaveDate: parseDate(row["Date of Leaving (YYYY-MM-DD)"]),
-           probationConfirmationDate: parseDate(row["Probation & Confirmation Date"]),
+           joinDate: parseDate(findKey(row, "joining") || row["Date of Joining (YYYY-MM-DD)"]),
+           leaveDate: parseDate(findKey(row, "leaving") || row["Date of Leaving (YYYY-MM-DD)"]),
+           probationConfirmationDate: parseDate(findKey(row, "probation") || row["Probation & Confirmation Date"]),
 
            basicSalary: parseFloat(String(row["Basic Salary"])) || 0,
            attendanceAllowance: parseFloat(String(row["Attendance Allowance"])) || 0,
