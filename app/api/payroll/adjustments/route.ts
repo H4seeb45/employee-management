@@ -124,6 +124,8 @@ export async function POST(request: NextRequest) {
             processed.push(adjustment);
         }
         return processed;
+    }, {
+        timeout: 1200000 // Increased timeout for processing large batches
     });
 
     return NextResponse.json({ success: true, count: results.length });
