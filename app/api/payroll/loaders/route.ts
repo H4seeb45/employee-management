@@ -39,7 +39,31 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    return NextResponse.json(records);
+    const m = month ? parseInt(month.toString()) : new Date().getMonth() + 1;
+    const y = year ? parseInt(year.toString()) : new Date().getFullYear();
+    const startDate = new Date(y, m - 1, 1);
+    const endDate = new Date(y, m, 0, 23, 59, 59, 999);
+
+    const supervisorAdvances = await prisma.advance.aggregate({
+        where: {
+            employee: {
+                department: { equals: "LOADERS", mode: "insensitive" },
+                position: { equals: "LOADER SUPERVISER", mode: "insensitive" },
+                ...(locationId && locationId !== "all" ? { locationId } : {})
+            },
+            issuedAt: {
+                gte: startDate,
+                lte: endDate
+            }
+        },
+        _sum: {
+            principalAmount: true
+        }
+    });
+
+    const totalAdvance = supervisorAdvances._sum.principalAmount || 0;
+
+    return NextResponse.json({ records, supervisorAdvance: totalAdvance });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Failed to fetch loader payroll" }, { status: 500 });

@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2, Upload, Download, FileDown } from "lucide-react";
+import { Loader2, Upload, Download, FileDown, Printer } from "lucide-react";
 import * as XLSX from "xlsx";
+import { useReactToPrint } from "react-to-print";
 
 interface LoaderPayrollManagerProps {
   month: string;
@@ -19,8 +20,15 @@ export function LoaderPayrollManager({ month, year, locationId, locations = [] }
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [records, setRecords] = useState<any[]>([]);
+  const [supervisorAdvance, setSupervisorAdvance] = useState(0);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const printRef = useRef<HTMLDivElement>(null);
+
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: `Loaders_Payroll_${month}_${year}`,
+  });
 
   const fetchRecords = async () => {
     if (!month || !year || !locationId) return;
@@ -29,7 +37,8 @@ export function LoaderPayrollManager({ month, year, locationId, locations = [] }
       const res = await fetch(`/api/payroll/loaders?month=${month}&year=${year}&locationId=${locationId}`);
       if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
-      setRecords(data);
+      setRecords(data.records || []);
+      setSupervisorAdvance(data.supervisorAdvance || 0);
     } catch (error) {
       toast({
         title: "Error",
@@ -183,6 +192,10 @@ export function LoaderPayrollManager({ month, year, locationId, locations = [] }
     }
   };
 
+  const grossAmount = records.reduce((sum, r) => sum + (r.netSalary || 0), 0);
+  const netAmount = grossAmount - supervisorAdvance;
+  const locationName = locationId === "all" ? "All Locations" : locations.find(l => l.id === locationId)?.name || "Location";
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -200,6 +213,10 @@ export function LoaderPayrollManager({ month, year, locationId, locations = [] }
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
+          <Button variant="outline" onClick={() => handlePrint()} disabled={records.length === 0}>
+            <Printer className="w-4 h-4 mr-2" />
+            Print PDF
+          </Button>
           <div>
             <Input 
                 type="file" 
@@ -216,55 +233,83 @@ export function LoaderPayrollManager({ month, year, locationId, locations = [] }
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader className="bg-slate-50 dark:bg-slate-800/50">
-              <TableRow>
-                <TableHead className="whitespace-nowrap">Setup</TableHead>
-                <TableHead className="whitespace-nowrap">Emp ID</TableHead>
-                <TableHead className="whitespace-nowrap">Name</TableHead>
-                <TableHead className="whitespace-nowrap">Designation</TableHead>
-                <TableHead className="whitespace-nowrap">Department</TableHead>
-                <TableHead className="text-right whitespace-nowrap">Basic Salary</TableHead>
-                <TableHead className="text-center whitespace-nowrap">Working Days</TableHead>
-                <TableHead className="text-right whitespace-nowrap">Basic Payable</TableHead>
-                <TableHead className="text-right whitespace-nowrap">Net Salary</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
+      <div ref={printRef} className="space-y-6 print:p-6 print:bg-white print:text-black">
+        {/* Print Header */}
+        <div className="hidden print:block text-center mb-6">
+           <h1 className="text-3xl font-bold uppercase text-black">Sadiq Traders</h1>
+           <h2 className="text-2xl font-bold uppercase text-black">{locationName}</h2>
+           <p className="text-xl font-medium mt-2 text-black">Loaders Payroll - {new Date(0, parseInt(month) - 1).toLocaleString('default', { month: 'long' })} {year}</p>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden print:border-0 print:shadow-none">
+          <div className="overflow-x-auto">
+            <Table className="print:text-black">
+              <TableHeader className="bg-slate-50 dark:bg-slate-800/50 print:bg-slate-100">
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-slate-400" />
-                  </TableCell>
+                  <TableHead className="whitespace-nowrap print:text-black">Setup</TableHead>
+                  <TableHead className="whitespace-nowrap print:text-black">Emp ID</TableHead>
+                  <TableHead className="whitespace-nowrap print:text-black">Name</TableHead>
+                  <TableHead className="whitespace-nowrap print:text-black">Designation</TableHead>
+                  <TableHead className="whitespace-nowrap print:text-black">Department</TableHead>
+                  <TableHead className="text-right whitespace-nowrap print:text-black">Basic Salary</TableHead>
+                  <TableHead className="text-center whitespace-nowrap print:text-black">Working Days</TableHead>
+                  <TableHead className="text-right whitespace-nowrap print:text-black">Basic Payable</TableHead>
+                  <TableHead className="text-right whitespace-nowrap print:text-black">Net Salary</TableHead>
                 </TableRow>
-              ) : records.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-slate-500">
-                    No loader payroll records found for this month/location.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                records.map((record) => (
-                  <TableRow key={record.id}>
-                    <TableCell className="font-medium">{record.setup || "-"}</TableCell>
-                    <TableCell>{record.empId || "-"}</TableCell>
-                    <TableCell>{record.name}</TableCell>
-                    <TableCell>{record.designation || "-"}</TableCell>
-                    <TableCell>{record.department || "-"}</TableCell>
-                    <TableCell className="text-right">{record.basicSalary?.toLocaleString()}</TableCell>
-                    <TableCell className="text-center">{record.workingDays}</TableCell>
-                    <TableCell className="text-right font-medium">{record.basicPayable?.toLocaleString()}</TableCell>
-                    <TableCell className="text-right font-bold text-emerald-600 dark:text-emerald-400">
-                        {record.netSalary?.toLocaleString()}
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-slate-400" />
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : records.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-8 text-slate-500">
+                      No loader payroll records found for this month/location.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  records.map((record) => (
+                    <TableRow key={record.id} className="print:border-b print:border-slate-200">
+                      <TableCell className="font-medium print:text-black">{record.setup || "-"}</TableCell>
+                      <TableCell className="print:text-black">{record.empId || "-"}</TableCell>
+                      <TableCell className="print:text-black font-bold">{record.name}</TableCell>
+                      <TableCell className="print:text-black">{record.designation || "-"}</TableCell>
+                      <TableCell className="print:text-black">{record.department || "-"}</TableCell>
+                      <TableCell className="text-right print:text-black">{record.basicSalary?.toLocaleString()}</TableCell>
+                      <TableCell className="text-center print:text-black">{record.workingDays}</TableCell>
+                      <TableCell className="text-right font-medium print:text-black">{record.basicPayable?.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-bold text-emerald-600 dark:text-emerald-400 print:text-emerald-700">
+                          {record.netSalary?.toLocaleString()}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
+
+        {records.length > 0 && (
+          <div className="flex flex-col sm:flex-row justify-end items-end gap-6 bg-slate-50 dark:bg-slate-800/50 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm mt-6 print:border-0 print:shadow-none print:bg-white print:p-0">
+              <div className="space-y-1 text-right">
+                  <p className="text-sm font-bold text-slate-500 uppercase tracking-wider print:text-slate-700">Gross Amount</p>
+                  <p className="text-2xl font-black text-[#0A192F] dark:text-white print:text-black">{grossAmount.toLocaleString()}</p>
+              </div>
+              <div className="w-full sm:w-px h-px sm:h-12 bg-slate-200 dark:bg-slate-700 print:bg-slate-400"></div>
+              <div className="space-y-1 text-right">
+                  <p className="text-sm font-bold text-slate-500 uppercase tracking-wider print:text-slate-700">Supervisor Advance</p>
+                  <p className="text-2xl font-black text-rose-500 print:text-rose-700">- {supervisorAdvance.toLocaleString()}</p>
+              </div>
+              <div className="w-full sm:w-px h-px sm:h-12 bg-slate-200 dark:bg-slate-700 print:bg-slate-400"></div>
+              <div className="space-y-1 text-right">
+                  <p className="text-sm font-black text-emerald-600 dark:text-emerald-500 uppercase tracking-wider print:text-emerald-700">Net Amount</p>
+                  <p className="text-4xl font-black text-emerald-600 dark:text-emerald-400 print:text-emerald-700">{netAmount.toLocaleString()}</p>
+              </div>
+          </div>
+        )}
       </div>
     </div>
   );
