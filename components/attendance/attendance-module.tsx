@@ -86,6 +86,7 @@ export function AttendanceModule() {
   const [locations, setLocations] = useState<any[]>([]);
   
   const [filterLocation, setFilterLocation] = useState("all");
+  const [filterDay, setFilterDay] = useState(new Date().getDate().toString());
   const [filterMonth, setFilterMonth] = useState((new Date().getMonth() + 1).toString());
   const [filterYear, setFilterYear] = useState(new Date().getFullYear().toString());
   const [filterStatus, setFilterStatus] = useState("all");
@@ -132,6 +133,7 @@ export function AttendanceModule() {
       const params = new URLSearchParams();
       if (filterLocation !== "all") params.append("locationId", filterLocation);
       if (filterStatus !== "all") params.append("status", filterStatus);
+      if (filterDay !== "all") params.append("day", filterDay);
       params.append("month", filterMonth);
       params.append("year", filterYear);
 
@@ -152,7 +154,7 @@ export function AttendanceModule() {
 
   useEffect(() => {
     fetchAttendance();
-  }, [filterLocation, filterMonth, filterYear, filterStatus]);
+  }, [filterLocation, filterDay, filterMonth, filterYear, filterStatus]);
 
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -388,7 +390,7 @@ export function AttendanceModule() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `attendance_report_${filterMonth}_${filterYear}.csv`;
+    link.download = `attendance_report_${filterDay !== "all" ? filterDay + "_" : ""}${filterMonth}_${filterYear}.csv`;
     link.click();
     toast.success("Records exported successfully");
   };
@@ -513,7 +515,7 @@ export function AttendanceModule() {
 
       <Card className="border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden bg-white dark:bg-[#1E293B]">
         <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
             <div className="space-y-1.5">
               <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Location</Label>
               <SearchableSelect
@@ -525,6 +527,22 @@ export function AttendanceModule() {
                 ]}
                 placeholder="Select Location"
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Day</Label>
+              <Select value={filterDay} onValueChange={setFilterDay}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Day" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Days</SelectItem>
+                  {Array.from({ length: new Date(parseInt(filterYear), parseInt(filterMonth), 0).getDate() }, (_, i) => (
+                    <SelectItem key={i + 1} value={(i + 1).toString()}>
+                      {i + 1}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Month</Label>

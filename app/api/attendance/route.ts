@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
     
     const month = searchParams.get("month");
     const year = searchParams.get("year");
+    const day = searchParams.get("day");
     const status = searchParams.get("status");
 
     const where: any = {};
@@ -33,16 +34,27 @@ export async function GET(request: NextRequest) {
       where.employee = { locationId: user.locationId };
     }
 
-    // Month/Year filtering
+    // Month/Year/Day filtering
     if (month && year) {
       const m = parseInt(month);
       const y = parseInt(year);
-      const startDate = new Date(y, m - 1, 1);
-      const endDate = new Date(y, m, 0, 23, 59, 59, 999);
-      where.date = {
-        gte: startDate,
-        lte: endDate,
-      };
+      
+      if (day && day !== "all") {
+        const d = parseInt(day);
+        const startDate = new Date(y, m - 1, d, 0, 0, 0, 0);
+        const endDate = new Date(y, m - 1, d, 23, 59, 59, 999);
+        where.date = {
+          gte: startDate,
+          lte: endDate,
+        };
+      } else {
+        const startDate = new Date(y, m - 1, 1);
+        const endDate = new Date(y, m, 0, 23, 59, 59, 999);
+        where.date = {
+          gte: startDate,
+          lte: endDate,
+        };
+      }
     }
 
     const attendance = await prisma.attendance.findMany({
