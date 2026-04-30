@@ -143,6 +143,7 @@ model Location {
   authorizedUsers       User[]         @relation("UserAuthorizedLocations")
   loaderEntries         LoaderEntry[]
   loaderSummaries       LoaderDailySummary[]
+  loaderPayrolls        LoaderPayroll[]
 
   @@unique([name, city])
 }
@@ -556,3 +557,27 @@ model LoaderDailySummary {
   @@index([date])
   @@index([locationId])
 }
+
+model LoaderPayroll {
+  id              String   @id @default(cuid())
+  setup           String?
+  empId           String?
+  name            String
+  designation     String?
+  department      String?
+  basicSalary     Float?
+  workingDays     Float?
+  basicPayable    Float?
+  netSalary       Float?
+  month           Int
+  year            Int
+  locationId      String
+  location        Location @relation(fields: [locationId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([name, month, year, locationId])
+  @@index([month, year])
+  @@index([locationId])
+}
+

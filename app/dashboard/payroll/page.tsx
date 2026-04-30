@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PayrollManager } from "@/components/payroll/payroll-manager";
 import { IncentiveManager } from "@/components/payroll/incentive-manager";
+import { LoaderPayrollManager } from "@/components/payroll/loaders-payroll-manager";
 import { Loader2 } from "lucide-react";
 
 export default function PayrollPage() {
@@ -104,6 +105,9 @@ export default function PayrollPage() {
           <TabsTrigger value="incentives" className="rounded-lg px-8 py-1.5 data-[state=active]:bg-slate-900 data-[state=active]:text-white">
             Incentives & Deductions
           </TabsTrigger>
+          <TabsTrigger value="loaders" className="rounded-lg px-8 py-1.5 data-[state=active]:bg-slate-900 data-[state=active]:text-white">
+            Loaders payroll
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="payroll" className="mt-0 focus-visible:outline-none">
@@ -112,6 +116,10 @@ export default function PayrollPage() {
         
         <TabsContent value="incentives" className="mt-0 focus-visible:outline-none">
           <IncentiveManager month={month} year={year} locationId={locationId} />
+        </TabsContent>
+        
+        <TabsContent value="loaders" className="mt-0 focus-visible:outline-none">
+          <LoaderPayrollManager month={month} year={year} locationId={locationId} locations={locations} />
         </TabsContent>
       </Tabs>
     </div>

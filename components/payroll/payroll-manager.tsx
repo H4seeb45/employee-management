@@ -161,15 +161,15 @@ export function PayrollManager({ month, year, locationId }: PayrollManagerProps)
       });
       
       if (res.ok) {
-        toast.success("Payroll saved successfully");
+        toast.success("Payroll approved successfully");
         setIsSaved(true);
         fetchPayrolls();
       } else {
-        toast.error("Failed to save payroll");
+        toast.error("Failed to approve payroll");
       }
     } catch (err) {
       console.error(err);
-      toast.error("Error saving payroll");
+      toast.error("Error approving payroll");
     } finally {
       setSaving(false);
     }
@@ -275,7 +275,7 @@ export function PayrollManager({ month, year, locationId }: PayrollManagerProps)
                 className="bg-[#0A192F] hover:bg-[#162a45] dark:bg-blue-600 dark:hover:bg-blue-700 text-white shadow-lg"
             >
                 {saving ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                Save Payroll
+                Approve Payroll
             </Button>
         </div>
       </div>
