@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Invalid payload: 'loans' must be an array" }, { status: 400 });
     }
 
-    const isSuperAdmin = isAdminUser(user) && user.roles.some((r: any) => r.role.name === "Super Admin");
+    const isSuperAdmin = user.roles.some((r: any) => r.role.name === "Super Admin");
     const authorizedIds = [
       user.locationId,
       ...(user.authorizedLocations?.map((l: any) => l.id) || []),
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
         }
 
         // If "all" was selected, non-superadmin still needs to be authorized for the employee's location
-        if (!isSuperAdmin && !targetLocationId && !authorizedIds.includes(employee.locationId)) {
+        if (!isAdminUser(user) && !isSuperAdmin && !targetLocationId && !authorizedIds.includes(employee.locationId)) {
           errors.push(`Row ${index + 2}: You are not authorized to create records for employee ${employeeIdReadable}'s location.`);
           continue;
         }

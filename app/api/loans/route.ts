@@ -22,21 +22,23 @@ export async function GET(request: NextRequest) {
       ...(user.authorizedLocations?.map((l: any) => l.id) || []),
     ].filter(Boolean);
 
-    if (isSuperAdmin) {
+    if (isSuperAdmin || isAdmin) {
       if (locationId) {
         whereClause = { employee: { locationId } };
       }
-    } else if (isAdmin) {
-      if (locationId) {
-        if (authorizedIds.includes(locationId)) {
-          whereClause = { employee: { locationId } };
-        } else {
-          whereClause = { employee: { id: "none" } }; // Force empty
-        }
-      } else {
-        whereClause = { employee: { locationId: { in: authorizedIds } } };
-      }
-    } else if (employeeRecord) {
+    } 
+    // else if (isAdmin) {
+    //   if (locationId) {
+    //     if (authorizedIds.includes(locationId)) {
+    //       whereClause = { employee: { locationId } };
+    //     } else {
+    //       whereClause = { employee: { id: "none" } }; // Force empty
+    //     }
+    //   } else {
+    //     whereClause = { employee: { locationId: { in: authorizedIds } } };
+    //   }
+    // } 
+    else if (employeeRecord) {
       whereClause = { employeeId: employeeRecord.id };
     } else {
       whereClause = { employee: { locationId: user.locationId } };
