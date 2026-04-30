@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       if (locationId) {
         whereClause = { employee: { locationId } };
       }
-    } else if (isBM || isAdmin) {
+    } else if (isAdmin) {
       if (locationId) {
         if (authorizedIds.includes(locationId)) {
           whereClause = { employee: { locationId } };
@@ -109,9 +109,9 @@ export async function POST(req: NextRequest) {
     }
 
     const employeeRecord = await prisma.employee.findUnique({ where: { userId: user.id } });
-
+    const isBusinessManager = user?.roles?.some((role: any) => ["Business Manager"].includes(role));
     // Allow employees to create for themselves, otherwise must have right location access
-    if (!isAdmin) {
+    if (!isAdmin && !isBusinessManager) {
       if (employeeRecord && employeeId !== employeeRecord.id) {
          return NextResponse.json({ error: "You can only request advances for yourself." }, { status: 403 });
       } else if (!employeeRecord && employee.locationId !== user.locationId) {

@@ -21,7 +21,9 @@ interface AddLeaveRequestFormProps {
 
 export function AddLeaveRequestForm({ onSubmit }: AddLeaveRequestFormProps) {
   const { employees, user } = useLayout();
-  const isAdmin = user?.roles?.some((role: any) => ["Admin", "Super Admin"].includes(role));
+  const isAdmin = user?.roles?.some((role: any) => ["Admin"].includes(role));
+  const isSuperAdmin = user?.roles?.some((role: any) => ["Super Admin"].includes(role));
+  const isBusinessManager = user?.roles?.some((role: any) => ["Business Manager"].includes(role));
   const currentUserEmployee = employees.find((e) => e.userId === user?.id);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -95,7 +97,7 @@ export function AddLeaveRequestForm({ onSubmit }: AddLeaveRequestFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {isAdmin && (
+        {(isAdmin || isSuperAdmin || isBusinessManager) && (
           <div>
             <Label htmlFor="employeeId">Select Employee</Label>
             <Select
@@ -117,7 +119,7 @@ export function AddLeaveRequestForm({ onSubmit }: AddLeaveRequestFormProps) {
           </div>
         )}
 
-        {!isAdmin && (
+        {!isAdmin && !isSuperAdmin && !isBusinessManager && (
           <div>
             <Label>Employee Name</Label>
             <Input value={formData.employeeName} disabled className="mt-2" />

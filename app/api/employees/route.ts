@@ -28,7 +28,8 @@ export async function GET(request: NextRequest) {
   if (department && department !== "all") where.department = department;
   if (status && status !== "all") where.status = status;
   
-  if (isSuperAdmin || isAdmin || hasRole(user, "Business Manager") || hasRole(user, "Data Manager")) {
+  // hasRole(user, "Business Manager") || hasRole(user, "Data Manager")
+  if (isSuperAdmin || isAdmin) {
     if (queryLocationId && queryLocationId !== "all") {
       where.locationId = queryLocationId;
     }
@@ -46,6 +47,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  console.log(where)
   try {
     const employees = await prisma.employee.findMany({
       where,

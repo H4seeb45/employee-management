@@ -25,10 +25,10 @@ export default function LoadersPage() {
   if (!hasAccess) {
     return (
       <div className="flex items-center justify-center h-[60vh] p-4">
-        <Alert variant="destructive" className="max-w-md border-2 rounded-2xl shadow-xl shadow-red-100 bg-red-50/50">
+        <Alert variant="destructive" className="max-w-md border-2 rounded-2xl shadow-red-100 bg-red-50">
           <ShieldAlert className="h-6 w-6" />
           <AlertTitle className="text-lg font-bold ml-2">Access Restricted</AlertTitle>
-          <AlertDescription className="mt-2 text-red-700 font-medium">
+          <AlertDescription className="mt-2 text-red font-medium">
             You do not have the required permissions to access Loaders Management. 
             This module is reserved for <span className="underline decoration-red-300">Administrators</span> and <span className="underline decoration-red-300">Storekeepers</span>.
           </AlertDescription>

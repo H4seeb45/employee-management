@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser, isAdminUser, isSuperAdminUser } from "@/lib/auth";
+import { getCurrentUser, hasRole, isAdminUser, isSuperAdminUser } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     }
     const isAdmin = isAdminUser(user);
     const isSuperAdmin = isSuperAdminUser(user);
+    const isBusinessManager = hasRole(user, "Business Manager");
     const { searchParams } = new URL(request.url);
 
     const locationId = searchParams.get("locationId");
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
 
     let where: any = {};
 
-    if (!isAdmin) {
+    if (!isAdmin && !isBusinessManager && !isSuperAdmin) {
       const employee = await prisma.employee.findUnique({
         where: { userId: user.id },
       });
@@ -78,11 +79,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const isAdmin = isAdminUser(user);
+    const isBusinessManager = hasRole(user, "Business Manager");
+    const isSuperAdmin = isSuperAdminUser(user);
     const body = await req.json();
 
     let employeeId: string | undefined = body.employeeId;
 
-    if (!isAdmin) {
+    if (!isAdmin && !isBusinessManager && !isSuperAdmin) {
       const employee = await prisma.employee.findUnique({
         where: { userId: user.id },
         select: { id: true, employeeName: true },

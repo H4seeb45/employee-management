@@ -117,6 +117,7 @@ export function AppSidebar() {
   const isBusinessManager = roles.includes("Business Manager");
   const isDataManager = roles.includes("Data Manager");
   const isSuperAdmin = roles.includes("Super Admin");
+  const isStorekeeper = roles.includes("Storekeeper");
   const isCashierOnly =
     roles.includes("Cashier") && !isAdmin && !isBusinessManager && !isSuperAdmin;
   const employeeOnly = roles.includes("Employee") && !isAdmin && !isBusinessManager && !isSuperAdmin;
@@ -197,7 +198,7 @@ export function AppSidebar() {
               sidebarItems
                 .filter((item) => {
                   if ((isCashierOnly || employeeOnly || isDataManager) && item.href === "/dashboard") return false;
-
+                  if (item.href === "/dashboard/loaders" && !isAdmin && !isStorekeeper) return false;
                   if (item.adminOnly && !isAdmin) return false;
                   if (!item.requiredRoles || item.requiredRoles.length === 0)
                     return true;

@@ -681,7 +681,7 @@ export default function EmployeeDirectory() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-             {(currentUser?.roles?.some((r: any) => ["Admin", "Super Admin", "Business Manager"].includes(r))) && (
+             {(currentUser?.roles?.some((r: any) => ["Admin", "Super Admin"].includes(r))) && (
             <div className="flex items-center gap-2">
               <Building2 className="h-4 w-4 text-gray-400" />
               <Select

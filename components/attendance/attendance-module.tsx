@@ -59,6 +59,8 @@ import {
   Legend
 } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
+import { isAdminUser } from "@/lib/auth";
+import { useLayout } from "../layout/layout-provider";
 
 ChartJS.register(ArcElement, ChartTooltip, Legend);
 
@@ -81,10 +83,13 @@ type AttendanceRecord = {
 };
 
 export function AttendanceModule() {
+  const { user } = useLayout();
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [locations, setLocations] = useState<any[]>([]);
-  
+  const isAdmin = user?.roles?.some((role: any) => ["Admin"].includes(role));
+  const isSuperAdmin = user?.roles?.some((role: any) => ["Super Admin"].includes(role));
+  const isBusinessManager = user?.roles?.some((role: any) => ["Business Manager"].includes(role));
   const [filterLocation, setFilterLocation] = useState("all");
   const [filterDay, setFilterDay] = useState(new Date().getDate().toString());
   const [filterMonth, setFilterMonth] = useState((new Date().getMonth() + 1).toString());
@@ -516,7 +521,7 @@ export function AttendanceModule() {
       <Card className="border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden bg-white dark:bg-[#1E293B]">
         <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800">
           <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
-            <div className="space-y-1.5">
+           { (isSuperAdmin || isAdmin) && <div className="space-y-1.5">
               <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Location</Label>
               <SearchableSelect
                 value={filterLocation}
@@ -527,7 +532,7 @@ export function AttendanceModule() {
                 ]}
                 placeholder="Select Location"
               />
-            </div>
+            </div>}
             <div className="space-y-1.5">
               <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Day</Label>
               <Select value={filterDay} onValueChange={setFilterDay}>

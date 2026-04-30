@@ -345,7 +345,7 @@ export default function AdvancesPage() {
             )}
           </div>
 
-          {(isAdmin || isBusinessManager) && (
+          {isAdmin && (
             <div className="flex items-center gap-2 bg-white dark:bg-slate-800 p-1.5 px-3 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm grow sm:max-w-[200px]">
               <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Location:</Label>
               <Select value={locationId} onValueChange={setLocationId}>
