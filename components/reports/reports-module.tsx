@@ -53,6 +53,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { VehicleWiseReport } from "./vehicle-wise-report";
 import { LoaderReport } from "./loader-report";
+import { BudgetedExpensesReport } from "./budgeted-expenses-report";
 
 // --- Types ---
 
@@ -611,6 +612,10 @@ export function ReportsModule({ roles }: { roles: string[] }) {
             <TrendingUp className="h-4 w-4 mr-2" />
             Budget Report
           </TabsTrigger>
+          <TabsTrigger value="budgeted-expenses" className="rounded-lg py-2.5">
+            <TrendingUp className="h-4 w-4 mr-2" />
+            Budgeted / Expenses
+          </TabsTrigger>
           <TabsTrigger value="expenses" className="rounded-lg py-2.5">
             <FileText className="h-4 w-4 mr-2" />
             Expense Report
@@ -888,6 +893,13 @@ export function ReportsModule({ roles }: { roles: string[] }) {
               <p className="text-[8px] text-slate-300">Generated via Sadiq Traders HRMS</p>
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="budgeted-expenses" className="space-y-4">
+          <BudgetedExpensesReport
+            locations={locations}
+            canSeeAllLocations={canSeeAllLocations}
+          />
         </TabsContent>
 
         {/* --- Expense Report Tab --- */}

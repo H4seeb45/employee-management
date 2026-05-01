@@ -27,9 +27,24 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const sidebarItems = [
   { name: "Dashboard", href: "/dashboard", icon: BarChart3 },
-  { name: "Employees", href: "/dashboard/employees", icon: Users, requiredRoles: ["Business Manager", "Data Manager"] },
-  { name: "Attendance", href: "/dashboard/attendance", icon: Calendar, requiredRoles: ["Admin", "Super Admin", "Data Manager"] },
-  { name: "Payroll", href: "/dashboard/payroll", icon: Briefcase, adminOnly: true, },
+  {
+    name: "Employees",
+    href: "/dashboard/employees",
+    icon: Users,
+    requiredRoles: ["Business Manager", "Data Manager"],
+  },
+  {
+    name: "Attendance",
+    href: "/dashboard/attendance",
+    icon: Calendar,
+    requiredRoles: ["Admin", "Super Admin", "Data Manager"],
+  },
+  {
+    name: "Payroll",
+    href: "/dashboard/payroll",
+    icon: Briefcase,
+    requiredRoles: ["Admin", "Super Admin", "Accountant"],
+  },
   {
     name: "Leave Management",
     href: "/dashboard/leave-management",
@@ -48,8 +63,18 @@ const sidebarItems = [
     icon: Briefcase,
     requiredRoles: ["Cashier", "Accountant"],
   },
-  { name: "Advances", href: "/dashboard/advances", icon: Banknote, requiredRoles: ["Employee", "Cashier"] },
-  { name: "Loans", href: "/dashboard/loans", icon: Banknote, requiredRoles: ["Employee", "Cashier"] },
+  {
+    name: "Advances",
+    href: "/dashboard/advances",
+    icon: Banknote,
+    requiredRoles: ["Employee", "Cashier"],
+  },
+  {
+    name: "Loans",
+    href: "/dashboard/loans",
+    icon: Banknote,
+    requiredRoles: ["Employee", "Cashier"],
+  },
   {
     name: "Expense Types",
     href: "/dashboard/expense-types",
@@ -87,7 +112,13 @@ const sidebarItems = [
 export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { sidebarOpen, setSidebarOpen, user, userLoading: isSessionLoading, clearUser } = useLayout();
+  const {
+    sidebarOpen,
+    setSidebarOpen,
+    user,
+    userLoading: isSessionLoading,
+    clearUser,
+  } = useLayout();
   const [isMobile, setIsMobile] = useState(false);
 
   // Check if we're on mobile
@@ -96,7 +127,7 @@ export function AppSidebar() {
       const mobile = window.innerWidth < 768;
       const wasMobile = isMobile;
       setIsMobile(mobile);
-      
+
       // Only force sidebar state if we transitioned between mobile/desktop
       if (mobile !== wasMobile) {
         setSidebarOpen(!mobile);
@@ -119,8 +150,15 @@ export function AppSidebar() {
   const isSuperAdmin = roles.includes("Super Admin");
   const isStorekeeper = roles.includes("Storekeeper");
   const isCashierOnly =
-    roles.includes("Cashier") && !isAdmin && !isBusinessManager && !isSuperAdmin;
-  const employeeOnly = roles.includes("Employee") && !isAdmin && !isBusinessManager && !isSuperAdmin;
+    roles.includes("Cashier") &&
+    !isAdmin &&
+    !isBusinessManager &&
+    !isSuperAdmin;
+  const employeeOnly =
+    roles.includes("Employee") &&
+    !isAdmin &&
+    !isBusinessManager &&
+    !isSuperAdmin;
   const roleLabel = roles.length > 0 ? roles.join(", ") : "No role";
   const avatarLetter = email?.[0]?.toUpperCase() || "U";
   return (
@@ -141,7 +179,7 @@ export function AppSidebar() {
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-40 w-64 bg-gradient-to-b from-[#0A192F] via-[#0D1F3C] to-[#0A192F] text-white shadow-2xl transform transition-transform duration-300 ease-in-out md:translate-x-0 border-r border-slate-700/50",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          sidebarOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
         <div className="flex flex-col h-full">
@@ -157,7 +195,7 @@ export function AppSidebar() {
                     <Shield className="h-6 w-6 text-white" strokeWidth={2.5} />
                   </div>
                 </div>
-                
+
                 {/* Company Name */}
                 <div>
                   <h1 className="text-xl font-bold tracking-tight text-white leading-none">
@@ -193,18 +231,27 @@ export function AppSidebar() {
                 </div>
               </div>
             )}
-            
+
             {!isSessionLoading &&
               sidebarItems
                 .filter((item) => {
-                  if ((isCashierOnly || employeeOnly || isDataManager) && item.href === "/dashboard") return false;
-                  if (item.href === "/dashboard/loaders" && !isAdmin && !isStorekeeper) return false;
+                  if (
+                    (isCashierOnly || employeeOnly || isDataManager) &&
+                    item.href === "/dashboard"
+                  )
+                    return false;
+                  if (
+                    item.href === "/dashboard/loaders" &&
+                    !isAdmin &&
+                    !isStorekeeper
+                  )
+                    return false;
                   if (item.adminOnly && !isAdmin) return false;
                   if (!item.requiredRoles || item.requiredRoles.length === 0)
                     return true;
                   if (isAdmin || isBusinessManager) return true;
                   return item.requiredRoles.some((role) =>
-                    roles.includes(role)
+                    roles.includes(role),
                   );
                 })
                 .map((item) => {
@@ -225,8 +272,8 @@ export function AppSidebar() {
                       className={cn(
                         "group relative flex items-center justify-between px-4 py-3.5 text-sm font-medium rounded-xl transition-all duration-200",
                         isActive
-                          ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-900/50" 
-                          : "text-slate-300 hover:bg-slate-800/40 hover:text-white"
+                          ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-900/50"
+                          : "text-slate-300 hover:bg-slate-800/40 hover:text-white",
                       )}
                       onClick={() => isMobile && setSidebarOpen(false)}
                     >
@@ -234,26 +281,28 @@ export function AppSidebar() {
                       {isActive && (
                         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full"></div>
                       )}
-                      
+
                       <div className="flex items-center flex-1">
-                        <div className={cn(
-                          "mr-3 p-1.5 rounded-lg transition-all",
-                          isActive 
-                            ? "bg-white/20" 
-                            : "bg-slate-700/30 group-hover:bg-slate-700/50"
-                        )}>
+                        <div
+                          className={cn(
+                            "mr-3 p-1.5 rounded-lg transition-all",
+                            isActive
+                              ? "bg-white/20"
+                              : "bg-slate-700/30 group-hover:bg-slate-700/50",
+                          )}
+                        >
                           <Icon className="h-4 w-4" />
                         </div>
                         <span className="tracking-wide">{item.name}</span>
                       </div>
 
                       {/* Chevron Indicator */}
-                      <ChevronRight 
+                      <ChevronRight
                         className={cn(
                           "h-4 w-4 transition-all",
-                          isActive 
-                            ? "opacity-100 translate-x-0" 
-                            : "opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0"
+                          isActive
+                            ? "opacity-100 translate-x-0"
+                            : "opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0",
                         )}
                       />
                     </Link>
@@ -265,7 +314,7 @@ export function AppSidebar() {
           <div className="relative border-t border-slate-700/50 bg-gradient-to-r from-slate-800/20 to-transparent backdrop-blur-sm">
             {/* Glow Effect */}
             <div className="absolute inset-0 bg-gradient-to-t from-blue-900/10 to-transparent pointer-events-none"></div>
-            
+
             <div className="relative p-4 space-y-3">
               {/* User Info */}
               <div className="flex items-center gap-3">
