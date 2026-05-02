@@ -1,6 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser, hasRole, isAdminUser, isSuperAdminUser } from "@/lib/auth";
+import {
+  getCurrentUser,
+  hasRole,
+  isAdminUser,
+  isSuperAdminUser,
+} from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser(request);
@@ -14,22 +19,23 @@ export async function GET(request: NextRequest) {
   const status = searchParams.get("status");
   const isSuperAdmin = isSuperAdminUser(user);
   const isAdmin = isAdminUser(user);
-  
+
   const authorizedIds = [
     user.locationId,
     ...(user.authorizedLocations?.map((l: any) => l.id) || []),
   ].filter(Boolean);
 
   const queryLocationId = searchParams.get("locationId");
-  
+
   const where: any = {};
-  if (employeeId) where.employeeId = { contains: employeeId, mode: "insensitive" };
+  if (employeeId)
+    where.employeeId = { contains: employeeId, mode: "insensitive" };
   if (name) where.employeeName = { contains: name, mode: "insensitive" };
   if (department && department !== "all") where.department = department;
   if (status && status !== "all") where.status = status;
-  
+
   // hasRole(user, "Business Manager") || hasRole(user, "Data Manager")
-  if (isSuperAdmin || isAdmin) {
+  if (isSuperAdmin || isAdmin || hasRole(user, "Data Manager")) {
     if (queryLocationId && queryLocationId !== "all") {
       where.locationId = queryLocationId;
     }
@@ -47,7 +53,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  console.log(where)
+  console.log(where);
   try {
     const employees = await prisma.employee.findMany({
       where,
@@ -60,7 +66,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ employees });
   } catch (error) {
     console.error("Error fetching employees:", error);
-    return NextResponse.json({ message: "Error fetching employees" }, { status: 500 });
+    return NextResponse.json(
+      { message: "Error fetching employees" },
+      { status: 500 },
+    );
   }
 }
 
@@ -70,16 +79,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: "Unauthorized." }, { status: 401 });
   }
 
-  if (!isAdminUser(user) && !hasRole(user, "Business Manager") && !hasRole(user, "Data Manager")) {
+  if (
+    !isAdminUser(user) &&
+    !hasRole(user, "Business Manager") &&
+    !hasRole(user, "Data Manager")
+  ) {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 
   try {
     const body = await request.json();
-    
+
     // Basic validation
     if (!body.employeeId || !body.employeeName) {
-      return NextResponse.json({ message: "Employee ID and Name are required" }, { status: 400 });
+      return NextResponse.json(
+        { message: "Employee ID and Name are required" },
+        { status: 400 },
+      );
     }
 
     // Check if employeeId already exists
@@ -88,16 +104,20 @@ export async function POST(request: NextRequest) {
     });
 
     if (existing) {
-      return NextResponse.json({ message: "Employee ID already exists" }, { status: 400 });
+      return NextResponse.json(
+        { message: "Employee ID already exists" },
+        { status: 400 },
+      );
     }
 
     // Set locationId from user if not provided
-    const targetLocationId = body.locationId || (isSuperAdminUser(user) ? null : user.locationId);
+    const targetLocationId =
+      body.locationId || (isSuperAdminUser(user) ? null : user.locationId);
 
-    const { 
-      id: _id, 
-      location: _location, 
-      createdAt: _createdAt, 
+    const {
+      id: _id,
+      location: _location,
+      createdAt: _createdAt,
       updatedAt: _updatedAt,
       cnicIssueDate,
       cnicExpiryDate,
@@ -106,7 +126,7 @@ export async function POST(request: NextRequest) {
       leaveDate,
       probationConfirmationDate,
       licenseExpiryDate,
-      ...data 
+      ...data
     } = body;
 
     const employee = await prisma.employee.create({
@@ -119,14 +139,21 @@ export async function POST(request: NextRequest) {
         birthDate: birthDate ? new Date(birthDate) : null,
         joinDate: joinDate ? new Date(joinDate) : null,
         leaveDate: leaveDate ? new Date(leaveDate) : null,
-        probationConfirmationDate: probationConfirmationDate ? new Date(probationConfirmationDate) : null,
-        licenseExpiryDate: licenseExpiryDate ? new Date(licenseExpiryDate) : null,
+        probationConfirmationDate: probationConfirmationDate
+          ? new Date(probationConfirmationDate)
+          : null,
+        licenseExpiryDate: licenseExpiryDate
+          ? new Date(licenseExpiryDate)
+          : null,
       },
     });
 
     return NextResponse.json({ employee });
   } catch (error) {
     console.error("Error creating employee:", error);
-    return NextResponse.json({ message: "Error creating employee" }, { status: 500 });
+    return NextResponse.json(
+      { message: "Error creating employee" },
+      { status: 500 },
+    );
   }
 }

@@ -154,11 +154,7 @@ export function LoaderPayrollManager({
       let headerRowIndex = -1;
       for (let i = 0; i < rawJson.length; i++) {
         const row: any = rawJson[i];
-        if (
-          row &&
-          Array.isArray(row) &&
-          (row.includes("NAME") || row.includes("EMP ID"))
-        ) {
+        if (row && Array.isArray(row) && row.includes("EMP ID")) {
           headerRowIndex = i;
           break;
         }
