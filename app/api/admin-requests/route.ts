@@ -1,6 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser, hasRole, isAdminUser, isSuperAdminUser } from "@/lib/auth";
+import {
+  getCurrentUser,
+  hasRole,
+  isAdminUser,
+  isSuperAdminUser,
+} from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,17 +30,15 @@ export async function GET(request: NextRequest) {
         where: { userId: user.id },
       });
       if (!employee) {
-        return NextResponse.json({ error: "Employee record not found" }, { status: 404 });
+        return NextResponse.json(
+          { error: "Employee record not found" },
+          { status: 404 },
+        );
       }
       where.employeeId = employee.id;
     } else {
       if (locationId && locationId !== "all") {
         where.employee = { locationId };
-      } else if (!isSuperAdmin) {
-        where.employee = { locationId: user.locationId };
-      }
-      if (employeeId) {
-        where.employeeId = employeeId;
       }
     }
 
@@ -67,7 +70,7 @@ export async function GET(request: NextRequest) {
     console.error(error);
     return NextResponse.json(
       { error: "Failed to fetch admin requests" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -91,7 +94,10 @@ export async function POST(req: NextRequest) {
         select: { id: true, employeeName: true },
       });
       if (!employee) {
-        return NextResponse.json({ error: "Employee record not found" }, { status: 404 });
+        return NextResponse.json(
+          { error: "Employee record not found" },
+          { status: 404 },
+        );
       }
       employeeId = employee.id;
       body.employeeName = employee.employeeName;
@@ -99,7 +105,14 @@ export async function POST(req: NextRequest) {
       // Constraint: only one pending request per month per employee
       const now = new Date();
       const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      const lastDay = new Date(
+        now.getFullYear(),
+        now.getMonth() + 1,
+        0,
+        23,
+        59,
+        59,
+      );
 
       const pendingRequest = await prisma.adminRequest.findFirst({
         where: {
@@ -115,7 +128,7 @@ export async function POST(req: NextRequest) {
       if (pendingRequest) {
         return NextResponse.json(
           { error: "You already have a pending admin request for this month." },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
@@ -129,11 +142,17 @@ export async function POST(req: NextRequest) {
     }
 
     if (!employeeId) {
-      return NextResponse.json({ error: "Missing employee information" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing employee information" },
+        { status: 400 },
+      );
     }
 
     if (!body.subject || !body.details) {
-      return NextResponse.json({ error: "Subject and Details are required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Subject and Details are required" },
+        { status: 400 },
+      );
     }
 
     const data: any = {
@@ -150,7 +169,7 @@ export async function POST(req: NextRequest) {
     console.error(error);
     return NextResponse.json(
       { error: "Failed to create admin request" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
