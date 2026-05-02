@@ -83,12 +83,20 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
     }
 
-    // Check if the uploaded month/year is in the past
+    // Allow the immediate previous month through the 10th of the current month.
     const currentDate = new Date();
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth() + 1;
+    const requestedMonthDate = new Date(year, month - 1, 1);
+    const currentMonthDate = new Date(currentYear, currentMonth - 1, 1);
+    const previousMonthDate = new Date(currentYear, currentMonth - 2, 1);
+    const isPastMonth = requestedMonthDate < currentMonthDate;
+    const isImmediatePreviousMonth =
+      year === previousMonthDate.getFullYear() &&
+      month === previousMonthDate.getMonth() + 1;
+    const isWithinPreviousMonthUploadWindow = currentDate.getDate() <= 10;
 
-    if (year < currentYear || (year === currentYear && month < currentMonth)) {
+    if (isPastMonth && !(isImmediatePreviousMonth && isWithinPreviousMonthUploadWindow)) {
         return NextResponse.json({ error: "Cannot upload records for previous months" }, { status: 400 });
     }
 

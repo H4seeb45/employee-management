@@ -213,9 +213,18 @@ export function PayrollManager({
 
   const isCurrentMonth = useMemo(() => {
     const now = new Date();
+    const selectedMonth = parseInt(month);
+    const selectedYear = parseInt(year);
+    const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const isSelectedCurrentMonth =
+      selectedMonth === now.getMonth() + 1 && selectedYear === now.getFullYear();
+    const isSelectedImmediatePreviousMonth =
+      selectedMonth === previousMonth.getMonth() + 1 &&
+      selectedYear === previousMonth.getFullYear();
+
     return (
-      parseInt(month) === now.getMonth() + 1 &&
-      parseInt(year) === now.getFullYear()
+      (isSelectedImmediatePreviousMonth && now.getDate() <= 10) ||
+      (isSelectedCurrentMonth && now.getDate() > 10)
     );
   }, [month, year]);
 
