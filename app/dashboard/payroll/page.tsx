@@ -96,7 +96,7 @@ export default function PayrollPage() {
               ))}
             </SelectContent>
           </Select>
-          {user?.roles?.some((role: any) =>
+          {user?.user?.roles?.some((role: any) =>
             ["Admin", "Super Admin"].includes(role),
           ) && (
             <Select value={locationId} onValueChange={setLocationId}>
