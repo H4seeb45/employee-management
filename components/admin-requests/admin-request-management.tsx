@@ -69,10 +69,11 @@ export function AdminRequestManagement() {
   const [selectedYear, setSelectedYear] = useState<string>(
     new Date().getFullYear().toString(),
   );
-  const [selectedLocation, setSelectedLocation] = useState<string>("all");
-
   const isAdmin = user?.roles?.some((role: any) =>
     ["Admin", "Super Admin"].includes(role),
+  );
+  const [selectedLocation, setSelectedLocation] = useState<string>(
+    isAdmin ? "all" : user?.locationId || "",
   );
 
   const months = [
@@ -96,7 +97,7 @@ export function AdminRequestManagement() {
   }, []);
 
   useEffect(() => {
-    if (mounted) {
+    if (mounted && user) {
       fetchRequests();
     }
   }, [mounted, selectedMonth, selectedYear, selectedLocation]);
