@@ -200,7 +200,7 @@ export async function GET(request: NextRequest) {
             return sum + installment;
           }, 0);
 
-      const totalDeduction = eobi + socialSecurity + (emp.taxDeduction === "Yes" ? incomeTax : 0) + loanDeduction + advanceDeduction + shortages + marketCredit;
+      const totalDeduction = eobi + socialSecurity + ((emp.taxDeduction === "Yes" || emp.taxDeduction === "yes" || emp.taxDeduction === "YES") ? incomeTax : 0) + loanDeduction + advanceDeduction + shortages + marketCredit;
       const netSalary = grossSalary - totalDeduction;
 
       // if (emp.employeeName === "Ronan Lindsey"){
@@ -239,7 +239,7 @@ export async function GET(request: NextRequest) {
         grossSalary,
         eobi,
         socialSecurity,
-        incomeTax: emp.taxDeduction === "Yes" ? incomeTax : 0,
+        incomeTax: (emp.taxDeduction === "Yes" || emp.taxDeduction === "yes" || emp.taxDeduction === "YES") ? incomeTax : 0,
         advance: advanceDeduction,
         loan: loanDeduction,
         shortages,
