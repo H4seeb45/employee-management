@@ -181,6 +181,10 @@ export async function GET(request: NextRequest) {
       const advanceDeduction = existingProcessed
         ? (existingProcessed.advance || 0)
         : emp.advances.reduce((sum, a) => {
+            // no advance deduction for loader supervisors
+            if(emp.position === "LOADER SUPERVISER" && emp.department === "LOADERS"){
+              return 0;
+            }
             let installment = a.monthlyInstallment || a.balance || 0;
             if (a.balance !== null && installment > a.balance) {
               installment = a.balance;
